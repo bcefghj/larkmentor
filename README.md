@@ -57,7 +57,7 @@ LarkMentor 是一个运行在**飞书 IM** 里的 AI Bot，同时解决知识工
 | 服务线 | 做什么 | 核心模块 |
 |--------|--------|----------|
 | **Smart Shield（消息层守护）** | 6 维分类引擎挡掉 80% 低优先级消息；专注结束后用 Recovery Card 帮你快速回到上下文 | `core/classification_engine.py`、`core/recovery_card.py` |
-| **Rookie Mentor（表达层带教）** | 替你起草消息回复、澄清模糊任务、生成 STAR 周报、完成新人入职 5 问——**永远是草稿，永远不自动发送** | `core/mentor/` |
+| **Mentor（表达层引导）** | 替你起草消息回复、澄清模糊任务、生成 STAR 周报、完成新人入职 5 问——**永远是草稿，永远不自动发送** | `core/mentor/` |
 
 两条服务线共享同一份组织知识库（用户级 RAG）和记忆系统（FlowMemory），这是它们真正"合体"而不是"拼凑"的原因。
 

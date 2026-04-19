@@ -74,8 +74,8 @@ STRESS_SCRIPT = STANDARD_SCRIPT + [
 
 
 def _build_test_client():
-    app_id = os.environ.get("TEST_SENDER_APP_ID", "cli_a9688d7cc338dcb5")
-    app_secret = os.environ.get("TEST_SENDER_APP_SECRET", "odndHQVnLkX3i4jQkTN8hbTUlWnSJSjZ")
+    app_id = os.environ.get("TEST_SENDER_APP_ID", "")
+    app_secret = os.environ.get("TEST_SENDER_APP_SECRET", "")
     if not (app_id and app_secret):
         raise RuntimeError("Set TEST_SENDER_APP_ID and TEST_SENDER_APP_SECRET")
     return lark.Client.builder().app_id(app_id).app_secret(app_secret).build()
