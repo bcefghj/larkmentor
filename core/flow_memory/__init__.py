@@ -1,4 +1,4 @@
-"""FlowMemory: a three-tier long-term memory engine for the FlowGuard agent.
+"""FlowMemory: a three-tier long-term memory engine for the LarkMentor agent.
 
 Inspired by Anthropic Claude Code's wU2 compaction pipeline and the 6-tier
 CLAUDE.md memory system. Designed for the OpenClaw track-2 brief

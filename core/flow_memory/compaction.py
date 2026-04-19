@@ -22,7 +22,7 @@ logger = logging.getLogger("flowguard.memory.compaction")
 
 
 COMPACT_PROMPT = """\
-你是 FlowGuard 的会话压缩器。把下面这段用户的工作流事件压缩成 ≤200 字的 markdown 摘要。
+你是 LarkMentor 的会话压缩器。把下面这段用户的工作流事件压缩成 ≤200 字的 markdown 摘要。
 
 == 事件列表（按时间正序，每条 1 行）==
 {events}

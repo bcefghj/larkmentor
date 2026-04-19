@@ -1,5 +1,5 @@
 CLASSIFY_PROMPT = """\
-你是FlowGuard消息分级引擎。用户正处于深度工作状态，你需要判断新消息的优先级。
+你是LarkMentor消息分级引擎。用户正处于深度工作状态，你需要判断新消息的优先级。
 
 == 用户当前状态 ==
 {user_context}
@@ -23,7 +23,7 @@ P3（静默归档）：群聊闲聊；广播通知；与当前工作完全无关
 """
 
 AUTO_REPLY_PROMPT = """\
-你是FlowGuard，用户的智能工作助手。用户目前正在专注工作，无法立即回复消息。
+你是LarkMentor，用户的智能工作助手。用户目前正在专注工作，无法立即回复消息。
 请根据用户的当前工作状态，为收到的消息生成一条简短、礼貌、专业的自动回复。
 
 用户当前状态：{user_context}
@@ -35,13 +35,13 @@ AUTO_REPLY_PROMPT = """\
 2. 说明用户正在忙，大约何时可以查看
 3. 不要泄露用户正在做什么的具体内容
 4. 语气友好专业
-5. 末尾加上 [FlowGuard代回复]
+5. 末尾加上 [LarkMentor代回复]
 
 直接返回回复文本，不要JSON。
 """
 
 CONTEXT_RECOVERY_PROMPT = """\
-你是FlowGuard工作恢复助手。用户刚刚结束一段专注工作时间，你需要帮他快速回到工作状态。
+你是LarkMentor工作恢复助手。用户刚刚结束一段专注工作时间，你需要帮他快速回到工作状态。
 
 == 专注会话信息 ==
 开始时间：{start_time}
@@ -110,7 +110,7 @@ ROOKIE_WEEKLY_PROMPT = """\
 # ── v4 Mentor prompts (Rookie Buddy 升级 · 多角色 + STAR + 澄清 + 引用 + NVC) ──
 
 MENTOR_ROUTER_PROMPT = """\
-你是 FlowGuard Mentor 的路由器。用户发了一条消息，请判断该交给哪个教练：
+你是 LarkMentor 的路由器。用户发了一条消息，请判断该交给哪个 Mentor 技能：
 
 - writing：用户在询问"怎么写/怎么改/怎么回"，或贴了准备发出的文字让你润色
 - task：用户在描述自己刚收到的任务/需求，需要拆解或确认
@@ -125,7 +125,7 @@ MENTOR_ROUTER_PROMPT = """\
 
 
 MENTOR_WRITE_PROMPT = """\
-你是 FlowGuard 写作教练。请帮职场新人优化一条准备发出的消息。
+你是 LarkMentor 写作 Mentor。请帮用户优化一条准备发出的消息。
 
 == 组织风格参考 ==
 {org_context}
@@ -163,7 +163,7 @@ MENTOR_WRITE_PROMPT = """\
 
 
 MENTOR_TASK_CLARIFY_PROMPT = """\
-你是 FlowGuard 任务教练。用户刚收到一条任务/需求描述，请判断是否需要先澄清。
+你是 LarkMentor 任务 Mentor。用户刚收到一条任务/需求描述，请判断是否需要先澄清。
 
 == 组织风格参考 ==
 {org_context}
@@ -196,7 +196,7 @@ MENTOR_TASK_CLARIFY_PROMPT = """\
 
 
 MENTOR_REVIEW_STAR_PROMPT = """\
-你是 FlowGuard 汇报教练。基于用户最近 7 天工作记忆，生成 STAR 结构周报。
+你是 LarkMentor 汇报 Mentor。基于用户最近 7 天工作记忆，生成 STAR 结构周报。
 
 == 用户基础信息 ==
 {user_meta}
@@ -229,7 +229,7 @@ MENTOR_REVIEW_STAR_PROMPT = """\
 
 
 MENTOR_PROACTIVE_REPLY_PROMPT = """\
-你是 FlowGuard 沟通教练。用户正在专注/或刚结束专注，刚刚收到一条来自重要联系人的消息。
+你是 LarkMentor 沟通 Mentor。用户正在勿扰/或刚退出勿扰，刚刚收到一条来自重要联系人的消息。
 请帮 TA 起草 3 版回复，让 TA 选一版直接发。
 
 == 用户当前状态 ==
@@ -266,7 +266,7 @@ MENTOR_PROACTIVE_REPLY_PROMPT = """\
 
 
 MENTOR_GROWTH_SUMMARY_PROMPT = """\
-你是 FlowGuard 成长档案的撰写者。基于本周用户的 Mentor 出手记录，写一段"本周成长摘要"。
+你是 LarkMentor 成长档案的撰写者。基于本周用户的 Mentor 出手记录，写一段"本周成长摘要"。
 
 == 本周条目（按时间顺序）==
 {entries}
@@ -282,7 +282,7 @@ MENTOR_GROWTH_SUMMARY_PROMPT = """\
 
 
 DAILY_ADVICE_PROMPT = """\
-你是FlowGuard数据分析师。根据用户今日的打断数据，生成一条个性化的改进建议。
+你是LarkMentor数据分析师。根据用户今日的打断数据，生成一条个性化的改进建议。
 
 == 今日数据 ==
 总消息数：{total}
@@ -291,7 +291,7 @@ P1重要：{p1}
 P2已代回复：{p2}
 P3已归档：{p3}
 深度工作时长：{focus_duration}
-FlowGuard拦截消息：{shielded}
+LarkMentor拦截消息：{shielded}
 
 请用一句话（不超过50字）给出一条具体、可执行的建议。不要泛泛而谈。
 直接返回建议文本。

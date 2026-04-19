@@ -1,10 +1,10 @@
 """Five-tier permission gate.
 
-Each FlowGuard tool declares the minimum permission level required to run.
+Each LarkMentor tool declares the minimum permission level required to run.
 Users sit at one of:
 
     READ_ONLY    – can observe but never sends or writes
-    SAFE_REPLY   – can auto-reply with the [FlowGuard代回复] tag (P2)
+    SAFE_REPLY   – can auto-reply with the [LarkMentor代回复] tag (P2)
     DRAFT_ACTION – can prepare drafts/tasks/calendar entries that need approval
     SEND_ACTION  – can send messages, create Bitable rows, write docs
     YOLO         – everything goes (only used for E2E tests)

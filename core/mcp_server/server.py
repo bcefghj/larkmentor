@@ -1,4 +1,4 @@
-"""FlowGuard MCP Server – stdio + SSE entrypoints.
+"""LarkMentor MCP Server – stdio + SSE entrypoints.
 
 This module is intentionally tolerant of MCP being unavailable:
 
@@ -6,7 +6,7 @@ This module is intentionally tolerant of MCP being unavailable:
   selected transport.
 * If not, fall back to a tiny HTTP JSON server on the same port so other
   Agents (or curl) can still call ``/list_tools`` and ``/call`` to drive
-  FlowGuard.
+  LarkMentor.
 
 Either way the tool implementations live in ``tools.py`` and stay testable
 without touching the network.
@@ -34,7 +34,7 @@ def _start_mcp_proper(transport: str, port: int) -> bool:
         logger.warning("mcp package not installed; falling back to JSON HTTP server")
         return False
 
-    server = FastMCP("FlowGuard")
+    server = FastMCP("LarkMentor")
 
     def _make_wrapper(name: str, fn):
         async def wrapper(**kwargs: Any) -> Any:
@@ -284,7 +284,7 @@ class _Handler(BaseHTTPRequestHandler):  # noqa: D401 – stdlib HTTP handler
 
 def _start_fallback_http(host: str, port: int) -> None:
     server = ThreadingHTTPServer((host, port), _Handler)
-    logger.info("FlowGuard fallback MCP HTTP server listening on http://%s:%s", host, port)
+    logger.info("LarkMentor fallback MCP HTTP server listening on http://%s:%s", host, port)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -292,7 +292,7 @@ def _start_fallback_http(host: str, port: int) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="FlowGuard MCP Server")
+    parser = argparse.ArgumentParser(description="LarkMentor MCP Server")
     parser.add_argument("--transport", choices=["stdio", "sse", "http"], default="stdio",
                         help="stdio for MCP clients, sse for FastMCP, http for plain JSON")
     parser.add_argument("--host", default="0.0.0.0")

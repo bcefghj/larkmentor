@@ -1,4 +1,4 @@
-"""Tool implementations exposed by the FlowGuard MCP Server.
+"""Tool implementations exposed by the LarkMentor MCP Server.
 
 Each function returns a JSON-serialisable dict; the server module wraps
 them into MCP tool descriptors. We deliberately keep the bodies framework-
@@ -50,7 +50,7 @@ def tool_classify_message(
     chat_name: str = "p2p",
     chat_type: str = "group",
 ) -> Dict[str, Any]:
-    """Run the FlowGuard classifier without sending any reply (read-only)."""
+    """Run the LarkMentor classifier without sending any reply (read-only)."""
     decision = default_manager().check(tool="shield.classify", user_open_id=user_open_id)
     if not decision.allowed:
         audit(actor=user_open_id, action="shield.classify",
@@ -247,7 +247,7 @@ TOOL_REGISTRY = {
     ),
     "classify_message": (
         tool_classify_message,
-        "Classify a message via the FlowGuard 6-dim engine. Args: user_open_id, sender_name, sender_id, content, chat_name?, chat_type?.",
+        "Classify a message via the LarkMentor 6-dim engine. Args: user_open_id, sender_name, sender_id, content, chat_name?, chat_type?.",
     ),
     "get_recent_digest": (
         tool_get_recent_digest,

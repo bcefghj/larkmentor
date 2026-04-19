@@ -70,7 +70,7 @@ def send_all_daily_reports():
 def get_report_text(user: UserState) -> str:
     stats = generate_daily_stats(user)
     if stats["total"] == 0:
-        return "今天还没有收到消息记录。开始专注后，FlowGuard 会自动追踪。"
+        return "今天还没有收到消息记录。开始专注后，LarkMentor 会自动追踪。"
 
     focus_dur = fmt_duration(stats["focus_seconds"])
     saved = stats["shielded"] * 2
@@ -83,6 +83,6 @@ def get_report_text(user: UserState) -> str:
         f"- P2 代回复：{stats['p2']}\n"
         f"- P3 归档：{stats['p3']}\n\n"
         f"深度工作时长：{focus_dur}\n"
-        f"FlowGuard 拦截消息：{stats['shielded']} 条\n"
+        f"LarkMentor 拦截消息：{stats['shielded']} 条\n"
         f"预估节省：约 {saved} 分钟注意力恢复时间"
     )

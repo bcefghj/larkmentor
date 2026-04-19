@@ -1,6 +1,6 @@
 """Sender Profile – per-sender behavior memory and identity classification.
 
-This module is part of FlowGuard's 6-dimension classifier. It maintains a
+This module is part of LarkMentor's 6-dimension classifier. It maintains a
 persistent profile per sender (open_id) capturing:
 
 - identity_tag : VIP / superior / peer / unknown / bot

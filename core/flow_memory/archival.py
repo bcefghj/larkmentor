@@ -134,7 +134,7 @@ def write_archival_summary(
 def query_archival(
     open_id: str, *, kinds: Optional[List[str]] = None, since_ts: int = 0, limit: int = 20,
 ) -> List[ArchivalEntry]:
-    """Linear scan of the JSONL store. Good enough at FlowGuard scale (<100k entries)."""
+    """Linear scan of the JSONL store. Good enough at LarkMentor scale (<100k entries)."""
     if not ARCHIVE_FILE.exists():
         return []
     out: List[ArchivalEntry] = []

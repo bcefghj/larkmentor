@@ -1,7 +1,7 @@
 """Dual-Bot End-to-End Test Driver.
 
 This script uses the *TestSender* Feishu app to send a series of messages
-to a target user (the developer's Feishu account). The *FlowGuard* main
+to a target user (the developer's Feishu account). The *LarkMentor* main
 bot (the system under test) processes them and sends back classifications,
 auto-replies, and cards.
 
@@ -37,7 +37,7 @@ import lark_oapi as lark
 
 
 SHORT_SCRIPT = [
-    ("hello", "你好 FlowGuard，先做个自我介绍吧"),
+    ("hello", "你好 LarkMentor，先做个自我介绍吧"),
     ("urgent", "线上紧急故障！订单服务挂了，立即处理"),
     ("question", "请教一下 FastAPI 怎么实现 streaming"),
     ("chitchat", "今天午饭吃啥呀"),
@@ -138,7 +138,7 @@ def run(scenario_name: str = "standard", pause_sec: int = None):
 
     print("-" * 70)
     print(f"Sent {success}/{len(script)} messages successfully.")
-    print(f"Now check the FlowGuard target account for cards/auto-replies.")
+    print(f"Now check the LarkMentor target account for cards/auto-replies.")
     sys.exit(0 if success == len(script) else 1)
 
 

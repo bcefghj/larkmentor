@@ -1,6 +1,6 @@
 """Regex-based PII scrubber. Lightweight, no external dependencies.
 
-For the FlowGuard scope this catches the everyday risks: phone number,
+For the LarkMentor scope this catches the everyday risks: phone number,
 mainland-China ID card, email, bank card, and Feishu ``ou_`` open_id (since
 those should never travel into a third-party LLM payload).
 

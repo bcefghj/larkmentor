@@ -14,7 +14,7 @@ logger = logging.getLogger("flowguard.review.weekly")
 
 
 WEEKLY_PROMPT = """\
-你是 FlowGuard 周报生成器。基于用户最近 7 天的工作记忆，生成一份可以直接发给上级的周报。
+你是 LarkMentor 周报生成器。基于用户最近 7 天的工作记忆，生成一份可以直接发给上级的周报。
 
 == 用户基础信息 ==
 {user_meta}

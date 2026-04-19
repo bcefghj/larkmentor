@@ -1,4 +1,4 @@
-"""FlowGuard 8-layer security stack.
+"""LarkMentor 8-layer security stack.
 
 Inspired by Anthropic Claude Code's seven-gate pipeline. Layers (in order):
 

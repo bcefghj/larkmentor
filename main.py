@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FlowGuard v4.0 – 飞书 AI 工作伙伴：守护 + 教练
+LarkMentor – 飞书 AI 协作伙伴：消息守护 + 表达引导
 主入口：启动飞书长连接 + 卡片回调 + 定时任务 + 日历轮询 + Mentor 周日摘要
 """
 
@@ -26,7 +26,7 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-logger = logging.getLogger("flowguard")
+logger = logging.getLogger("larkmentor")
 
 
 def _validate_config():
@@ -137,8 +137,8 @@ def _coach_weekly_growth_summary():
 def main():
     print(r"""
     ╔═══════════════════════════════════════════╗
-    ║  FlowGuard v4.0 – AI 工作伙伴 (守护+教练)   ║
-    ║  Smart Shield · Rookie Mentor · MCP         ║
+    ║  LarkMentor – 消息守护 + 表达引导            ║
+    ║  Smart Shield · Mentor · MCP · FlowMemory    ║
     ║  飞书 AI 校园挑战赛参赛作品                 ║
     ╚═══════════════════════════════════════════╝
     """)
@@ -171,13 +171,13 @@ def main():
     )
 
     logger.info("正在连接飞书长连接服务...")
-    logger.info("连接成功后，在飞书中搜索 FlowGuard 机器人开始使用")
+    logger.info("连接成功后，在飞书中搜索 LarkMentor 机器人开始使用")
     logger.info("按 Ctrl+C 停止")
 
     try:
         cli.start()
     except KeyboardInterrupt:
-        logger.info("FlowGuard 已停止")
+        logger.info("LarkMentor 已停止")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Build Feishu interactive message cards for all FlowGuard scenarios."""
+"""Build Feishu interactive message cards for LarkMentor."""
 
 from utils.time_utils import fmt_duration
 
@@ -35,9 +35,9 @@ def _btn(label: str, value: dict, style: str = "default") -> dict:
 
 def focus_started_card(duration_min: int = 0) -> dict:
     dur_text = f"（时长：{duration_min}分钟）" if duration_min else "（无限时长）"
-    card = _header("保护模式已开启", "blue")
+    card = _header("勿扰模式已开启", "blue")
     card["elements"] = [
-        _md(f"FlowGuard 已进入深度专注保护{dur_text}\n\n"
+        _md(f"LarkMentor 已进入消息守护{dur_text}\n\n"
             "**消息处理策略：**\n"
             "- P0 紧急消息 - 立即推送\n"
             "- P1 重要消息 - 攒批提醒\n"
@@ -45,7 +45,7 @@ def focus_started_card(duration_min: int = 0) -> dict:
             "- P3 闲聊广播 - 静默归档"),
         _divider(),
         _buttons(
-            _btn("结束专注", {"action": "end_focus"}, "danger"),
+            _btn("专注关", {"action": "end_focus"}, "danger"),
             _btn("查看状态", {"action": "show_status"}),
         ),
     ]
@@ -96,8 +96,8 @@ def recovery_card(stats: dict, recovery_text: str) -> dict:
         _md(f"**恢复建议：**\n{recovery_text}"),
         _divider(),
         _buttons(
-            _btn("继续专注", {"action": "start_focus"}, "primary"),
-            _btn("查看今日报告", {"action": "daily_report"}),
+            _btn("继续勿扰", {"action": "start_focus"}, "primary"),
+            _btn("今日简报", {"action": "daily_report"}),
         ),
     ]
     return card
@@ -113,7 +113,7 @@ def daily_report_card(
     focus_dur = fmt_duration(focus_seconds)
     saved_min = shielded * 2
 
-    card = _header("FlowGuard 今日报告", "purple")
+    card = _header("LarkMentor 今日简报", "purple")
     card["elements"] = [
         _md(f"**今日消息统计：**\n"
             f"- 总消息数：{total_interrupts}\n"
@@ -123,7 +123,7 @@ def daily_report_card(
             f"- P3 归档：{p3}"),
         _divider(),
         _md(f"**深度工作时长：** {focus_dur}\n"
-            f"**FlowGuard 帮你拦截：** {shielded} 条消息\n"
+            f"**LarkMentor 帮你拦截：** {shielded} 条消息\n"
             f"**预估节省：** 约 {saved_min} 分钟注意力恢复时间"),
         _divider(),
         _md(f"**建议：** {advice}" if advice else
@@ -133,37 +133,38 @@ def daily_report_card(
 
 
 def help_card() -> dict:
-    card = _header("FlowGuard v3 使用指南", "indigo")
+    card = _header("LarkMentor 使用指南", "indigo")
     card["elements"] = [
-        _md("**专注保护：**\n"
-            "- `开始专注` / `专注 90 分钟` — 进入保护模式\n"
-            "- `结束专注` — 退出保护模式\n"
-            "- `今天的状态` / `状态` — 查看当前状态\n"
-            "- `今日报告` — 查看打断分析"),
+        _md("**消息守护（Smart Shield）**\n"
+            "- `专注开` / `专注 90 分钟` — 进入勿扰，消息分级拦截\n"
+            "- `专注关` — 退出勿扰，弹出 Recovery Card\n"
+            "- `状态` — 查看当前守护状态"),
         _divider(),
-        _md("**v3 新功能：**\n"
-            "- `本周周报` / `周报` — 基于工作记忆自动生成周报\n"
-            "- `月报` / `wrapped` — 月度 Wrapped 卡片\n"
-            "- `我的记忆` — 查看工作记忆与归档摘要\n"
-            "- `撤回最近决策` — 一键撤回上一条 AI 决策\n"
-            "- `删除我的数据` — 清除所有个人数据"),
+        _md("**表达引导（Mentor）**\n"
+            "- `@Mentor 你的问题` — 写作、任务、复盘等表达建议\n"
+            "- `帮我看看：消息` — 消息措辞审核\n"
+            "- `写周报：内容` — 生成 STAR 格式周报草稿\n"
+            "- 所有 AI 输出均为草稿，需确认后发送"),
         _divider(),
-        _md("**白名单管理：**\n"
-            "- `白名单 张三` — 添加白名单\n"
+        _md("**简报 & 记忆**\n"
+            "- `日报` — 今日守护与协作摘要\n"
+            "- `周报` — 周度复盘简报\n"
+            "- `记忆` — 查看组织语境与工作记忆"),
+        _divider(),
+        _md("**白名单管理**\n"
+            "- `白名单 张三` — 添加（勿扰时该联系人消息直通）\n"
             "- `移除白名单 张三` — 移除\n"
             "- `白名单列表` — 查看"),
         _divider(),
-        _md("**工作台 & 决策：**\n"
-            "- `演示工作台` — 自动创建飞书多维表格 + 文档\n"
-            "- `我的工作台` — 查看已有工作台\n"
-            "- `最近决策` — 查看 AI 决策记录\n"
-            "- `为什么 决策ID` — 查看 6 维评分详情\n"
-            "- `回滚 决策ID P0` — 手动纠正分级"),
+        _md("**知识库 & 组织学习**\n"
+            "- `导入文档：内容` — 导入组织知识供 Mentor 引用\n"
+            "- `查询知识：关键词` — 检索知识库\n"
+            "- `知识库列表` — 查看已有知识"),
         _divider(),
-        _md("**多任务 & 新人模式：**\n"
+        _md("**其他**\n"
             "- `添加任务：任务名` / `切换任务：任务名` / `任务列表`\n"
-            "- `开启新人模式` — 启用表达优化\n"
-            "- `帮我看看：消息` / `写周报：内容`"),
+            "- `删除我的数据` — 清除所有个人数据\n"
+            "- `最近决策` — 查看 AI 决策记录"),
     ]
     return card
 
@@ -217,23 +218,23 @@ def achievements_list_card(unlocked: list, all_defs: list) -> dict:
 
 def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: str, complete: bool = True) -> dict:
     """The judge-friendly welcome card showing the auto-provisioned workspace."""
-    card = _header("欢迎使用 FlowGuard - 你的专属飞书工作台已就绪", "turquoise")
+    card = _header("欢迎使用 LarkMentor - 你的专属飞书工作台已就绪", "turquoise")
     if complete:
         body = (
             "我已经为你在飞书里**自动开通了 3 个资源**：\n\n"
-            f"📊 [我的打断分析看板（多维表格）]({bitable_url})\n"
+            f"📊 [我的消息分析看板（多维表格）]({bitable_url})\n"
             "  已预置 10 条演示数据，点开即可看到完整看板\n\n"
-            f"📘 [FlowGuard 使用指南（飞书文档）]({onboarding_url})\n"
+            f"📘 [LarkMentor 使用指南（飞书文档）]({onboarding_url})\n"
             "  5 分钟读完，了解所有用法\n\n"
-            f"📝 [上下文恢复卡片（动态文档）]({recovery_url})\n"
-            "  每次结束专注，我会在这里追加一张恢复卡片\n\n"
+            f"📝 [Recovery Card（动态文档）]({recovery_url})\n"
+            "  每次退出勿扰，我会在这里追加一张恢复卡片\n\n"
             "—— 点开任意一个，开始体验。"
         )
     else:
         body = (
             "已为你创建欢迎流程。部分高级资源（多维表格 / 文档）创建未完全成功，\n"
             "可能是应用权限尚未审批。你可以：\n\n"
-            "1. 直接发送 `开始专注` 体验核心能力\n"
+            "1. 直接发送 `专注开` 体验核心能力\n"
             "2. 给应用补全 `bitable:app` / `docx:document` 权限后\n"
             "   发送 `演示工作台` 重新生成"
         )
@@ -241,7 +242,7 @@ def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: 
         _md(body),
         _divider(),
         _buttons(
-            _btn("开始专注", {"action": "start_focus"}, "primary"),
+            _btn("专注开", {"action": "start_focus"}, "primary"),
             _btn("帮助", {"action": "help"}),
         ),
     ]
@@ -250,23 +251,21 @@ def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: 
 
 def first_time_welcome_card() -> dict:
     """Lightweight first-touch welcome before workspace provisioning."""
-    card = _header("FlowGuard - 智能工作状态守护", "blue")
+    card = _header("LarkMentor — 消息守护 + 表达引导", "blue")
     card["elements"] = [
         _md(
-            "你好！我是 FlowGuard，飞书生态中第一个**保护工作状态**的智能 Agent。\n\n"
-            "**核心能力**\n"
-            "- Smart Shield - 6 维消息智能分级\n"
-            "- Flow Detector - 自动识别专注状态\n"
-            "- Context Recall - 被打断后帮你找回上下文\n"
-            "- Rookie Buddy - 新人沟通辅导\n\n"
-            "**第一次使用？** 发送 `演示工作台`，我会自动给你创建多维表格 + 使用指南。\n"
-            "**老用户？** 发送 `开始专注` 直接进入保护模式。\n"
+            "你好！我是 LarkMentor，飞书里的 AI 协作伙伴。\n\n"
+            "**两件事，一个 Bot**\n"
+            "- **消息守护（Smart Shield）** — 该不该打断你？消息分级拦截 + 恢复汇总\n"
+            "- **表达引导（Mentor）** — 怎么说更合适？草稿改写 + 组织语境\n\n"
+            "**第一次使用？** 发送 `演示工作台`，自动创建多维表格 + 使用指南。\n"
+            "**直接体验？** 发送 `专注开` 进入消息守护。\n"
             "**完整指令？** 发送 `帮助`。"
         ),
         _divider(),
         _buttons(
             _btn("演示工作台", {"action": "demo_workspace"}, "primary"),
-            _btn("开始专注", {"action": "start_focus"}),
+            _btn("专注开", {"action": "start_focus"}),
             _btn("帮助", {"action": "help"}),
         ),
     ]
@@ -421,7 +420,7 @@ def mentor_growth_card(week_count: int, total_count: int, doc_url: str = "") -> 
             f"📓 [打开《我的新手成长记录》]({doc_url})\n\n"
             f"**本周条目**：{week_count}\n"
             f"**累计条目**：{total_count}\n\n"
-            "本档案由 FlowGuard 自动维护——每次 Mentor 出手都会追加一条；"
+            "本档案由 LarkMentor 自动维护——每次 Mentor 出手都会追加一条；"
             "每周日 21:00 会自动写一段成长摘要。"
         )
     else:

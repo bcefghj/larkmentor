@@ -90,8 +90,8 @@ def generate_auto_reply(
             reply = "收到，我正在忙，稍后查看回复你。"
     except Exception:
         reply = "收到，我正在忙，稍后查看回复你。"
-    if "[FlowGuard代回复]" not in reply:
-        reply += " [FlowGuard代回复]"
+    if "[LarkMentor代回复]" not in reply:
+        reply += " [LarkMentor代回复]"
     return reply
 
 

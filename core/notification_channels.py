@@ -102,10 +102,10 @@ class EmailChannel(Channel):
             return DispatchResult(self.name, False, "email not configured")
         try:
             msg = MIMEMultipart()
-            msg["From"] = Header(f"FlowGuard <{Config.SMTP_USER}>", "utf-8")
+            msg["From"] = Header(f"LarkMentor <{Config.SMTP_USER}>", "utf-8")
             msg["To"] = Config.NOTIFY_EMAIL
             msg["Subject"] = Header(
-                f"[FlowGuard {payload.level}] {payload.title}", "utf-8"
+                f"[LarkMentor {payload.level}] {payload.title}", "utf-8"
             )
 
             html = self._build_html(payload)
@@ -130,7 +130,7 @@ class EmailChannel(Channel):
                     max-width:560px;margin:24px auto;border:1px solid #E5E7EB;
                     border-radius:12px;overflow:hidden;">
           <div style="background:{color};color:#fff;padding:14px 20px;font-weight:600;">
-            FlowGuard 紧急转达 · {p.level}
+            LarkMentor 紧急转达 · {p.level}
           </div>
           <div style="padding:20px;color:#0F172A;line-height:1.6;">
             <p style="margin:0 0 8px 0;font-size:14px;color:#64748B;">
@@ -143,7 +143,7 @@ class EmailChannel(Channel):
           </div>
           <div style="padding:12px 20px;background:#F8FAFC;color:#94A3B8;
                       font-size:12px;text-align:center;border-top:1px solid #E5E7EB;">
-            此邮件由 FlowGuard Agent 自动发送，仅用于 P0 紧急消息兜底通知
+            此邮件由 LarkMentor Agent 自动发送，仅用于 P0 紧急消息兜底通知
           </div>
         </div>
         """
@@ -182,7 +182,7 @@ class ServerChanChannel(Channel):
             return DispatchResult(self.name, False, "serverchan not configured")
         try:
             url = f"https://sctapi.ftqq.com/{Config.WEBHOOK_SERVERCHAN_KEY}.send"
-            r = requests.post(url, data={"title": f"[FlowGuard {payload.level}] {payload.title}",
+            r = requests.post(url, data={"title": f"[LarkMentor {payload.level}] {payload.title}",
                                           "desp": payload.body}, timeout=5)
             return DispatchResult(self.name, r.ok, f"http {r.status_code}")
         except Exception as e:
@@ -202,7 +202,7 @@ class DingTalkChannel(Channel):
             return DispatchResult(self.name, False, "dingtalk not configured")
         try:
             data = {"msgtype": "markdown", "markdown": {
-                "title": f"FlowGuard {payload.level}: {payload.title}",
+                "title": f"LarkMentor {payload.level}: {payload.title}",
                 "text": f"### [{payload.level}] {payload.title}\n来自：{payload.sender}\n\n{payload.body}",
             }}
             r = requests.post(Config.WEBHOOK_DINGTALK_URL, json=data, timeout=5)

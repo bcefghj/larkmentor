@@ -1,4 +1,4 @@
-"""FlowGuard Dashboard - FastAPI realtime monitoring server.
+"""LarkMentor Dashboard - FastAPI realtime monitoring server.
 
 Endpoints:
     GET  /                     – static index.html
@@ -41,7 +41,7 @@ except ImportError as e:
     raise RuntimeError("Install fastapi & uvicorn: pip install fastapi uvicorn") from e
 
 
-app = FastAPI(title="FlowGuard Dashboard", version="3.0")
+app = FastAPI(title="LarkMentor Dashboard", version="3.0")
 
 # ----- runtime state -----
 DEMO_MODE = False
@@ -215,7 +215,7 @@ async def index():
     idx = STATIC_DIR / "index.html"
     if idx.exists():
         return idx.read_text(encoding="utf-8")
-    return "<h1>FlowGuard Dashboard</h1><p>Static UI not built. See dashboard/static/index.html</p>"
+    return "<h1>LarkMentor Dashboard</h1><p>Static UI not built. See dashboard/static/index.html</p>"
 
 
 @app.get("/api/health")

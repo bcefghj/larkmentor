@@ -1,4 +1,4 @@
-"""FlowGuard v4 · Rookie Mentor module.
+"""LarkMentor v4 · Rookie Mentor module.
 
 Multi-role agent that coaches new employees on workplace communication:
 - knowledge_base : per-user organisation RAG (Doubao embedding + sqlite, BM25 fallback)

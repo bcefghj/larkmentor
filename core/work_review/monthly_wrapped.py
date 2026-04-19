@@ -59,7 +59,7 @@ def generate_monthly_wrapped(open_id: str, *, days: int = 30) -> WrappedCard:
 
     headline = (
         f"过去 {days} 天，你专注 {len(focus_starts)} 次、累计 {total_focus_min} 分钟，"
-        f"FlowGuard 替你挡掉 {p2} 次低优先级打扰。"
+        f"LarkMentor 替你挡掉 {p2} 次低优先级打扰。"
     )
     bullets = [
         f"专注次数：{len(focus_starts)} · 总时长 {total_focus_min} 分钟",

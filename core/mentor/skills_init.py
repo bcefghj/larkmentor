@@ -47,7 +47,7 @@ WRITE_SKILL = SkillManifest(
         "改一下", "润色", "代我回", "建议回复", "草拟",
     ],
     system_prompt=(
-        "你是一位飞书 IM 的写作教练。给定用户草稿和组织上下文，"
+        "你是一位飞书 IM 的写作 Mentor。给定用户草稿和组织上下文，"
         "返回 NVC 4 段诊断 + 保守/中性/直接 3 版改写。永远不要替用户发送。"
     ),
     permission="DRAFT_ACTION",
@@ -63,7 +63,7 @@ TASK_SKILL = SkillManifest(
         "任务确认", "确认任务",
     ],
     system_prompt=(
-        "你是任务理解教练。给定用户描述的任务，评估它是否清晰。"
+        "你是任务理解 Mentor。给定用户描述的任务，评估它是否清晰。"
         "若 ambiguity > 0.5，主动给出 2 个澄清问题让用户去和需求方确认。"
     ),
     permission="DRAFT_ACTION",
@@ -79,7 +79,7 @@ REVIEW_SKILL = SkillManifest(
         "写周报", "本周回顾",
     ],
     system_prompt=(
-        "你是周报教练。综合用户本周消息/文档/任务，生成 STAR 结构周报草稿，"
+        "你是周报 Mentor。综合用户本周消息/文档/任务，生成 STAR 结构周报草稿，"
         "每条 bullet 引用至少一个来源。永远不要替用户发布。"
     ),
     permission="DRAFT_ACTION",
@@ -94,7 +94,7 @@ ONBOARD_SKILL = SkillManifest(
         "重新入职", "开始入职", "入职引导", "新人引导", "onboarding",
     ],
     system_prompt=(
-        "你是新人入职教练。一次性问 5 个问题，把答案存入用户级 KB 作为最高优先级 context。"
+        "你是新人入职 Mentor。一次性问 5 个问题，把答案存入用户级 KB 作为最高优先级 context。"
     ),
     permission="DRAFT_ACTION",
     metadata={"questions_count": 5},

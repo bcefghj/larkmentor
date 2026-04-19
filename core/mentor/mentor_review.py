@@ -120,7 +120,7 @@ def draft(open_id: str, *, user_meta: str = "", week_offset: int = 0) -> WeeklyD
             "## 本周周报（无 LLM · 自动汇总）\n\n"
             f"- [S] 本周 [T] 进入专注 [A] {stats['focus_count']} 次 "
             f"[R] 累计 {stats['focus_minutes']} 分钟 [来源: 待补充]\n"
-            f"- [S] 本周消息 [T] 分流处理 [A] FlowGuard "
+            f"- [S] 本周消息 [T] 分流处理 [A] LarkMentor "
             f"[R] P0 {stats['p0']} / P1 {stats['p1']} / P2 {stats['p2']} / P3 {stats['p3']} "
             f"[来源: 待补充]\n"
         )

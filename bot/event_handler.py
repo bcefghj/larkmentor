@@ -302,7 +302,7 @@ def _handle_card_action_async(open_id: str, action: str):
         elif action == "mentor_skip_clarify":
             send_text(open_id, "已跳过澄清。可直接 `任务确认：xxx` 让我给出理解+计划。")
         elif action == "mentor_start_task":
-            send_text(open_id, "💪 开工！需要时随时 `@教练 xxx`。")
+            send_text(open_id, "💪 开工！需要时随时 `@Mentor xxx`。")
         elif action == "mentor_back_to_clarify":
             send_text(open_id, "好的，把任务原文重新发我，或追加更多细节。")
         elif action == "mentor_append_growth":
@@ -417,7 +417,7 @@ def _do_handle(data):
                     focused_user.open_id,
                     f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
                     f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-                    f"FlowGuard 已自动结束保护模式，请尽快查看。"
+                    f"LarkMentor 已自动结束保护模式，请尽快查看。"
                 )
                 _cancel_focus_expiry(focused_user.open_id)
                 stats = focused_user.end_focus()
@@ -707,7 +707,7 @@ def _do_handle(data):
                 "📋 `任务确认：任务描述` · MentorTask（任务澄清：模糊度打分 + 澄清问题）\n"
                 "🤝 `重新入职` · MentorOnboard（新人入职：5 问知识沉淀）\n"
                 "📊 `写周报：本周内容` · MentorReview（周报回顾：STAR 引用周报）\n\n"
-                "🤖 `@导师 xxx` · 自动路由 / `@教练 xxx`（v4 兼容）\n"
+                "🤖 `@Mentor xxx` · 自动路由（写作/任务/复盘/入职）\n"
                 "📚 `导入文档：xxx` · 入库到组织 RAG（自动 PII 扫描）\n"
                 "🔍 `查询知识：xxx` · 验证 RAG 召回\n"
                 "🛎 `开启主动建议` / `关闭主动建议`\n"
@@ -863,7 +863,7 @@ def _do_handle(data):
     if command == "mentor_route":
             text_in = args.get("input", "")
             if not text_in:
-                send_text(open_id, "请在 `@教练` 后面输入你的问题。")
+                send_text(open_id, "请在 `@Mentor` 后面输入你的问题。")
                 return
             decision = v4_router.route(text_in)
             if decision.role == "writing":
@@ -878,7 +878,7 @@ def _do_handle(data):
             else:
                 send_text(
                     open_id,
-                    f"教练路由：{decision.role}（{decision.method}/{decision.confidence:.2f}）\n"
+                    f"Mentor 路由：{decision.role}（{decision.method}/{decision.confidence:.2f}）\n"
                     f"理由：{decision.why}\n\n"
                     "如需具体能力，请直接发：`帮我看看:` / `任务确认:` / `写周报:`"
                 )
@@ -892,7 +892,7 @@ def _do_handle(data):
 
     if command == "proactive_off":
             v4_proactive.set_enabled(user, False)
-            send_text(open_id, "🔕 已关闭 Mentor 主动建议。你仍可主动用 `帮我看看：` 调用写作教练。")
+            send_text(open_id, "🔕 已关闭 Mentor 主动建议。你仍可主动用 `帮我看看：` 或 `@Mentor` 调用。")
             return
 
     # ── v4 Mentor: growth journal ──
@@ -1000,7 +1000,7 @@ def _do_handle(data):
                 open_id,
                 f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
                 f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-                f"FlowGuard 已自动结束保护模式，请尽快查看。"
+                f"LarkMentor 已自动结束保护模式，请尽快查看。"
             )
             _cancel_focus_expiry(open_id)
             stats = user.end_focus()

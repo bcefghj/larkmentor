@@ -24,6 +24,7 @@ def parse_command(text: str) -> dict:
         "进入勿扰",
         "开启勿扰",
         "勿扰开",
+        "专注开",
     ):
         return {"command": "start_focus", "args": {"duration": 0}}
 
@@ -50,6 +51,7 @@ def parse_command(text: str) -> dict:
         "结束勿扰",
         "勿扰关",
         "退出勿扰 · 汇总",
+        "专注关",
     ):
         return {"command": "end_focus", "args": {}}
 
@@ -151,8 +153,8 @@ def parse_command(text: str) -> dict:
     if match:
         return {"command": "kb_delete_source", "args": {"source": match.group(1).strip()}}
 
-    # v4 Mentor: explicit role @教练
-    match = re.match(r"@?教练\s+(.+)", text, re.S)
+    # v4 Mentor: explicit role @Mentor / @教练（兼容）
+    match = re.match(r"@?(?:Mentor|mentor|教练)\s+(.+)", text, re.S)
     if match:
         return {"command": "mentor_route", "args": {"input": match.group(1).strip()}}
 

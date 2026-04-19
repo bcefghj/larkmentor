@@ -36,7 +36,7 @@ def create_task_from_message(
         body = (
             InputTask.builder()
             .summary(summary[:120])
-            .description(f"FlowGuard 自动创建（来源 message_id={message_id}）")
+            .description(f"LarkMentor 自动创建（来源 message_id={message_id}）")
             .members(members)
             .build()
         )

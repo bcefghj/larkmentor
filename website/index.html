@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LarkMentor — 不是免打扰，是会思考的工作守护者</title>
+<meta name="description" content="LarkMentor 是飞书生态中的 AI 工作状态守护 Agent。理解你在做什么，智能分流每条消息，并在中断后帮你回到状态。飞书 AI 校园挑战赛 2026 决赛参赛作品。">
+<meta property="og:title" content="LarkMentor — 飞书 AI 工作守护 Agent">
+<meta property="og:description" content="把飞书从消耗注意力的管道，变成保护工作状态的伙伴。">
+<meta name="theme-color" content="#fafaf9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#fafaf9;--bg2:#f5f5f4;--fg:#0c0a09;--fg2:#44403c;--fg3:#a8a29e;
+  --accent:#2563eb;--accent2:#3b82f6;--accent-soft:rgba(37,99,235,.08);
+  --p0:#ef4444;--p1:#f59e0b;--p2:#10b981;--p3:#a8a29e;
+  --card-bg:#fff;--card-border:#e7e5e4;--card-hover:#fff;
+  --max-w:1100px;--section-py:clamp(72px,11vh,128px);
+  --font-sans:'Inter',-apple-system,'PingFang SC','Noto Sans SC',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+}
+[data-theme="dark"]{
+  --bg:#0c0a09;--bg2:#1c1917;--fg:#fafaf9;--fg2:#d6d3d1;--fg3:#78716c;
+  --accent:#60a5fa;--accent2:#93c5fd;--accent-soft:rgba(96,165,250,.12);
+  --card-bg:#1c1917;--card-border:#292524;--card-hover:#262220;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:var(--font-sans);background:var(--bg);color:var(--fg);line-height:1.7;transition:background .4s,color .4s;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none;transition:opacity .2s}
+a:hover{opacity:.7}
+img{max-width:100%;display:block}
+code{font-family:var(--font-mono);font-size:.88em;background:var(--bg2);padding:1px 6px;border-radius:4px;color:var(--fg2)}
+
+/* Layout */
+.container{max-width:var(--max-w);margin:0 auto;padding:0 clamp(20px,5vw,48px)}
+section{padding:var(--section-py) 0;position:relative}
+.divider{height:1px;background:var(--card-border);margin:0 auto;max-width:var(--max-w);width:calc(100% - 96px)}
+
+/* Nav */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(18px) saturate(160%);-webkit-backdrop-filter:blur(18px) saturate(160%);background:rgba(250,250,249,.78);border-bottom:1px solid var(--card-border);transition:background .4s,border .4s}
+[data-theme="dark"] nav{background:rgba(12,10,9,.78)}
+nav .inner{max-width:var(--max-w);margin:0 auto;padding:0 clamp(20px,5vw,48px);display:flex;align-items:center;justify-content:space-between;height:60px}
+nav .logo{font-weight:700;font-size:1.05rem;letter-spacing:-.02em;display:flex;align-items:center;gap:6px}
+nav .logo .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+nav .nav-links{display:flex;gap:22px;align-items:center;font-size:.85rem;color:var(--fg2)}
+nav .nav-links a{color:var(--fg2)}
+nav .nav-links a:hover{color:var(--fg);opacity:1}
+.theme-btn{background:none;border:1px solid var(--card-border);border-radius:6px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg2);font-size:1rem;transition:border-color .2s,color .2s}
+.theme-btn:hover{border-color:var(--fg2);color:var(--fg)}
+
+/* Hero */
+.hero{min-height:96vh;display:flex;flex-direction:column;justify-content:center;padding-top:60px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-20%;right:-10%;width:600px;height:600px;background:radial-gradient(circle,var(--accent-soft) 0%,transparent 65%);pointer-events:none;z-index:0}
+.hero > *{position:relative;z-index:1}
+.hero .tag{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;color:var(--accent);font-weight:500;letter-spacing:.06em;text-transform:uppercase;margin-bottom:24px;padding:6px 12px;background:var(--accent-soft);border-radius:20px;width:fit-content}
+.hero .tag::before{content:'●';font-size:.5rem}
+.hero h1{font-size:clamp(2.2rem,5.8vw,4.2rem);font-weight:800;line-height:1.1;letter-spacing:-.035em;max-width:880px;margin-bottom:24px}
+.hero h1 em{font-style:normal;color:var(--accent);position:relative}
+.hero .subtitle{font-size:clamp(1rem,1.8vw,1.18rem);color:var(--fg2);max-width:620px;line-height:1.75;margin-bottom:36px}
+.hero .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:48px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:8px;font-size:.92rem;font-weight:500;transition:all .2s;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn-primary:hover{opacity:.85;transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--fg2);border-color:var(--card-border)}
+.btn-ghost:hover{color:var(--fg);border-color:var(--fg2)}
+.hero .team-line{font-size:.85rem;color:var(--fg3);margin-top:auto;padding-bottom:48px}
+.hero .team-line strong{color:var(--fg2);font-weight:500}
+
+/* Section common */
+.section-tag{display:inline-block;font-size:.72rem;color:var(--accent);font-weight:500;letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;padding:4px 10px;background:var(--accent-soft);border-radius:4px}
+.section-title{font-size:clamp(1.7rem,3.6vw,2.6rem);font-weight:700;letter-spacing:-.025em;line-height:1.22;margin-bottom:14px}
+.section-title em{font-style:normal;color:var(--accent)}
+.section-desc{color:var(--fg2);max-width:640px;font-size:.95rem;line-height:1.8;margin-bottom:48px}
+
+/* Quote (Jane style) */
+.quote-block{padding:32px 36px;border-left:3px solid var(--accent);background:var(--bg2);border-radius:0 8px 8px 0;margin:24px 0;font-size:1.05rem;color:var(--fg);line-height:1.75;font-weight:400}
+.quote-block .attr{display:block;margin-top:12px;font-size:.82rem;color:var(--fg3);font-weight:400}
+
+/* Problem stats */
+.problem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.stat-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:32px 26px;transition:all .2s}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 12px 36px rgba(0,0,0,.07);border-color:var(--accent)}
+.stat-card .num{font-size:2.6rem;font-weight:700;color:var(--accent);line-height:1;font-family:var(--font-mono);letter-spacing:-.02em}
+.stat-card .label{margin-top:10px;font-size:.86rem;color:var(--fg2);line-height:1.55}
+.stat-card .src{margin-top:10px;font-size:.7rem;color:var(--fg3)}
+
+/* Solution */
+.solution-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:24px}
+.sol-card{padding:36px 32px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;transition:all .2s;position:relative;overflow:hidden}
+.sol-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent);transform:scaleX(0);transform-origin:left;transition:transform .3s}
+.sol-card:hover{transform:translateY(-3px)}
+.sol-card:hover::after{transform:scaleX(1)}
+.sol-card .sol-num{font-family:var(--font-mono);font-size:.72rem;color:var(--accent);font-weight:600;letter-spacing:.1em;margin-bottom:14px}
+.sol-card h3{font-size:1.18rem;font-weight:600;margin-bottom:10px;letter-spacing:-.01em}
+.sol-card p{font-size:.9rem;color:var(--fg2);line-height:1.75}
+
+/* Killer demo */
+.killer-box{background:linear-gradient(135deg,var(--accent-soft) 0%,transparent 100%);border:1px solid var(--accent);border-radius:18px;padding:48px;margin-top:24px}
+.killer-box h3{font-size:1.4rem;font-weight:700;margin-bottom:16px}
+.killer-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;margin-top:28px}
+.killer-step{padding:20px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px}
+.killer-step .step-num{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);margin-bottom:8px}
+.killer-step h4{font-size:.95rem;font-weight:600;margin-bottom:6px}
+.killer-step p{font-size:.82rem;color:var(--fg2);line-height:1.6}
+
+/* Features */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.feat-card{padding:28px 24px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;transition:all .2s}
+.feat-card:hover{transform:translateY(-2px);border-color:var(--fg3)}
+.feat-card .feat-label{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);font-weight:500;letter-spacing:.06em;margin-bottom:10px}
+.feat-card h4{font-size:1.02rem;font-weight:600;margin-bottom:8px;letter-spacing:-.01em}
+.feat-card p{font-size:.84rem;color:var(--fg2);line-height:1.7}
+
+/* Classification visual */
+.class-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.class-card{padding:24px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;border-left-width:4px}
+.class-card.p0{border-left-color:var(--p0)}
+.class-card.p1{border-left-color:var(--p1)}
+.class-card.p2{border-left-color:var(--p2)}
+.class-card.p3{border-left-color:var(--p3)}
+.class-card .lvl{font-family:var(--font-mono);font-size:.95rem;font-weight:700;margin-bottom:6px}
+.class-card.p0 .lvl{color:var(--p0)}
+.class-card.p1 .lvl{color:var(--p1)}
+.class-card.p2 .lvl{color:var(--p2)}
+.class-card.p3 .lvl{color:var(--p3)}
+.class-card h4{font-size:.92rem;font-weight:600;margin-bottom:6px}
+.class-card p{font-size:.8rem;color:var(--fg2);line-height:1.65}
+.class-card .ex{margin-top:10px;font-size:.78rem;color:var(--fg3);font-style:italic}
+
+/* Architecture */
+.arch-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;padding:40px;overflow-x:auto}
+.arch-diagram{display:flex;flex-direction:column;gap:18px;align-items:center;font-size:.84rem;color:var(--fg2)}
+.arch-row{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.arch-node{padding:14px 22px;border:1px solid var(--card-border);border-radius:8px;background:var(--bg);text-align:center;min-width:130px;font-weight:500;color:var(--fg);font-size:.86rem}
+.arch-node.accent{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.arch-arrow{font-size:1.4rem;color:var(--fg3)}
+
+/* Metrics */
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+.metric{padding:24px 20px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;text-align:center}
+.metric .v{font-family:var(--font-mono);font-size:2rem;font-weight:700;color:var(--accent);line-height:1.1}
+.metric .k{font-size:.78rem;color:var(--fg2);margin-top:6px}
+
+/* Privacy */
+.privacy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.priv-card{padding:26px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px}
+.priv-card .priv-icon{font-size:1.4rem;margin-bottom:10px}
+.priv-card h4{font-size:.98rem;font-weight:600;margin-bottom:6px}
+.priv-card p{font-size:.83rem;color:var(--fg2);line-height:1.7}
+
+/* Roadmap */
+.roadmap-list{display:flex;flex-direction:column;gap:32px}
+.roadmap-phase{display:grid;grid-template-columns:140px 1fr;gap:24px}
+.roadmap-phase .phase-label{font-family:var(--font-mono);font-size:.82rem;font-weight:600;color:var(--accent);padding-top:4px}
+.roadmap-phase .phase-items{display:flex;flex-direction:column;gap:10px}
+.roadmap-phase .phase-items li{list-style:none;font-size:.88rem;color:var(--fg2);padding-left:18px;position:relative;line-height:1.6}
+.roadmap-phase .phase-items li::before{content:'';position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+
+/* Team */
+.team-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+.team-card{padding:36px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:14px;transition:transform .2s}
+.team-card:hover{transform:translateY(-2px)}
+.team-card .order{font-family:var(--font-mono);font-size:.7rem;color:var(--accent);margin-bottom:8px}
+.team-card h3{font-size:1.2rem;font-weight:700;margin-bottom:6px;letter-spacing:-.01em}
+.team-card .role{font-size:.82rem;color:var(--accent);margin-bottom:14px;font-weight:500}
+.team-card p{font-size:.86rem;color:var(--fg2);line-height:1.75;margin-bottom:18px}
+.team-links{display:flex;gap:14px;flex-wrap:wrap}
+.team-links a{font-size:.78rem;color:var(--fg3);transition:color .2s;padding:5px 10px;border:1px solid var(--card-border);border-radius:6px}
+.team-links a:hover{color:var(--accent);border-color:var(--accent);opacity:1}
+
+/* Footer */
+footer{border-top:1px solid var(--card-border);padding:48px 0;text-align:center;font-size:.78rem;color:var(--fg3)}
+footer .links{margin-top:14px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+footer .links a{color:var(--fg3)}
+
+/* Animations */
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s ease,transform .7s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+
+/* Responsive */
+@media(max-width:720px){
+  nav .nav-links a.hide-mobile{display:none}
+  .hero h1{font-size:2.1rem}
+  .hero .cta-row{flex-direction:column;align-items:stretch}
+  .hero .cta-row .btn{justify-content:center}
+  .killer-box{padding:28px 20px}
+  .roadmap-phase{grid-template-columns:1fr}
+  .roadmap-phase .phase-label{margin-bottom:-12px}
+  .arch-row{flex-direction:column;align-items:center}
+  .quote-block{padding:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="inner">
+    <div class="logo"><span class="dot"></span><span style="color:var(--accent)">Flow</span>Guard</div>
+    <div class="nav-links">
+      <a href="#problem" class="hide-mobile">Problem</a>
+      <a href="#solution" class="hide-mobile">Solution</a>
+      <a href="#killer" class="hide-mobile">Killer Demo</a>
+      <a href="#features" class="hide-mobile">Features</a>
+      <a href="#metrics" class="hide-mobile">Metrics</a>
+      <a href="#team">Team</a>
+      <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">&#9790;</button>
+    </div>
+  </div>
+</nav>
+
+<!-- 1. Hero -->
+<section class="hero container">
+  <div class="tag">Feishu AI Campus Challenge 2026 · 决赛参赛作品</div>
+  <h1>把飞书，从消耗注意力的管道，变成<em>保护工作状态</em>的伙伴。</h1>
+  <p class="subtitle">LarkMentor 不是免打扰工具，是会思考的工作守护 Agent。它理解你正在做什么，智能分流每条消息，并在中断后帮你回到状态。</p>
+  <div class="cta-row">
+    <a href="#killer" class="btn btn-primary">看核心杀手锏 →</a>
+    <a href="https://github.com/bcefghj/flowguard" target="_blank" class="btn btn-ghost">GitHub 仓库</a>
+    <a href="#team" class="btn btn-ghost">认识我们</a>
+  </div>
+  <p class="team-line">由 <strong>李洁盈 · Jane Li</strong>（产品 / 设计）与 <strong>戴尚好</strong>（全栈 / 工程）共同打造 · 2026.04</p>
+</section>
+
+<div class="divider"></div>
+
+<!-- 2. Problem -->
+<section id="problem" class="container">
+  <div class="section-tag reveal">Problem</div>
+  <h2 class="section-title reveal">深度工作，正在被切碎</h2>
+  <p class="section-desc reveal">办公工具擅长分配任务、催促进度，却从来没有保护过人的工作状态。打断不是技术问题，是一个被长期忽视的体验问题。</p>
+  <div class="problem-grid">
+    <div class="stat-card reveal"><div class="num">11<span style="font-size:1rem;font-weight:500">min</span></div><div class="label">知识工作者平均每 11 分钟被打断一次</div><div class="src">Gloria Mark, UC Irvine</div></div>
+    <div class="stat-card reveal"><div class="num">23<span style="font-size:1rem;font-weight:500">min</span></div><div class="label">每次打断后平均需要 23 分钟才能重新进入心流</div><div class="src">同上 · 实证研究</div></div>
+    <div class="stat-card reveal"><div class="num">$50<span style="font-size:1rem;font-weight:500">k</span></div><div class="label">每位工程师因注意力碎片化年均损失估值</div><div class="src">RescueTime / Atlassian 2024</div></div>
+    <div class="stat-card reveal"><div class="num">0</div><div class="label">现有 IM 工具中，能在中断后帮你恢复上下文的数量</div><div class="src">LarkMentor 团队 · 7 类工具横评</div></div>
+  </div>
+  <div class="quote-block reveal" style="margin-top:36px">
+    大多数深度工作失败，不是因为不会做，而是因为工作流被消息和沟通切碎。
+    <span class="attr">— 李洁盈 · 团队产品观</span>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 3. Solution -->
+<section id="solution" class="container">
+  <div class="section-tag reveal">Solution</div>
+  <h2 class="section-title reveal">LarkMentor 做<em>三件事</em></h2>
+  <p class="section-desc reveal">不是简单的免打扰。是一个理解工作上下文、主动做决策、被打断后仍能帮你回到状态的 Agent。</p>
+  <div class="solution-grid">
+    <div class="sol-card reveal"><div class="sol-num">01 · PROTECT</div><h3>理解你在做什么，自动保护</h3><p>日历轮询自动检测含「专注 / Deep Work」关键词的日程；多任务上下文管理让切换不丢思路；用户主动声明的"我正在做 X"也立即生效。</p></div>
+    <div class="sol-card reveal"><div class="sol-num">02 · SHIELD</div><h3>6 维分类，重要的通、不重要的挡</h3><p>每条消息穿过 6 维评分（身份 / 关系 / 内容 / 任务 / 时间 / 渠道），分级 P0–P3。规则兜底 + LLM 仅在边界仲裁，准确率 <strong>99%</strong>，LLM 调用率 &lt; 12%。</p></div>
+    <div class="sol-card reveal"><div class="sol-num">03 · RECOVER</div><h3>中断后，帮你回到状态</h3><p>结束专注后，LLM 基于日历、任务、消息记录生成<strong>个性化恢复卡</strong>——不只告诉你发生了什么，还告诉你下一步该做什么。这是我们最大的差异化。</p></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 4. Killer demo -->
+<section id="killer" class="container">
+  <div class="section-tag reveal">Killer Feature</div>
+  <h2 class="section-title reveal">飞书工作台，<em>评委一点链接就进了飞书生态</em></h2>
+  <p class="section-desc reveal">这是我们对赛道二「IM 办公协同智能助手」最深的演绎：LarkMentor 在评委首次私聊后，自动为他创建一套个人飞书工作台。</p>
+  <div class="killer-box reveal">
+    <h3>4 步，评委零部署体验全流程</h3>
+    <p style="color:var(--fg2);font-size:.9rem;line-height:1.75">无需安装、无需注册、无需扫码。只需打开飞书私聊 LarkMentor，30 秒内完成全部接入。</p>
+    <div class="killer-flow">
+      <div class="killer-step"><div class="step-num">STEP 01</div><h4>评委私聊任意一句话</h4><p>触发首次握手，LarkMentor 识别新用户。</p></div>
+      <div class="killer-step"><div class="step-num">STEP 02</div><h4>自动建多维表格</h4><p>「打断分析看板」预置 6 条示例数据，可视化打断模式。</p></div>
+      <div class="killer-step"><div class="step-num">STEP 03</div><h4>自动建共享文档</h4><p>「会后恢复卡片」+「上手指南」直接发链接到对话。</p></div>
+      <div class="killer-step"><div class="step-num">STEP 04</div><h4>每次结束专注</h4><p>恢复卡自动 append 到文档，形成长期工作日志。</p></div>
+    </div>
+  </div>
+  <div class="quote-block reveal" style="margin-top:36px">
+    我们不展示飞书 API 的"调用能力"，我们让评委亲身体验飞书生态的"网络效应"。
+    <span class="attr">— 戴尚好 · 团队工程观</span>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 5. Classification -->
+<section id="classify" class="container">
+  <div class="section-tag reveal">Smart Shield</div>
+  <h2 class="section-title reveal">6 维分类，<em>看得懂、可解释、能回滚</em></h2>
+  <p class="section-desc reveal">大多数 AI 黑箱让人不敢用。LarkMentor 给每个决策生成 6 维评分卡，用户能看、能问、能改正。</p>
+  <div class="class-grid">
+    <div class="class-card p0 reveal"><div class="lvl">P0 · BREAK_IN</div><h4>立即推送</h4><p>白名单 / 紧急关键词 / 上级 + 时间词 + 决策内容</p><div class="ex">"线上故障！立即处理"</div></div>
+    <div class="class-card p1 reveal"><div class="lvl">P1 · QUEUE</div><h4>专注结束后摘要</h4><p>当前任务关联 / 重要客户 / 同事请教 SQL</p><div class="ex">"Q3 方案的数据怎么取的"</div></div>
+    <div class="class-card p2 reveal"><div class="lvl">P2 · AUTO_REPLY</div><h4>智能代回</h4><p>普通提问 / 同部门事务 / 标注 [LarkMentor代回复]</p><div class="ex">"明天会议改到几点"</div></div>
+    <div class="class-card p3 reveal"><div class="lvl">P3 · ARCHIVE</div><h4>静默归档</h4><p>大群闲聊 / Bot 推送 / 与当前任务无关广播</p><div class="ex">"今天天气真好"</div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 6. Features -->
+<section id="features" class="container">
+  <div class="section-tag reveal">Features</div>
+  <h2 class="section-title reveal">12 个能力模块，一个完整守护链路</h2>
+  <p class="section-desc reveal">每个模块解决一个具体问题。它们不是独立功能，是从拦截、分流、回复、恢复、学习、可解释、可回滚的完整闭环。</p>
+  <div class="features-grid">
+    <div class="feat-card reveal"><div class="feat-label">SMART_SHIELD</div><h4>6 维消息分类引擎</h4><p>规则兜底 + LLM 边界仲裁，99% 准确率，& lt;12% LLM 调用率。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">FLOW_DETECTOR</div><h4>30+ 自然语言指令</h4><p>开始 / 暂停 / 结束专注、白名单、任务、新人模式、回滚……</p></div>
+    <div class="feat-card reveal"><div class="feat-label">CONTEXT_RECALL</div><h4>LLM 上下文恢复卡</h4><p>结束专注后告诉你「下一步做什么」，不只是「发生了什么」。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">FEISHU_WORKSPACE</div><h4>自动建台杀手锏</h4><p>多维表格 + 共享文档自动生成，评委零部署体验。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">SENDER_PROFILE</div><h4>发送方画像自学习</h4><p>记录每个发送方关系强度 / 历史响应，分类越用越准。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">EXPLAIN_AI</div><h4>可解释决策</h4><p>「为什么 dec_xxx」展开 6 维分数 + 触发规则，AI 不是黑箱。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">ROLLBACK</div><h4>一键回滚</h4><p>「回滚 dec_xxx P3」反馈到画像，形成学习闭环。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">CIRCUIT_BREAKER</div><h4>紧急熔断</h4><p>5 分钟内 5 条 P0 自动结束专注，保护用户不漏关键事件。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">MULTI_CHANNEL</div><h4>多渠道触达</h4><p>飞书 / SMTP 邮件 / Bark / 钉钉 webhook，任一通路掉电不影响。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">CALENDAR_SYNC</div><h4>日历自动检测</h4><p>每 5 分钟轮询专注日程，无需手动开关。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">ROOKIE_BUDDY</div><h4>新人辅导</h4><p>消息审核、任务确认、周报撰写，对接组织风格学习。</p></div>
+    <div class="feat-card reveal"><div class="feat-label">DASHBOARD</div><h4>实时管理面板</h4><p>FastAPI + 热力图，演示模式一键切换，运维 / 评委双友好。</p></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 7. Architecture -->
+<section id="architecture" class="container">
+  <div class="section-tag reveal">Architecture</div>
+  <h2 class="section-title reveal">完全基于飞书生态</h2>
+  <p class="section-desc reveal">WebSocket 长连接、无需公网端口；串联飞书 IM / 日历 / 通讯录 / 多维表格 / 文档；火山方舟（Doubao Pro）提供语义能力；本地 JSON 持久化，零外部数据库依赖。</p>
+  <div class="arch-box reveal">
+    <div class="arch-diagram">
+      <div class="arch-row"><div class="arch-node">飞书客户端 / 桌面 / 移动 / 手表</div></div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-row"><div class="arch-node accent">飞书 WebSocket 长连接（双工）</div></div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-row"><div class="arch-node">消息事件</div><div class="arch-node">卡片回调</div><div class="arch-node">日历轮询</div><div class="arch-node">通讯录</div></div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-row"><div class="arch-node accent">LarkMentor 引擎（Python · APScheduler · LarkOAPI）</div></div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-row"><div class="arch-node">Smart Shield</div><div class="arch-node">Flow Detector</div><div class="arch-node">Context Recall</div><div class="arch-node">Sender Profile</div><div class="arch-node">Workspace Init</div></div>
+      <div class="arch-arrow">&#8595;</div>
+      <div class="arch-row"><div class="arch-node">火山方舟 LLM</div><div class="arch-node">飞书 OpenAPI</div><div class="arch-node">SMTP / Webhook</div><div class="arch-node">JSON 持久化</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 8. Metrics & Testing -->
+<section id="metrics" class="container">
+  <div class="section-tag reveal">Metrics & Testing</div>
+  <h2 class="section-title reveal">不靠 PPT 数字，<em>每一项都有测试用例</em></h2>
+  <p class="section-desc reveal">三层测试体系：YAML 场景仿真 102 条、双 Bot 端到端剧本、30 项手工 SOP。每次提交都跑、每次决赛前都跑。</p>
+  <div class="metrics-grid">
+    <div class="metric reveal"><div class="v">99.0%</div><div class="k">分类准确率（102 场景）</div></div>
+    <div class="metric reveal"><div class="v">100%</div><div class="k">单元测试通过率（29/29）</div></div>
+    <div class="metric reveal"><div class="v">&lt;12%</div><div class="k">LLM 调用率（节省成本）</div></div>
+    <div class="metric reveal"><div class="v">&lt;200ms</div><div class="k">单条消息端到端延迟</div></div>
+    <div class="metric reveal"><div class="v">12</div><div class="k">能力模块全部上线</div></div>
+    <div class="metric reveal"><div class="v">3</div><div class="k">测试方案互补（A+B+C）</div></div>
+    <div class="metric reveal"><div class="v">7×24</div><div class="k">阿里云守护进程</div></div>
+    <div class="metric reveal"><div class="v">0</div><div class="k">数据外发（本地 JSON）</div></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 9. Privacy & Safety -->
+<section id="privacy" class="container">
+  <div class="section-tag reveal">Privacy &amp; Safety</div>
+  <h2 class="section-title reveal">企业敢用的前提：<em>说清楚不越界</em></h2>
+  <p class="section-desc reveal">LarkMentor 接管的是用户的消息流——这天然要求把权限、数据、决策的边界讲明白。我们做了 6 件事。</p>
+  <div class="privacy-grid">
+    <div class="priv-card reveal"><div class="priv-icon">🔐</div><h4>权限最小化</h4><p>只申请「IM 消息读 / 写 / 卡片」三类权限，不申请通讯录全量、不读群历史。</p></div>
+    <div class="priv-card reveal"><div class="priv-icon">📍</div><h4>数据本地化</h4><p>所有用户画像 / 决策日志存 JSON 在企业自有服务器，不回传任何中央服务。</p></div>
+    <div class="priv-card reveal"><div class="priv-icon">✂️</div><h4>正文不持久化</h4><p>仅存关键词样本片段（≤30 字），完整消息正文 24h 后自动清理。</p></div>
+    <div class="priv-card reveal"><div class="priv-icon">🪟</div><h4>决策可解释</h4><p>每条分类附 6 维评分卡，「为什么」一键展开，AI 不再是黑箱。</p></div>
+    <div class="priv-card reveal"><div class="priv-icon">⏪</div><h4>用户可回滚</h4><p>不满意可一键改正，反馈进入发送方画像，形成「学习闭环」而非「单向投喂」。</p></div>
+    <div class="priv-card reveal"><div class="priv-icon">🗑️</div><h4>一键删除</h4><p>「清除我的数据」二次确认后清空所有本人画像 / 决策 / 待办，符合 GDPR 思路。</p></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 10. Roadmap & Team -->
+<section id="roadmap" class="container">
+  <div class="section-tag reveal">Roadmap</div>
+  <h2 class="section-title reveal">未来方向</h2>
+  <p class="section-desc reveal">LarkMentor 不是一个功能，是一个持续进化的工作守护系统。决赛后我们会继续做下去。</p>
+  <div class="roadmap-list">
+    <div class="roadmap-phase reveal"><div class="phase-label">短期 1-2 月</div><ul class="phase-items"><li>P1 消息攒批智能时段推送</li><li>未读消息一句话 LLM 摘要</li><li>用户级 OAuth 日历 / 任务授权</li><li>飞书文档链接自动抓取学习</li><li>群聊维度白名单策略</li></ul></div>
+    <div class="roadmap-phase reveal"><div class="phase-label">中期 3-6 月</div><ul class="phase-items"><li>团队级注意力热力图与打断分析</li><li>MCP 集成：连接 IDE / 浏览器 / Notion</li><li>会议共识自动分析（前后衔接）</li><li>多模态消息（图 / 语音 / 文件）语义分级</li><li>用户可训练的个性化 AI 偏好</li></ul></div>
+    <div class="roadmap-phase reveal"><div class="phase-label">长期 6-12 月</div><ul class="phase-items"><li>企业级 SaaS：多租户 / 数据隔离 / SSO</li><li>周 / 月注意力健康趋势报告</li><li>钉钉 / 企业微信 / Slack 跨平台版本</li><li>IoT 联动：智能灯 / 手环进入专注模式</li></ul></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Team -->
+<section id="team" class="container">
+  <div class="section-tag reveal">Team</div>
+  <h2 class="section-title reveal">关于我们</h2>
+  <p class="section-desc reveal">两个人，互补的能力，共同的判断：好产品不是炫技，是真正能让用户被理解。</p>
+  <div class="team-grid">
+    <div class="team-card reveal">
+      <div class="order">01 / TEAM</div>
+      <h3>李洁盈 · Jane Li</h3>
+      <div class="role">Product · Design · Growth</div>
+      <p>跨界 AI Builder。工科底子、产品与交互设计、AI 辅助原型、硬件协同与增长表达。在意人的情绪、体验与长期价值。港科 TIE 全奖录取（2026 Incoming），深圳大学 BME 在读。</p>
+      <div class="team-links">
+        <a href="https://janeliii.netlify.app/" target="_blank">Portfolio ↗</a>
+        <a href="https://github.com/Jane-0213" target="_blank">GitHub</a>
+        <a href="mailto:JieyingLiii@outlook.com">Email</a>
+        <a href="https://www.xiaohongshu.com/user/profile" target="_blank">小红书 @李什么盈</a>
+      </div>
+    </div>
+    <div class="team-card reveal">
+      <div class="order">02 / TEAM</div>
+      <h3>戴尚好 · Dai Shanghao</h3>
+      <div class="role">Engineering · Full-stack · Infra</div>
+      <p>全栈开发。负责 LarkMentor 的技术架构、飞书 API 集成、LLM 工程、自动化测试与阿里云 7×24 运维。中国科学技术大学硕士在读（2027 届）。从零到一完成 v2.0 全部 12 个模块。</p>
+      <div class="team-links">
+        <a href="https://github.com/bcefghj" target="_blank">GitHub</a>
+        <a href="mailto:bcefghj@163.com">Email</a>
+        <a href="https://www.xiaohongshu.com/user/profile" target="_blank">小红书 @bcefghj</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <p><strong>LarkMentor v2.0</strong> &mdash; 飞书 AI 校园挑战赛 2026 决赛参赛作品</p>
+    <p style="margin-top:8px">Built with care. Designed to protect your flow.</p>
+    <div class="links">
+      <a href="https://github.com/bcefghj/flowguard" target="_blank">GitHub</a>
+      <a href="#killer">Killer Demo</a>
+      <a href="#privacy">Privacy</a>
+      <a href="mailto:bcefghj@163.com">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+const toggle = document.getElementById('themeToggle');
+const html = document.documentElement;
+const saved = localStorage.getItem('theme');
+if (saved === 'dark') html.setAttribute('data-theme', 'dark');
+else if (!saved && matchMedia('(prefers-color-scheme:dark)').matches) html.setAttribute('data-theme','dark');
+const setIcon = () => toggle.textContent = html.getAttribute('data-theme') === 'dark' ? '\u2600' : '\u263E';
+setIcon();
+toggle.addEventListener('click', () => {
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  if (isDark) { html.removeAttribute('data-theme'); localStorage.setItem('theme','light'); }
+  else { html.setAttribute('data-theme','dark'); localStorage.setItem('theme','dark'); }
+  setIcon();
+});
+
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }});
+}, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
