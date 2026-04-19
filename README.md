@@ -53,17 +53,26 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. 配置
+### 2. 配置飞书开发者平台
+
+> 详细步骤见 **[FEISHU_SETUP.md](FEISHU_SETUP.md)**（含截图说明、权限清单、常见报错）
+
+简要步骤：
+1. 在[飞书开放平台](https://open.feishu.cn/app) 创建**自建应用**
+2. 开启**机器人**能力
+3. 申请以下 **API 权限**：`im:message`、`im:message:send_as_bot`、`im:chat:readonly`、`contact:user.base:readonly`、`docx:document`、`bitable:app`
+4. 订阅**事件**：`im.message.receive_v1` 和 `card.action.trigger`（选「长连接」模式）
+5. **发布版本**（每次改权限后都要发布一次）
+
+然后配置 `.env`：
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env`，填入：
-
 | 变量 | 说明 | 获取方式 |
 |------|------|----------|
-| `FEISHU_APP_ID` | 飞书应用 ID | [飞书开放平台](https://open.feishu.cn/app) 创建自建应用 |
+| `FEISHU_APP_ID` | 飞书应用 ID | 飞书开放平台 → 凭证与基础信息 |
 | `FEISHU_APP_SECRET` | 飞书应用密钥 | 同上 |
 | `ARK_API_KEY` | 火山方舟 API Key | [火山方舟控制台](https://console.volcengine.com/ark) |
 | `ARK_BASE_URL` | 方舟 API 地址 | `https://ark.cn-beijing.volces.com/api/coding/v3` |
