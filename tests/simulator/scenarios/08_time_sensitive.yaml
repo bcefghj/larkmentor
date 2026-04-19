@@ -1,0 +1,51 @@
+# Category: 时间敏感性
+scenarios:
+  - id: ts_001
+    category: time_sensitive
+    description: "今晚 deadline"
+    sender: { name: "R", id: "u_ts_001", identity: peer }
+    chat: { type: p2p, name: "R" }
+    user_context: ""
+    message: "deadline 是今晚 8 点，进度怎么样"
+    expected_level: P0
+    expected_action: forward
+
+  - id: ts_002
+    category: time_sensitive
+    description: "30 分钟内 + 决策"
+    sender: { name: "S", id: "u_ts_002", identity: peer }
+    chat: { type: p2p, name: "S" }
+    user_context: ""
+    message: "30分钟内能给我答复吗，立刻要结论"
+    expected_level: P0
+    expected_action: forward
+
+  - id: ts_003
+    category: time_sensitive
+    description: "下班前"
+    sender: { name: "T", id: "u_ts_003", identity: superior }
+    chat: { type: p2p, name: "T" }
+    user_context: ""
+    message: "下班前把这个表整理一下发我"
+    expected_level: P0
+    expected_action: forward
+
+  - id: ts_004
+    category: time_sensitive
+    description: "明天再说"
+    sender: { name: "U", id: "u_ts_004", identity: peer }
+    chat: { type: p2p, name: "U" }
+    user_context: ""
+    message: "这个事情明天再说也行"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ts_005
+    category: time_sensitive
+    description: "tonight + urgent"
+    sender: { name: "V", id: "u_ts_005", identity: peer }
+    chat: { type: group, name: "intl-team", member_count: 8 }
+    user_context: ""
+    message: "tonight please immediately push the fix before midnight"
+    expected_level: P0
+    expected_action: forward

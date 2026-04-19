@@ -1,0 +1,51 @@
+# Category: 一般问询 → P1/P2
+scenarios:
+  - id: q_001
+    category: question
+    description: "技术问询"
+    sender: { name: "新人小A", id: "u_q_001", identity: peer }
+    chat: { type: p2p, name: "新人小A" }
+    user_context: "Q3 产品方案"
+    message: "请教一下，FastAPI 怎么实现 streaming response？"
+    expected_level: P1
+    expected_action: queue
+
+  - id: q_002
+    category: question
+    description: "业务问询"
+    sender: { name: "B 同学", id: "u_q_002", identity: peer }
+    chat: { type: group, name: "产品组", member_count: 8 }
+    user_context: ""
+    message: "用户分群的 RFM 模型是怎么算的"
+    expected_level: P1
+    expected_action: queue
+
+  - id: q_003
+    category: question
+    description: "无关问询"
+    sender: { name: "C", id: "u_q_003", identity: occasional }
+    chat: { type: group, name: "公司大群", member_count: 200 }
+    user_context: "Q3 产品方案"
+    message: "请问公司食堂今天有什么菜"
+    expected_level: P3
+    expected_action: archive
+
+  - id: q_004
+    category: question
+    description: "一般请教"
+    sender: { name: "D", id: "u_q_004", identity: occasional }
+    chat: { type: group, name: "技术群", member_count: 80 }
+    user_context: "API 设计"
+    message: "Postgres 的 jsonb 索引怎么建呀"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: q_005
+    category: question
+    description: "时间问询"
+    sender: { name: "E", id: "u_q_005", identity: peer }
+    chat: { type: p2p, name: "E" }
+    user_context: ""
+    message: "下周三的 review 几点开始"
+    expected_level: P1
+    expected_action: queue

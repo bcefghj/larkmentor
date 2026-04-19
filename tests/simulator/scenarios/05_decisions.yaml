@@ -1,0 +1,51 @@
+# Category: 决策类消息 → P0/P1
+scenarios:
+  - id: dec_001
+    category: decision
+    description: "需要确认"
+    sender: { name: "F", id: "u_dec_001", identity: peer }
+    chat: { type: p2p, name: "F" }
+    user_context: "feature 开发"
+    message: "这个方案确认按 A 走吗？"
+    expected_level: P1
+    expected_action: queue
+
+  - id: dec_002
+    category: decision
+    description: "approve"
+    sender: { name: "G", id: "u_dec_002", identity: superior }
+    chat: { type: p2p, name: "G" }
+    user_context: ""
+    message: "PRD 已发邮件，请你 approve"
+    expected_level: P0
+    expected_action: forward
+
+  - id: dec_003
+    category: decision
+    description: "拒绝/通过+今天deadline → P0"
+    sender: { name: "H", id: "u_dec_003", identity: peer }
+    chat: { type: group, name: "评审群", member_count: 10 }
+    user_context: ""
+    message: "这个 design 我觉得需要决定一下，今天能给个回复吗"
+    expected_level: P0
+    expected_action: forward
+
+  - id: dec_004
+    category: decision
+    description: "签字"
+    sender: { name: "I", id: "u_dec_004", identity: superior }
+    chat: { type: p2p, name: "I" }
+    user_context: ""
+    message: "请尽快 sign-off 这份合同"
+    expected_level: P0
+    expected_action: forward
+
+  - id: dec_005
+    category: decision
+    description: "合作决定"
+    sender: { name: "J", id: "u_dec_005", identity: peer }
+    chat: { type: p2p, name: "J" }
+    user_context: ""
+    message: "对方说必须今天决定要不要合作"
+    expected_level: P0
+    expected_action: forward

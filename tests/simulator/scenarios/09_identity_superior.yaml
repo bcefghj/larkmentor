@@ -1,0 +1,51 @@
+# Category: 上级 / VIP 身份
+scenarios:
+  - id: idsup_001
+    category: identity
+    description: "Superior 私聊"
+    sender: { name: "陈总", id: "u_chen_total", identity: superior }
+    chat: { type: p2p, name: "陈总" }
+    user_context: ""
+    message: "明天上午腾出半小时聊一下"
+    expected_level: P0
+    expected_action: forward
+
+  - id: idsup_002
+    category: identity
+    description: "VIP 私聊"
+    sender: { name: "投资人 W", id: "u_vip_w", identity: vip }
+    chat: { type: p2p, name: "投资人 W" }
+    user_context: ""
+    message: "下个季度的进展什么时候同步"
+    expected_level: P0
+    expected_action: forward
+
+  - id: idsup_003
+    category: identity
+    description: "Superior 大群普通发言"
+    sender: { name: "李 VP", id: "u_li_vp", identity: superior }
+    chat: { type: group, name: "全员", member_count: 1000 }
+    user_context: ""
+    message: "大家辛苦了"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: idsup_004
+    category: identity
+    description: "Bot 身份"
+    sender: { name: "CI Bot", id: "u_ci_bot", identity: bot }
+    chat: { type: group, name: "CI 通知", member_count: 50 }
+    user_context: ""
+    message: "构建任务 #1024 已完成"
+    expected_level: P3
+    expected_action: archive
+
+  - id: idsup_005
+    category: identity
+    description: "陌生人在大群发提问"
+    sender: { name: "陌生人X", id: "u_stranger_x", identity: unknown }
+    chat: { type: group, name: "技术分享", member_count: 800 }
+    user_context: ""
+    message: "大家好，分享一下经验"
+    expected_level: P3
+    expected_action: archive

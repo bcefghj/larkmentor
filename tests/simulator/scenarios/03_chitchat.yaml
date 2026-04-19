@@ -1,0 +1,71 @@
+# Category: 闲聊应被分级为 P3 / P2，非 P0
+scenarios:
+  - id: chat_001
+    category: chitchat
+    description: "纯闲聊"
+    sender: { name: "陌生人A", id: "u_chat_001", identity: unknown }
+    chat: { type: group, name: "公司大群", member_count: 200 }
+    user_context: "PRD 文档"
+    message: "哈哈哈这个表情包太搞笑了"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_002
+    category: chitchat
+    description: "OK 收到"
+    sender: { name: "陌生人B", id: "u_chat_002", identity: unknown }
+    chat: { type: group, name: "讨论群", member_count: 80 }
+    user_context: ""
+    message: "OK"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_003
+    category: chitchat
+    description: "早安问候"
+    sender: { name: "Sam", id: "u_chat_003", identity: occasional }
+    chat: { type: group, name: "早起群", member_count: 100 }
+    user_context: ""
+    message: "早，新的一天开始啦"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_004
+    category: chitchat
+    description: "奶茶"
+    sender: { name: "Tom", id: "u_chat_004", identity: occasional }
+    chat: { type: group, name: "下午茶", member_count: 30 }
+    user_context: ""
+    message: "今天喝奶茶吗，平台3-3"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_005
+    category: chitchat
+    description: "周末聊天"
+    sender: { name: "Jerry", id: "u_chat_005", identity: occasional }
+    chat: { type: group, name: "兴趣群", member_count: 200 }
+    user_context: ""
+    message: "周末去看话剧的有伙伴吗"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_006
+    category: chitchat
+    description: "嗯嗯"
+    sender: { name: "Kim", id: "u_chat_006", identity: occasional }
+    chat: { type: group, name: "同事群", member_count: 50 }
+    user_context: ""
+    message: "嗯嗯"
+    expected_level: P3
+    expected_action: archive
+
+  - id: chat_007
+    category: chitchat
+    description: "晚安"
+    sender: { name: "Lily", id: "u_chat_007", identity: occasional }
+    chat: { type: group, name: "夜聊", member_count: 25 }
+    user_context: ""
+    message: "晚安各位"
+    expected_level: P3
+    expected_action: archive

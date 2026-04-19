@@ -1,0 +1,51 @@
+# Category: 广播频道消息应降级
+scenarios:
+  - id: bc_001
+    category: broadcast
+    description: "公司公告"
+    sender: { name: "公司公告", id: "u_bc_001", identity: bot }
+    chat: { type: group, name: "全员通知", member_count: 1500 }
+    user_context: ""
+    message: "本周五的全员大会改到周一上午 10 点"
+    expected_level: P3
+    expected_action: archive
+
+  - id: bc_002
+    category: broadcast
+    description: "周报机器人"
+    sender: { name: "周报BOT", id: "u_bc_002", identity: bot }
+    chat: { type: group, name: "周报频道", member_count: 800 }
+    user_context: ""
+    message: "本周市场周报已发布，请查阅"
+    expected_level: P3
+    expected_action: archive
+
+  - id: bc_003
+    category: broadcast
+    description: "学习广播"
+    sender: { name: "K", id: "u_bc_003", identity: occasional }
+    chat: { type: group, name: "技术学习", member_count: 600 }
+    user_context: ""
+    message: "推荐一篇好文章：xxxx"
+    expected_level: P3
+    expected_action: archive
+
+  - id: bc_004
+    category: broadcast
+    description: "活动广播"
+    sender: { name: "工会", id: "u_bc_004", identity: bot }
+    chat: { type: group, name: "工会群", member_count: 1000 }
+    user_context: ""
+    message: "本月生日会安排在 28 号"
+    expected_level: P3
+    expected_action: archive
+
+  - id: bc_005
+    category: broadcast
+    description: "中等大群一般消息"
+    sender: { name: "L", id: "u_bc_005", identity: occasional }
+    chat: { type: group, name: "产品大群", member_count: 200 }
+    user_context: ""
+    message: "新版本上线了，欢迎试用"
+    expected_level: P3
+    expected_action: archive

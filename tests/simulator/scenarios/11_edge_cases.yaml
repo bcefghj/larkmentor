@@ -1,0 +1,151 @@
+# Category: 边界 case
+scenarios:
+  - id: ec_001
+    category: edge
+    description: "空消息（私聊降级到 P2）"
+    sender: { name: "X1", id: "u_ec_001", identity: peer }
+    chat: { type: p2p, name: "X1" }
+    user_context: ""
+    message: ""
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: ec_002
+    category: edge
+    description: "纯表情"
+    sender: { name: "X2", id: "u_ec_002", identity: occasional }
+    chat: { type: group, name: "聊天群", member_count: 50 }
+    user_context: ""
+    message: "👍"
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_003
+    category: edge
+    description: "超长技术问询"
+    sender: { name: "X3", id: "u_ec_003", identity: peer }
+    chat: { type: p2p, name: "X3" }
+    user_context: "API 重构"
+    message: "我们在 API 重构里遇到的问题：1. 旧版客户端兼容；2. 限流策略；3. 文档同步；4. 灰度发布；5. 监控；6. 错误码；7. 日志；8. 版本号管理。请你给些建议。"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ec_004
+    category: edge
+    description: "全英文询问"
+    sender: { name: "X4", id: "u_ec_004", identity: peer }
+    chat: { type: p2p, name: "X4" }
+    user_context: ""
+    message: "could you help me check why the deploy failed?"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ec_005
+    category: edge
+    description: "数字时间"
+    sender: { name: "X5", id: "u_ec_005", identity: peer }
+    chat: { type: p2p, name: "X5" }
+    user_context: ""
+    message: "15:30 有 30 分钟的 sync"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ec_006
+    category: edge
+    description: "中英混杂"
+    sender: { name: "X6", id: "u_ec_006", identity: peer }
+    chat: { type: p2p, name: "X6" }
+    user_context: ""
+    message: "刚 push 了一个 fix，麻烦 review please"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ec_007
+    category: edge
+    description: "重复字符（大群闲聊）"
+    sender: { name: "X7", id: "u_ec_007", identity: occasional }
+    chat: { type: group, name: "聊天群", member_count: 200 }
+    user_context: ""
+    message: "好好好好好"
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_008
+    category: edge
+    description: "无关链接转发"
+    sender: { name: "X8", id: "u_ec_008", identity: occasional }
+    chat: { type: group, name: "信息流", member_count: 200 }
+    user_context: ""
+    message: "https://example.com/news/123 大家看看"
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_009
+    category: edge
+    description: "上级转闲聊（大群压制 P3）"
+    sender: { name: "陈总", id: "u_chen_chat", identity: superior }
+    chat: { type: group, name: "公司大群", member_count: 1000 }
+    user_context: ""
+    message: "天气真好"
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_010
+    category: edge
+    description: "多轮提及自己昵称"
+    sender: { name: "X10", id: "u_ec_010", identity: peer }
+    chat: { type: group, name: "项目组", member_count: 8 }
+    user_context: ""
+    message: "@你 这个事情你看一下哈"
+    expected_level: P1
+    expected_action: queue
+
+  - id: ec_011
+    category: edge
+    description: "冷僻领域问询（大群广播 → P2 提问）"
+    sender: { name: "X11", id: "u_ec_011", identity: occasional }
+    chat: { type: group, name: "杂谈", member_count: 300 }
+    user_context: ""
+    message: "有人懂量子计算的相位估计算法吗？"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: ec_012
+    category: edge
+    description: "私聊单独消息"
+    sender: { name: "X12", id: "u_ec_012", identity: occasional }
+    chat: { type: p2p, name: "X12" }
+    user_context: ""
+    message: "在吗"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: ec_013
+    category: edge
+    description: "纯标点"
+    sender: { name: "X13", id: "u_ec_013", identity: occasional }
+    chat: { type: group, name: "聊天群", member_count: 50 }
+    user_context: ""
+    message: "..."
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_014
+    category: edge
+    description: "超大群闲聊"
+    sender: { name: "X14", id: "u_ec_014", identity: occasional }
+    chat: { type: group, name: "万人群", member_count: 5000 }
+    user_context: ""
+    message: "大家中午好"
+    expected_level: P3
+    expected_action: archive
+
+  - id: ec_015
+    category: edge
+    description: "客户在群里 @ 你紧急"
+    sender: { name: "客户XX", id: "u_ec_015", identity: peer }
+    chat: { type: group, name: "客户对接", member_count: 6 }
+    user_context: ""
+    message: "@你 这个问题客户那边非常紧急，请尽快解决"
+    expected_level: P0
+    expected_action: forward

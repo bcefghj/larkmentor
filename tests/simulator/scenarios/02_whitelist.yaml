@@ -1,0 +1,56 @@
+# Category: 白名单必须命中 P0
+scenarios:
+  - id: wl_001
+    category: whitelist
+    description: "白名单姓名命中"
+    sender: { name: "张三", id: "u_zhangsan", identity: peer }
+    chat: { type: p2p, name: "张三" }
+    user_context: ""
+    user_whitelist: ["张三"]
+    message: "今天午饭吃啥"
+    expected_level: P0
+    expected_action: forward
+
+  - id: wl_002
+    category: whitelist
+    description: "白名单 + 闲聊内容仍 P0"
+    sender: { name: "李四", id: "u_lisi", identity: occasional }
+    chat: { type: group, name: "随便群", member_count: 50 }
+    user_context: ""
+    user_whitelist: ["李四"]
+    message: "哈哈哈这个梗笑死我了"
+    expected_level: P0
+    expected_action: forward
+
+  - id: wl_003
+    category: whitelist
+    description: "ID 白名单命中"
+    sender: { name: "Wang", id: "u_wang_vip", identity: occasional }
+    chat: { type: p2p, name: "Wang" }
+    user_context: ""
+    user_whitelist: ["u_wang_vip"]
+    message: "周末去爬山吗"
+    expected_level: P0
+    expected_action: forward
+
+  - id: wl_004
+    category: whitelist
+    description: "白名单内成员发紧急消息"
+    sender: { name: "陈总", id: "u_chen", identity: superior }
+    chat: { type: p2p, name: "陈总" }
+    user_context: ""
+    user_whitelist: ["陈总"]
+    message: "下午3点对一下 Q3 OKR"
+    expected_level: P0
+    expected_action: forward
+
+  - id: wl_005
+    category: whitelist
+    description: "白名单 + 时间敏感"
+    sender: { name: "Mary", id: "u_mary", identity: peer }
+    chat: { type: p2p, name: "Mary" }
+    user_context: ""
+    user_whitelist: ["Mary"]
+    message: "今晚到家几点"
+    expected_level: P0
+    expected_action: forward

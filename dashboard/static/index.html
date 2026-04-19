@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowGuard Dashboard · 实时监控</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0c0a09;--panel:#1c1917;--panel2:#262220;--border:#292524;
+  --fg:#fafaf9;--fg2:#a8a29e;--fg3:#78716c;
+  --accent:#60a5fa;--accent2:#93c5fd;
+  --p0:#ef4444;--p1:#f59e0b;--p2:#10b981;--p3:#78716c;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Inter',-apple-system,'PingFang SC',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100vh;-webkit-font-smoothing:antialiased}
+header{padding:18px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.05rem}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.brand .accent{color:var(--accent)}
+.mode-btn{font-family:var(--mono);font-size:.78rem;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--fg2);cursor:pointer;margin-left:8px;transition:all .15s}
+.mode-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(96,165,250,.1)}
+.mode-btn:hover{color:var(--fg)}
+.live-tag{font-family:var(--mono);font-size:.72rem;padding:4px 10px;border-radius:4px;background:var(--accent);color:var(--bg);font-weight:600;margin-right:6px}
+.live-tag.demo{background:var(--p1);color:#fff}
+
+.container{padding:24px 28px;max-width:1500px;margin:0 auto}
+
+/* Metric grid */
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.metric{padding:18px 20px;background:var(--panel);border:1px solid var(--border);border-radius:10px;transition:border-color .2s}
+.metric:hover{border-color:var(--accent)}
+.metric .k{font-size:.72rem;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.metric .v{font-family:var(--mono);font-size:1.7rem;font-weight:700;color:var(--fg);line-height:1.1}
+.metric .v.p0{color:var(--p0)}.metric .v.p1{color:var(--p1)}.metric .v.p2{color:var(--p2)}.metric .v.p3{color:var(--p3)}.metric .v.acc{color:var(--accent)}
+.metric .sub{font-size:.7rem;color:var(--fg3);margin-top:4px;font-family:var(--mono)}
+
+/* Layout grid */
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+@media(max-width:1024px){.grid,.grid-3{grid-template-columns:1fr}}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px}
+.card h2{font-size:.95rem;font-weight:600;color:var(--fg);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.card h2 .badge{font-family:var(--mono);font-size:.7rem;color:var(--fg3);font-weight:400}
+
+/* Decisions table */
+.dec-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.dec-table th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-size:.7rem;color:var(--fg3);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
+.dec-table td{padding:10px;border-bottom:1px solid var(--border);color:var(--fg2);vertical-align:top}
+.dec-table tr:last-child td{border-bottom:none}
+.dec-table tr:hover{background:var(--panel2)}
+.lvl-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-size:.7rem;font-weight:600}
+.lvl-pill.P0{background:rgba(239,68,68,.15);color:var(--p0)}
+.lvl-pill.P1{background:rgba(245,158,11,.15);color:var(--p1)}
+.lvl-pill.P2{background:rgba(16,185,129,.15);color:var(--p2)}
+.lvl-pill.P3{background:rgba(120,113,108,.15);color:var(--p3)}
+.dec-id{font-family:var(--mono);font-size:.72rem;color:var(--fg3)}
+.dec-rb{font-family:var(--mono);font-size:.65rem;color:var(--p1);background:rgba(245,158,11,.12);padding:1px 5px;border-radius:3px;margin-left:4px}
+
+/* Heatmap */
+.heatmap{display:grid;grid-template-columns:30px repeat(24,1fr);gap:3px;font-family:var(--mono);font-size:.65rem}
+.heatmap .label{color:var(--fg3);text-align:right;padding-right:4px;line-height:1.6}
+.heatmap .cell{height:18px;border-radius:3px;background:var(--panel2);transition:transform .1s}
+.heatmap .cell:hover{transform:scale(1.4);z-index:5;outline:1px solid var(--accent)}
+.heatmap .hour-label{color:var(--fg3);text-align:center;padding-bottom:4px}
+
+/* Profiles */
+.profile-list{display:flex;flex-direction:column;gap:8px}
+.profile-row{display:grid;grid-template-columns:1fr 60px 60px 60px;gap:8px;padding:10px;background:var(--panel2);border-radius:6px;font-size:.8rem;align-items:center}
+.profile-row .name{font-weight:500;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-row .tag{display:inline-block;font-family:var(--mono);font-size:.65rem;color:var(--fg3);margin-left:6px;padding:1px 5px;background:var(--bg);border-radius:3px}
+.profile-row .num{font-family:var(--mono);font-size:.78rem;color:var(--fg2);text-align:right}
+
+/* Users */
+.user-row{display:grid;grid-template-columns:1fr 60px 60px;gap:8px;padding:10px;background:var(--panel2);border-radius:6px;font-size:.82rem;align-items:center;margin-bottom:6px}
+.user-row .focus-on{color:var(--p2);font-family:var(--mono);font-size:.7rem}
+.user-row .focus-off{color:var(--fg3);font-family:var(--mono);font-size:.7rem}
+
+footer{padding:24px 28px;text-align:center;font-size:.72rem;color:var(--fg3);border-top:1px solid var(--border);margin-top:40px}
+footer code{font-family:var(--mono);background:var(--panel);padding:1px 6px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span><span class="accent">Flow</span>Guard <span style="color:var(--fg3);font-weight:400">Dashboard</span>
+  </div>
+  <div>
+    <span class="live-tag" id="modeTag">LIVE</span>
+    <span style="color:var(--fg3);font-size:.78rem;font-family:var(--mono)" id="upd">--</span>
+    <button class="mode-btn" id="liveBtn">LIVE</button>
+    <button class="mode-btn" id="demoBtn">DEMO</button>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Metrics -->
+  <div class="metric-row">
+    <div class="metric"><div class="k">今日决策</div><div class="v" id="m_total">--</div></div>
+    <div class="metric"><div class="k">P0 紧急</div><div class="v p0" id="m_p0">--</div></div>
+    <div class="metric"><div class="k">P1 攒批</div><div class="v p1" id="m_p1">--</div></div>
+    <div class="metric"><div class="k">P2 代回</div><div class="v p2" id="m_p2">--</div></div>
+    <div class="metric"><div class="k">P3 归档</div><div class="v p3" id="m_p3">--</div></div>
+    <div class="metric"><div class="k">在专注中</div><div class="v acc" id="m_focus">--</div></div>
+    <div class="metric"><div class="k">LLM 调用率</div><div class="v" id="m_llm">--</div><div class="sub">仅边界仲裁</div></div>
+    <div class="metric"><div class="k">分类准确率</div><div class="v" id="m_acc">99%</div><div class="sub">YAML 102 场景</div></div>
+    <div class="metric"><div class="k">运行时长</div><div class="v" id="m_up">--</div><div class="sub">小时</div></div>
+    <div class="metric"><div class="k">熔断触发</div><div class="v" id="m_cb">--</div><div class="sub">今日</div></div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="card">
+    <h2>7 天 × 24 小时 打断热力图 <span class="badge" id="hmTotal">--</span></h2>
+    <div class="heatmap" id="heatmap"></div>
+  </div>
+
+  <div style="height:20px"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>最近决策 <span class="badge" id="decBadge">--</span></h2>
+      <table class="dec-table">
+        <thead>
+          <tr><th>ID</th><th>发送方</th><th>级别</th><th>分数</th><th>摘要</th></tr>
+        </thead>
+        <tbody id="decBody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>发送方画像 Top <span class="badge">按消息量</span></h2>
+      <div class="profile-list" id="profList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>活跃用户 <span class="badge" id="userBadge">--</span></h2>
+    <div id="userList"></div>
+  </div>
+</div>
+
+<footer>
+  FlowGuard v2.0 Dashboard — 实时监控 ｜ 可在 <code>LIVE</code> / <code>DEMO</code> 模式之间切换
+  <br><br>
+  <code>uvicorn dashboard.server:app --host 0.0.0.0 --port 8000</code>
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function fetchJSON(url) { const r = await fetch(url); return r.json(); }
+
+function renderOverview(o) {
+  $('m_total').textContent = o.decisions_today;
+  $('m_p0').textContent = o.p0_today;
+  $('m_p1').textContent = o.p1_today;
+  $('m_p2').textContent = o.p2_today;
+  $('m_p3').textContent = o.p3_today;
+  $('m_focus').textContent = o.in_focus_now;
+  $('m_llm').textContent = (o.llm_call_rate * 100).toFixed(1) + '%';
+  $('m_acc').textContent = (o.accuracy_rate * 100).toFixed(0) + '%';
+  $('m_up').textContent = o.uptime_hours;
+  $('m_cb').textContent = o.circuit_breakers_today;
+  $('upd').textContent = 'updated ' + new Date(o.ts * 1000).toLocaleTimeString();
+  const tag = $('modeTag');
+  if (o.mode === 'demo') { tag.textContent = 'DEMO'; tag.classList.add('demo'); }
+  else { tag.textContent = 'LIVE'; tag.classList.remove('demo'); }
+}
+
+function renderDecisions(items) {
+  $('decBadge').textContent = items.length + ' 条';
+  $('decBody').innerHTML = items.map(d => `
+    <tr>
+      <td><span class="dec-id">${d.decision_id.slice(0, 12)}</span>${d.rolled_back ? '<span class="dec-rb">回滚</span>' : ''}</td>
+      <td>${d.sender_name}</td>
+      <td><span class="lvl-pill ${d.level}">${d.level}</span></td>
+      <td><span class="dec-id">${(d.score).toFixed(2)}</span></td>
+      <td>${d.summary}</td>
+    </tr>
+  `).join('');
+}
+
+function renderProfiles(items) {
+  $('profList').innerHTML = items.map(p => `
+    <div class="profile-row">
+      <div class="name">${p.sender_name} <span class="tag">${p.identity_tag}</span></div>
+      <div class="num">${p.relation_strength}</div>
+      <div class="num">${p.msg_count_total}</div>
+      <div class="num">${p.user_responded_count}</div>
+    </div>
+  `).join('');
+}
+
+function renderHeatmap(grid) {
+  const root = $('heatmap');
+  let html = '<div></div>';
+  for (let h = 0; h < 24; h++) html += `<div class="hour-label">${h % 3 === 0 ? h : ''}</div>`;
+  const days = ['周日','周一','周二','周三','周四','周五','周六'];
+  let total = 0;
+  for (let d = 0; d < 7; d++) {
+    html += `<div class="label">${days[d]}</div>`;
+    for (let h = 0; h < 24; h++) {
+      const v = grid[d][h] || 0;
+      total += v;
+      const intensity = Math.min(1, v / 15);
+      const bg = v === 0 ? 'var(--panel2)' : `rgba(96,165,250,${0.15 + intensity * 0.8})`;
+      html += `<div class="cell" style="background:${bg}" title="${days[d]} ${h}:00 — ${v} 次"></div>`;
+    }
+  }
+  root.innerHTML = html;
+  $('hmTotal').textContent = total + ' 次 / 7 天';
+}
+
+function renderUsers(items) {
+  $('userBadge').textContent = items.length + ' 人';
+  $('userList').innerHTML = items.map(u => `
+    <div class="user-row">
+      <div>${u.name} <span class="${u.in_focus ? 'focus-on' : 'focus-off'}">${u.in_focus ? '◉ 专注中' : '○ 空闲'}</span></div>
+      <div style="color:var(--fg3);font-size:.75rem;font-family:var(--mono);text-align:right">${u.tasks} tasks</div>
+      <div style="color:var(--fg3);font-size:.75rem;font-family:var(--mono);text-align:right">${u.pending_msgs} pending</div>
+    </div>
+  `).join('');
+}
+
+async function refreshAll() {
+  const [o, d, p, h, u] = await Promise.all([
+    fetchJSON('/api/overview'),
+    fetchJSON('/api/decisions?limit=20'),
+    fetchJSON('/api/profiles?limit=10'),
+    fetchJSON('/api/heatmap'),
+    fetchJSON('/api/users'),
+  ]);
+  renderOverview(o);
+  renderDecisions(d);
+  renderProfiles(p);
+  renderHeatmap(h.grid);
+  renderUsers(u);
+}
+
+$('demoBtn').onclick = async () => { await fetch('/demo'); $('demoBtn').classList.add('active'); $('liveBtn').classList.remove('active'); refreshAll(); };
+$('liveBtn').onclick = async () => { await fetch('/live'); $('liveBtn').classList.add('active'); $('demoBtn').classList.remove('active'); refreshAll(); };
+
+refreshAll();
+setInterval(refreshAll, 8000);
+
+try {
+  const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
+  ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.overview) renderOverview(m.overview); } catch {} };
+} catch {}
+</script>
+</body>
+</html>
