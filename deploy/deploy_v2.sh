@@ -21,13 +21,39 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOST="${HOST:-118.178.242.26}"
 USER="${REMOTE_USER:-root}"
 PW="${REMOTE_PW:-bcefghj@Github666}"
 REMOTE_BASE="/opt/larkmentor_v2"
 REMOTE_TAR="/opt/larkmentor_v2_release.tar.gz"
 
+SSH_EXP="$DEPLOY_DIR/_ssh_lib.exp"
+SCP_EXP="$DEPLOY_DIR/_scp_lib.exp"
+chmod +x "$SSH_EXP" "$SCP_EXP" 2>/dev/null || true
+
 step() { printf "\n\033[1;36m== %s ==\033[0m\n" "$*"; }
+
+ssh_run() {
+    if command -v sshpass >/dev/null; then
+        sshpass -p "$PW" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$@"
+    elif command -v expect >/dev/null && [ -x "$SSH_EXP" ]; then
+        "$SSH_EXP" "$*"
+    else
+        ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$@"
+    fi
+}
+
+scp_up() {
+    local src="$1"; local dst="$2"
+    if command -v sshpass >/dev/null; then
+        sshpass -p "$PW" scp -o StrictHostKeyChecking=no "$src" "$USER@$HOST:$dst"
+    elif command -v expect >/dev/null && [ -x "$SCP_EXP" ]; then
+        "$SCP_EXP" "$src" "$dst"
+    else
+        scp -o StrictHostKeyChecking=no "$src" "$USER@$HOST:$dst"
+    fi
+}
 
 # ── 0. Local pytest gate ──
 step "0/6 本地 pytest 必须 100% 通过"
@@ -56,12 +82,7 @@ ls -lh "$TARBALL"
 
 # ── 2. Upload ──
 step "2/6 上传 tarball (scp)"
-if command -v sshpass >/dev/null; then
-    sshpass -p "$PW" scp -o StrictHostKeyChecking=no "$TARBALL" "$USER@$HOST:$REMOTE_TAR"
-else
-    echo "[warn] sshpass 未安装，手动输入服务器密码："
-    scp -o StrictHostKeyChecking=no "$TARBALL" "$USER@$HOST:$REMOTE_TAR"
-fi
+scp_up "$TARBALL" "$REMOTE_TAR"
 
 # ── 3-5. Remote setup ──
 step "3/6 远端：解压 + 迁移数据 + 装依赖 + 写 systemd"
@@ -191,11 +212,7 @@ echo '[ok] v2 deployed, smoke tests passed'
 EOF
 )
 
-if command -v sshpass >/dev/null; then
-    sshpass -p "$PW" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$REMOTE_SCRIPT"
-else
-    ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$REMOTE_SCRIPT"
-fi
+ssh_run "$REMOTE_SCRIPT"
 
 step "4/6 更新 nginx 反代（WebSocket /sync/ws + 静态 /artifacts）"
 REMOTE_NGINX=$(cat <<'EOF'
@@ -238,11 +255,7 @@ echo '[ok] nginx reloaded'
 EOF
 )
 
-if command -v sshpass >/dev/null; then
-    sshpass -p "$PW" ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$REMOTE_NGINX"
-else
-    ssh -o StrictHostKeyChecking=no "$USER@$HOST" "$REMOTE_NGINX"
-fi
+ssh_run "$REMOTE_NGINX"
 
 step "5/6 External smoke test"
 curl -sf "http://$HOST/health" >/dev/null && echo "[ok] http://$HOST/health"

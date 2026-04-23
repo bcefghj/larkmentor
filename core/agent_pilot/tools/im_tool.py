@@ -17,7 +17,10 @@ logger = logging.getLogger("pilot.tool.im")
 def im_fetch_thread(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
     chat_id = args.get("chat_id") or ctx.get("chat_id") or ""
-    limit = int(args.get("limit") or 20)
+    try:
+        limit = int(args.get("limit") or 20)
+    except (TypeError, ValueError):
+        limit = 20
 
     messages = _try_fetch_real(chat_id, limit)
     if not messages:

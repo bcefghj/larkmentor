@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+# 通用 SCP 上传：./_scp_lib.exp <local_path> <remote_abs_path>
+set timeout 1800
+set host "118.178.242.26"
+set user "root"
+set password "bcefghj@Github666"
+set src [lindex $argv 0]
+set dst [lindex $argv 1]
+
+spawn scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $src $user@$host:$dst
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "*assword*" { send "$password\r" }
+    timeout { puts "TIMEOUT_AT_PASSWORD"; exit 2 }
+}
+expect eof
+catch wait result
+exit [lindex $result 3]

@@ -36,6 +36,7 @@ def slide_generate(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
     title = args.get("title") or "Agent-Pilot 演示"
     outline = args.get("outline") or _default_outline_from_ctx(ctx, title)
+    outline = _normalise_outline(outline)
 
     _ensure_dir()
     slide_id = f"slide_{int(time.time())}_{uuid.uuid4().hex[:6]}"
@@ -139,6 +140,29 @@ def _default_outline_from_ctx(ctx: Dict[str, Any], title: str) -> List[Dict[str,
             "GitHub: bcefghj/larkmentor",
         ]},
     ]
+
+
+def _normalise_outline(outline) -> List[Dict[str, Any]]:
+    """Accept any of: [{title, bullets}], ["page1", "page2"], "comma,sep,list".
+
+    Returns a consistent list of dicts so downstream code can assume .get().
+    """
+    if not outline:
+        return []
+    if isinstance(outline, str):
+        outline = [p.strip() for p in outline.split("\n") if p.strip()]
+    result: List[Dict[str, Any]] = []
+    for i, p in enumerate(outline, start=1):
+        if isinstance(p, dict):
+            result.append({
+                "title": str(p.get("title") or f"Slide {i}"),
+                "bullets": [str(b) for b in (p.get("bullets") or [])],
+            })
+        elif isinstance(p, str):
+            result.append({"title": p, "bullets": []})
+        else:
+            result.append({"title": f"Slide {i}", "bullets": [str(p)]})
+    return result
 
 
 def _outline_to_slidev_md(title: str, outline: List[Dict[str, Any]]) -> str:

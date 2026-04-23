@@ -150,3 +150,41 @@ def test_scenario_registry_lookup():
     assert s is not None
     assert "doc.create" in s.entry_tools
     assert "canvas.create" in s.entry_tools
+
+
+# ─────────────────────────── Slide tool robustness ───────────────────────────
+
+def test_slide_generate_accepts_outline_as_list_of_strings():
+    """Regression: LLM Planner may emit outline as ['page 1', 'page 2', ...].
+    The tool must not crash with AttributeError."""
+    from core.agent_pilot.tools.slide_tool import slide_generate
+    step = PlanStep(step_id="s1", tool="slide.generate", description="")
+    result = slide_generate(step, {
+        "resolved_args": {"outline": ["封面", "目标", "方案", "结束语"]},
+        "plan_id": "t", "step_results": {},
+    })
+    assert result["pages"] == 4
+    assert result["slide_id"].startswith("slide_")
+
+
+def test_slide_generate_accepts_outline_as_list_of_dicts():
+    from core.agent_pilot.tools.slide_tool import slide_generate
+    step = PlanStep(step_id="s1", tool="slide.generate", description="")
+    result = slide_generate(step, {
+        "resolved_args": {"outline": [
+            {"title": "A", "bullets": ["x", "y"]},
+            {"title": "B", "bullets": []},
+        ]},
+        "plan_id": "t2", "step_results": {},
+    })
+    assert result["pages"] == 2
+
+
+def test_slide_generate_accepts_empty_outline_and_falls_back_to_default():
+    from core.agent_pilot.tools.slide_tool import slide_generate
+    step = PlanStep(step_id="s1", tool="slide.generate", description="")
+    result = slide_generate(step, {
+        "resolved_args": {},
+        "plan_id": "t3", "step_results": {},
+    })
+    assert result["pages"] >= 4

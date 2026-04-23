@@ -71,10 +71,21 @@ def canvas_add_shape(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     canvas_id = args.get("canvas_id") or ""
     shape_type = args.get("shape_type") or "rect"
     text = args.get("text") or ""
-    x = float(args.get("x") or 100)
-    y = float(args.get("y") or 100)
-    w = float(args.get("w") or 200)
-    h = float(args.get("h") or 80)
+
+    def _f(v, default):
+        """Tolerant float parser. LLM Planners sometimes emit placeholder
+        strings like '{{auto}}' or '自动' – we coerce those to the default."""
+        if v is None:
+            return float(default)
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return float(default)
+
+    x = _f(args.get("x"), 100)
+    y = _f(args.get("y"), 100)
+    w = _f(args.get("w"), 200)
+    h = _f(args.get("h"), 80)
 
     path = os.path.join(DATA_DIR, f"{canvas_id}.json")
     if not canvas_id or not os.path.exists(path):

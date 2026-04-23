@@ -206,16 +206,28 @@ class PilotOrchestrator:
 
 
 def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
-    """Expand ``${s1.doc_token}`` style placeholders."""
+    """Expand step-result placeholders in tool arguments.
+
+    Supported formats (LLMs emit all of these):
+      ${s1.doc_token}           → step_results["s1"]["doc_token"]
+      {{s3.result.doc_token}}   → step_results["s3"]["doc_token"]  (strips "result.")
+      {{s3.doc_token}}          → step_results["s3"]["doc_token"]
+    """
+    import re
+    _PLACEHOLDER = re.compile(r"^\$\{(.+?)\}$|^\{\{(.+?)\}\}$")
+
     out: Dict[str, Any] = {}
     for k, v in args.items():
-        if isinstance(v, str) and v.startswith("${") and v.endswith("}"):
-            token = v[2:-1]
-            if "." in token:
-                step_id, key = token.split(".", 1)
-                prev = step_results.get(step_id, {})
-                out[k] = prev.get(key, v)
-                continue
+        if isinstance(v, str):
+            m = _PLACEHOLDER.match(v.strip())
+            if m:
+                token = (m.group(1) or m.group(2) or "").strip()
+                token = re.sub(r"\.result\.", ".", token)
+                if "." in token:
+                    step_id, key = token.split(".", 1)
+                    prev = step_results.get(step_id, {})
+                    out[k] = prev.get(key, v)
+                    continue
         out[k] = v
     return out
 

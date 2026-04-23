@@ -98,12 +98,15 @@ class Plan:
         return None
 
     def ready_steps(self) -> List[PlanStep]:
-        done = {s.step_id for s in self.steps if s.status == "done"}
+        # A step is ready once all its deps have FINISHED (done OR failed).
+        # Failing upstream doesn't poison the entire DAG; the tool itself
+        # is responsible for dealing with missing/invalid inputs.
+        finished = {s.step_id for s in self.steps if s.status in ("done", "failed")}
         ready: List[PlanStep] = []
         for s in self.steps:
             if s.status != "pending":
                 continue
-            if all(dep in done for dep in s.depends_on):
+            if all(dep in finished for dep in s.depends_on):
                 ready.append(s)
         return ready
 
