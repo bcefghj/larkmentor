@@ -87,6 +87,26 @@ def set_scheduler(sched):
     _scheduler = sched
 
 
+def _pilot_help_text() -> str:
+    return (
+        "🛫 **Agent-Pilot · IM→Doc→PPT 一键闭环**\n\n"
+        "用法：\n"
+        "  `/pilot <自然语言需求>`\n\n"
+        "示例：\n"
+        "  `/pilot 把本周讨论做成产品方案 + 评审 PPT`\n"
+        "  `/pilot 帮我画一张 Agent-Pilot 架构图，然后生成演示稿`\n"
+        "  `/pilot 总结群里的需求讨论，导出文档`\n\n"
+        "启动后 Agent 会自动：\n"
+        "  1. Planner 把意图拆成 DAG（含 Doc / Canvas / PPT 工具）\n"
+        "  2. 并行调用飞书 Docx、tldraw 画布、Slidev PPT\n"
+        "  3. 通过 Yjs CRDT 实时同步到 Flutter / Web / 飞书 4 端\n"
+        "  4. 结束时回填分享链接到本会话\n\n"
+        "其他指令：\n"
+        "  `我的飞行员` 查看历史运行\n"
+        "  Dashboard：http://118.178.242.26/dashboard/pilot"
+    )
+
+
 # ── v4 Mentor: proactive helper ──
 
 def _resolve_sender_role(sender_name: str, focused_user) -> str:
@@ -372,6 +392,29 @@ def _do_handle(data):
     # ── Group messages: broadcast to ALL currently focusing users ──
     if chat_type != "p2p":
         chat_name = message.chat_id or "unknown_group"
+
+        # v2 Agent-Pilot: group @bot /pilot <intent> entry (does NOT require focus mode)
+        _pilot_cmd = parse_command(text)
+        if _pilot_cmd.get("command") == "pilot_run":
+            try:
+                from core.agent_pilot.service import launch as _pilot_launch
+                plan = _pilot_launch(
+                    _pilot_cmd["args"].get("intent", ""),
+                    user_open_id=sender_open_id,
+                    meta={"source": "feishu_group", "chat_id": message.chat_id,
+                          "chat_name": chat_name},
+                    async_run=True,
+                )
+                reply_text(
+                    message_id,
+                    f"🛫 Agent-Pilot 已启动 `{plan.plan_id}`（共 {len(plan.steps)} 步）。"
+                    f"完成后将在此群回帖汇总。\n实时进度：http://118.178.242.26/dashboard/pilot?plan_id={plan.plan_id}",
+                )
+            except Exception as e:
+                logger.exception("group pilot_run error: %s", e)
+                reply_text(message_id, f"Agent-Pilot 启动失败：{e}")
+            return
+
         from memory.user_state import all_users
         focusing_users = [u for u in all_users() if u.is_focusing() and u.open_id != sender_open_id]
         if not focusing_users:
@@ -609,6 +652,100 @@ def _do_handle(data):
                 recovery_url=summary["recovery_url"],
                 complete=True,
             ))
+            return
+
+    # ── v2 Agent-Pilot commands ──
+    if command == "pilot_help":
+            send_text(open_id, _pilot_help_text())
+            return
+
+    if command == "pilot_list":
+            try:
+                from core.agent_pilot.service import list_plans as _list_plans
+                rows = _list_plans(user_open_id=open_id, limit=8)
+            except Exception as e:
+                send_text(open_id, f"获取 Pilot 列表失败：{e}")
+                return
+            if not rows:
+                send_text(open_id, "尚无 Pilot 执行记录。\n\n发 `/pilot 把本周讨论做成评审 PPT` 触发一次试试。")
+                return
+            lines = ["🛫 **最近 Pilot 运行**\n"]
+            import time as _t
+            for r in rows:
+                ts = _t.strftime("%m-%d %H:%M", _t.localtime(r.get("created_ts", 0)))
+                lines.append(
+                    f"- [{ts}] `{r['plan_id']}` {r['done_steps']}/{r['total_steps']} 完成 · {r['intent']}"
+                )
+            lines.append("\n详情请访问 Dashboard：http://118.178.242.26/dashboard/pilot")
+            send_text(open_id, "\n".join(lines))
+            return
+
+    if command == "pilot_run":
+            intent = args.get("intent", "")
+            if not intent:
+                send_text(open_id, _pilot_help_text())
+                return
+            try:
+                from core.agent_pilot.service import launch as _pilot_launch
+                plan = _pilot_launch(intent, user_open_id=open_id,
+                                     meta={"source": "feishu_p2p"}, async_run=True)
+            except Exception as e:
+                logger.exception("pilot_run error: %s", e)
+                send_text(open_id, f"Agent-Pilot 启动失败：{e}")
+                return
+            _wm_append(open_id, "pilot_launched", {"plan_id": plan.plan_id, "intent": intent[:80]})
+            step_preview = "\n".join(
+                f"  {i+1}. [{s.tool}] {s.description}" for i, s in enumerate(plan.steps[:6])
+            )
+            send_text(
+                open_id,
+                "🛫 **Agent-Pilot 已启动**\n"
+                f"Plan: `{plan.plan_id}`\n"
+                f"意图：{intent[:80]}\n\n"
+                f"📋 计划（共 {len(plan.steps)} 步）：\n{step_preview}\n\n"
+                f"实时进度：http://118.178.242.26/dashboard/pilot?plan_id={plan.plan_id}\n"
+                f"Flutter/Web 客户端会自动刷新。完成后我会再发一条汇总。"
+            )
+            # Schedule completion summary (fire-and-forget in case scheduler missing)
+            try:
+                import threading as _th
+                def _notify_when_done():
+                    import time as _t2
+                    from core.agent_pilot.service import get_plan as _gp
+                    start = _t2.time()
+                    while _t2.time() - start < 180:
+                        _t2.sleep(3)
+                        p2 = _gp(plan.plan_id)
+                        if not p2:
+                            continue
+                        pending = [s for s in p2.steps if s.status in ("pending", "running")]
+                        if not pending:
+                            done = [s for s in p2.steps if s.status == "done"]
+                            failed = [s for s in p2.steps if s.status == "failed"]
+                            urls = []
+                            for s in p2.steps:
+                                for key in ("url", "pptx_url", "pdf_url", "share_url"):
+                                    u = (s.result or {}).get(key)
+                                    if u:
+                                        urls.append(f"{s.tool}: {u}")
+                                        break
+                            summary = [
+                                "🛬 **Agent-Pilot 完成**",
+                                f"`{plan.plan_id}` · {len(done)}/{len(p2.steps)} 完成"
+                                + (f"，{len(failed)} 失败" if failed else ""),
+                                "",
+                                "📦 产物：",
+                            ]
+                            summary += urls[:8] or ["（本次运行产物已保存到服务器 data/pilot_artifacts/）"]
+                            summary.append(f"\n汇总链接：http://118.178.242.26/pilot/{plan.plan_id}")
+                            try:
+                                send_text(open_id, "\n".join(summary))
+                            except Exception:
+                                pass
+                            return
+                _th.Thread(target=_notify_when_done, daemon=True).start()
+            except Exception:
+                pass
             return
 
     # ── v3 commands: weekly report / monthly wrapped / memory / data ──

@@ -224,6 +224,21 @@ def parse_command(text: str) -> dict:
         return {"command": "rollback_decision",
                 "args": {"id": match.group(1), "level": match.group(2)}}
 
+    # ── v2 Agent-Pilot entry points ──
+    match = re.match(r"[/／]?pilot[：:\s]+(.+)", text, re.S | re.I)
+    if match:
+        return {"command": "pilot_run", "args": {"intent": match.group(1).strip()}}
+
+    match = re.match(r"(?:飞行员|启动\s*pilot|启动\s*飞行员)[：:\s]+(.+)", text, re.S)
+    if match:
+        return {"command": "pilot_run", "args": {"intent": match.group(1).strip()}}
+
+    if text.lower() in ("/pilot", "pilot", "飞行员", "agent pilot"):
+        return {"command": "pilot_help", "args": {}}
+
+    if text in ("我的飞行员", "pilot 列表", "pilot list", "pilot plans"):
+        return {"command": "pilot_list", "args": {}}
+
     return {"command": "unknown", "args": {"text": text}}
 
 

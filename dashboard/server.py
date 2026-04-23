@@ -470,6 +470,169 @@ except Exception as _e:  # noqa: BLE001
     pass
 
 
+# ── LarkMentor v2: Agent-Pilot endpoints ──
+@app.get("/api/pilot/plans")
+async def pilot_plans(limit: int = Query(20, ge=1, le=100),
+                      open_id: str = Query("")):
+    try:
+        from core.agent_pilot.service import list_plans
+        return list_plans(user_open_id=open_id, limit=limit)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/plan/{plan_id}")
+async def pilot_plan_detail(plan_id: str):
+    try:
+        from core.agent_pilot.service import get_plan
+        plan = get_plan(plan_id)
+        if not plan:
+            return JSONResponse({"error": "not_found"}, status_code=404)
+        return plan.to_dict()
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/scenarios")
+async def pilot_scenarios():
+    try:
+        from core.agent_pilot.scenarios import ScenarioRegistry
+        return [
+            {"key": s.key, "name": s.name, "description": s.description,
+             "entry_tools": s.entry_tools}
+            for s in ScenarioRegistry.all()
+        ]
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/pilot/launch")
+async def pilot_launch(body: Dict[str, Any]):
+    try:
+        from core.agent_pilot.service import launch
+        intent = (body or {}).get("intent", "").strip()
+        if not intent:
+            return JSONResponse({"error": "intent required"}, status_code=400)
+        plan = launch(intent, user_open_id=(body or {}).get("open_id", ""), async_run=True)
+        return {"plan_id": plan.plan_id, "total_steps": len(plan.steps), "intent": plan.intent}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/pilot/{plan_id}", response_class=HTMLResponse)
+async def pilot_share_view(plan_id: str):
+    """Standalone share page (used in archive_tool's share_url)."""
+    page = STATIC_DIR / "pilot_share.html"
+    if page.exists():
+        html = page.read_text(encoding="utf-8")
+        return html.replace("{{PLAN_ID}}", plan_id)
+    return f"<h1>Pilot Plan {plan_id}</h1><p>Share page not built.</p>"
+
+
+@app.get("/dashboard/pilot", response_class=HTMLResponse)
+@app.get("/pilot", response_class=HTMLResponse)
+async def pilot_dashboard_page():
+    page = STATIC_DIR / "pilot.html"
+    if page.exists():
+        return page.read_text(encoding="utf-8")
+    return "<h1>Agent-Pilot Dashboard</h1><p>Static UI not built yet.</p>"
+
+
+# ── Advanced Agent endpoints (clarify / summarise / recommend) ──
+
+@app.post("/api/pilot/clarify")
+async def pilot_clarify(body: Dict[str, Any]):
+    """Mentor.clarify pre-flight check. Returns the same ClarifyDecision
+    dataclass as the Planner would consult internally. Useful for a
+    "dry-run" UI that lets the user see whether their intent is clear
+    BEFORE launching a Pilot.
+    """
+    try:
+        from core.agent_pilot.advanced import diagnose_intent
+        intent = (body or {}).get("intent", "").strip()
+        if not intent:
+            return JSONResponse({"error": "intent required"}, status_code=400)
+        d = diagnose_intent(intent)
+        return {
+            "should_clarify": d.should_clarify,
+            "ambiguity": d.ambiguity,
+            "questions": d.questions,
+            "missing_dimensions": d.missing_dimensions,
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/pilot/summarise")
+async def pilot_summarise(body: Dict[str, Any]):
+    try:
+        from core.agent_pilot.advanced import summarise_messages
+        msgs = (body or {}).get("messages") or []
+        return {"summary": summarise_messages(msgs)}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/recommend/{plan_id}")
+async def pilot_recommend(plan_id: str):
+    try:
+        from core.agent_pilot.advanced import recommend_next_steps
+        from core.agent_pilot.service import get_plan
+        plan = get_plan(plan_id)
+        if not plan:
+            return JSONResponse({"error": "not_found"}, status_code=404)
+        return {"plan_id": plan_id,
+                "next_steps": recommend_next_steps(plan.to_dict())}
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/pilot/voice/transcribe")
+async def pilot_voice_transcribe(body: Dict[str, Any]):
+    """Stub endpoint Flutter mobile posts recorded audio to.
+
+    Real ASR back-ends live behind the `voice_tool`; this HTTP entry
+    normalises the file reference into the same `voice.transcribe`
+    tool call the Orchestrator uses.
+    """
+    try:
+        from core.agent_pilot.tools.voice_tool import voice_transcribe
+        from core.agent_pilot.planner import PlanStep
+        step = PlanStep(step_id="http", tool="voice.transcribe", description="http")
+        return voice_transcribe(step, {"resolved_args": body or {}, "plan_id": "", "step_results": {}})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Offline merge reconciliation ──
+
+@app.get("/api/sync/reconcile/{room}")
+async def sync_reconcile(room: str):
+    try:
+        from core.sync.offline_merge import reconcile
+        return reconcile(room)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Mount CRDT sync WebSocket ──
+try:
+    from core.sync.ws_server import router as _sync_router
+    if _sync_router is not None:
+        app.include_router(_sync_router)
+except Exception as _e_sync:  # noqa: BLE001
+    pass
+
+
+# ── Artifacts (doc/slide/canvas outputs served as downloads) ──
+ARTIFACT_DIR = ROOT / "data" / "pilot_artifacts"
+try:
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/artifacts", StaticFiles(directory=str(ARTIFACT_DIR)), name="artifacts")
+except Exception:
+    pass
+
+
 # Static mount
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

@@ -483,6 +483,66 @@ TOOL_REGISTRY.update({
 })
 
 
+# ── v2 Agent-Pilot tools (scenario A-F orchestration) ──
+
+def tool_pilot_launch(intent: str, open_id: str = "", async_run: bool = True) -> Dict[str, Any]:
+    """Launch an Agent-Pilot plan from free-form intent. Returns the plan id."""
+    try:
+        from core.agent_pilot.service import launch as _launch
+        plan = _launch(intent, user_open_id=open_id, async_run=async_run)
+        return {
+            "plan_id": plan.plan_id,
+            "intent": plan.intent,
+            "total_steps": len(plan.steps),
+            "steps": [
+                {"step_id": s.step_id, "tool": s.tool,
+                 "description": s.description, "depends_on": s.depends_on}
+                for s in plan.steps
+            ],
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def tool_pilot_status(plan_id: str) -> Dict[str, Any]:
+    """Get the full plan state: steps, statuses, artifacts, events."""
+    try:
+        from core.agent_pilot.service import get_plan
+        plan = get_plan(plan_id)
+        if not plan:
+            return {"error": "plan_not_found"}
+        return plan.to_dict()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def tool_pilot_list(open_id: str = "", limit: int = 10) -> List[Dict[str, Any]]:
+    try:
+        from core.agent_pilot.service import list_plans
+        return list_plans(user_open_id=open_id, limit=limit)
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+TOOL_REGISTRY.update({
+    "pilot_launch": (
+        tool_pilot_launch,
+        "v2 Agent-Pilot: Kick off a new DAG plan from natural-language intent. "
+        "Args: intent (required), open_id?, async_run? (default true).",
+    ),
+    "pilot_status": (
+        tool_pilot_status,
+        "v2 Agent-Pilot: Get live DAG state of a plan by plan_id. "
+        "Returns steps with status, artifacts (doc_token/canvas_id/slide_id/share_url) and results.",
+    ),
+    "pilot_list": (
+        tool_pilot_list,
+        "v2 Agent-Pilot: List recent plans for a given open_id (or all). "
+        "Args: open_id?, limit? (default 10).",
+    ),
+})
+
+
 def list_tools() -> List[Dict[str, str]]:
     return [{"name": k, "doc": v[1]} for k, v in TOOL_REGISTRY.items()]
 

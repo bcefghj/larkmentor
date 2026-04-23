@@ -1,31 +1,55 @@
-# LarkMentor
+# LarkMentor v2 · Agent-Pilot
 
-> **飞书 IM 上的双引擎 AI 协同助手**
+> **从 IM 对话到演示稿的一键智能闭环**
 >
-> 一边守消息层，一边守表达层，背后是同一份「这家公司怎么做事」的知识。
+> AI Agent 主驾驶 · GUI 四端（iOS / Android / macOS / Windows）Co-pilot · Yjs CRDT 实时同步
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)]()
-[![Tests](https://img.shields.io/badge/pytest-178%20passed-brightgreen)]()
-[![Code](https://img.shields.io/badge/代码量-14%2C511%20lines-orange)]()
+[![Tests](https://img.shields.io/badge/pytest-218%20passed-brightgreen)]()
+[![Flutter](https://img.shields.io/badge/Flutter-4端一套代码-02569B)]()
+[![CRDT](https://img.shields.io/badge/Yjs-CRDT%20offline%20merge-violet)]()
 [![Security](https://img.shields.io/badge/安全栈-8层全链路-red)]()
-[![MCP](https://img.shields.io/badge/MCP-18个工具-blueviolet)]()
+[![MCP](https://img.shields.io/badge/MCP-21个工具-blueviolet)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow)]()
 
 **在线体验**：http://118.178.242.26/ &nbsp;|&nbsp;
-**技术报告**：[larkmentor_report.pdf](larkmentor_report.pdf) &nbsp;|&nbsp;
-**Dashboard**：http://118.178.242.26/dashboard
+**Pilot 驾驶舱**：http://118.178.242.26/dashboard/pilot &nbsp;|&nbsp;
+**技术报告**：[larkmentor_report.pdf](larkmentor_report.pdf)
+
+---
+
+## v2 一句话（赛题对齐）
+
+赛题「基于 IM 的办公协同智能助手 · Agent-Pilot」要求：**从一次 IM 对话开始，Agent 自动串联 IM + 文档 + 演示稿/画布，实现多端实时同步的全链路自动化**。
+
+本项目实现：
+
+| 赛题要求 | 本项目实现 |
+| --- | --- |
+| 多端协同框架（移动 + 桌面 实时同步） | Flutter iOS/Android/macOS/Windows 四端一套代码 + `y-py` WebSocket CRDT Hub |
+| 场景 A 意图入口 | 飞书 IM 群/私聊 + `/pilot` 指令，Flutter 长按语音 |
+| 场景 B 任务理解与规划 | `PilotPlanner`：Doubao LLM DAG + 纯 Python Heuristic 双栈 |
+| 场景 C 文档/白板生成 | `doc_tool.py`（飞书 Docx API）+ `canvas_tool.py`（tldraw 场景 + 飞书画板双写） |
+| 场景 D 演示稿生成与排练 | `slide_tool.py`（Slidev markdown → pptx + 演讲稿） |
+| 场景 E 多端协作与一致性 | `core/sync/` CRDT Hub + Flutter `OfflineCache` + 离线合并对账 |
+| 场景 F 总结与交付 | `archive_tool.py`：manifest + 飞书 Docx 摘要 + 分享页 |
+| 加分：离线支持 | Yjs 原生 offline merge + Flutter SQLite 本地缓存 |
+| 加分：高级 Agent 能力 | Proactive clarification / 讨论总结 / 下一步推荐 |
+| 加分：富媒体画布 | canvas `shape_type`: node / arrow / image / table / sticky |
+| 加分：第三方平台集成 | 飞书 7 API（IM/Docx/Bitable/Calendar/Wiki/Minutes/Reaction）+ 规划中的 Board / Drive / Slides |
 
 ---
 
 ## 目录
 
-- [这是什么](#这是什么)
-- [三个赛道志愿](#三个赛道志愿)
-- [功能详解](#功能详解)
+- [v2 Agent-Pilot 架构一览](#v2-agent-pilot-架构一览)
+- [快速跑通（3 分钟）](#快速跑通3-分钟)
+- [Flutter 四端客户端](#flutter-四端客户端)
+- [Demo 脚本](#demo-脚本)
+- [原 LarkMentor v1（消息守护 + 表达引导）](#原-larkmentor-v1消息守护--表达引导)
 - [系统架构](#系统架构)
-- [本地运行（5 分钟）](#本地运行5-分钟)
 - [飞书开发者平台配置](#飞书开发者平台配置)
-- [服务器部署（阿里云）](#服务器部署阿里云)
+- [服务器部署（阿里云 v2）](#服务器部署阿里云-v2)
 - [使用指令大全](#使用指令大全)
 - [代码结构](#代码结构)
 - [量化指标](#量化指标)
@@ -34,7 +58,124 @@
 
 ---
 
-## 这是什么
+## v2 Agent-Pilot 架构一览
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  输入层                                                             │
+│  飞书 IM (群/私聊, 文本/语音)  ·  Flutter iOS/Android/macOS/Windows │
+│                    ·  Web Dashboard (评委入口)                      │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               ↓
+┌────────────────────────────────────────────────────────────────────┐
+│  Agent-Pilot 后端                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │  Gateway     │  │  Planner     │  │  Advanced Agent          │ │
+│  │ (FastAPI)    │→ │ (Doubao LLM  │→ │ 主动澄清 / 讨论总结 /     │ │
+│  │              │  │  + Heuristic)│  │ 下一步推荐                │ │
+│  └──────────────┘  └──────────────┘  └──────────────────────────┘ │
+│                               ↓                                     │
+│  ┌──────────────────────────────────────────────────────────────┐ │
+│  │  DAG Orchestrator (ThreadPool, parallel groups, dependency)  │ │
+│  └──────────────────────────────────────────────────────────────┘ │
+│                               ↓                                     │
+│  ┌──────────┬───────────┬──────────┬──────────┬──────────────┐   │
+│  │im.fetch  │doc.create │canvas.*  │slide.*   │archive.bundle│   │
+│  │mentor.*  │doc.append │          │rehearse  │              │   │
+│  └──────────┴───────────┴──────────┴──────────┴──────────────┘   │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               ↓
+┌────────────────────────────────────────────────────────────────────┐
+│  多端同步层 (Yjs CRDT Hub)                                         │
+│  core/sync/crdt_hub.py  ·  core/sync/ws_server.py                  │
+│  y-py YDoc per plan · WebSocket fanout · 离线 log + reconcile      │
+└──────────────────────────────┬─────────────────────────────────────┘
+                               ↓ (broadcast event/state/yupdate)
+    ┌──────────────────┬──────────────────┬──────────────────┐
+    │  飞书 Bot        │  Flutter 4 端     │  Web Dashboard    │
+    │  发汇总卡片       │  原生 Canvas/PPT  │  tldraw + Tiptap │
+    └──────────────────┴──────────────────┴──────────────────┘
+```
+
+---
+
+## 快速跑通（3 分钟）
+
+```bash
+git clone https://github.com/bcefghj/larkmentor.git
+cd larkmentor
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env       # 填入飞书 App ID / Secret、ARK API Key
+
+# 启动全部 3 个服务
+bash run_services.sh
+
+# 浏览器打开：
+#   http://localhost:8001/dashboard/pilot   ← Agent-Pilot 驾驶舱
+#   http://localhost:8001/                  ← 原有 Dashboard
+```
+
+跑通无网络也能玩：文档生成、画布、PPT 都会 fallback 到本地 markdown/JSON 文件，放在 `data/pilot_artifacts/`，可通过 `http://localhost:8001/artifacts/<file>` 访问。
+
+### 最小飞书 Bot Demo
+
+在飞书里私聊机器人：
+
+```
+/pilot 把本周关于 Agent-Pilot 的讨论整理成产品方案 + 评审 PPT，并画一张架构图
+```
+
+Bot 会立即回复计划 + 进度链接，后台 Orchestrator 并行跑完 8 步，结束后再发一条汇总。
+
+---
+
+## Flutter 四端客户端
+
+一套代码跑 **iOS / Android / macOS / Windows**，作为 Agent-Pilot 的 **Co-pilot GUI 驾驶舱**。
+
+```bash
+cd mobile_desktop
+flutter pub get
+flutter run -d macos     # or: ios / android / windows
+```
+
+5 个原生页面 + 1 个设置页：
+
+| 页面 | 场景 | 功能 |
+| --- | --- | --- |
+| Agent-Pilot | A/B/E | 启动 Pilot、查看 DAG 进度、实时事件流 |
+| 文档协作 | C | 内嵌 Web 驾驶舱，保证四端一致 |
+| 画布协作 | C | 原生 `CustomPaint` 渲染 tldraw 场景 JSON |
+| 演示稿 | D | 读取 Slidev outline + 演讲稿，排练模式 |
+| 语音指令 | A | 长按录音 → 后端 ASR → 触发 `/pilot` |
+| 设置 | - | 修改后端 URL / open_id |
+
+全部页面共享 `SyncService` WebSocket，后端 CRDT Hub 任意客户端操作都会实时推送。
+
+---
+
+## Demo 脚本
+
+完整 5 分钟评审 demo 录屏脚本：[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)。
+
+### 6 场景独立演示
+
+| 场景 | 独立触发命令 |
+| --- | --- |
+| A 意图入口 | 飞书语音 / 文本 `/pilot ...` |
+| B 任务规划 | `/pilot 处理一下` → 看 Planner 自动澄清 |
+| C 文档生成 | `/pilot 起草 Q2 规划文档` |
+| C 画布生成 | `/pilot 画一张 Agent-Pilot 架构图` |
+| D PPT 生成 | `/pilot 为 AI 比赛写评审 PPT` |
+| E 多端同步 | 移动端修改 → 桌面端实时刷新 |
+| F 归档交付 | 任何 Plan 结束都会生成 `/pilot/<plan_id>` 分享页 |
+
+---
+
+## 原 LarkMentor v1（消息守护 + 表达引导）
+
+---
 
 LarkMentor 是一个运行在**飞书 IM** 里的 AI Bot，同时解决知识工作者每天面临的两个问题：
 
@@ -344,7 +485,17 @@ PYTHONPATH=. python -m core.mcp_server.server --transport http --port 8767
 
 ---
 
-## 服务器部署（阿里云）
+## 服务器部署（阿里云 v2）
+
+> v2 部署引入 Agent-Pilot 后端 + Sync WebSocket。一行命令：
+>
+> ```bash
+> bash deploy/deploy_v2.sh
+> ```
+>
+> 会自动（1）本地跑 pytest → （2）打包 → （3）scp 上传 → （4）远端建 venv、装依赖 → （5）创建/更新 3 个 systemd 服务：`larkmentor-v2` / `larkmentor-v2-dashboard` / `larkmentor-v2-mcp` →（6）更新 nginx 反代（含 `/sync/` WebSocket upgrade）→（7）冷切换 + 14 项 smoke test，失败自动回滚。
+
+### v1 旧部署（作为参考）
 
 > 如果只是想在本地试用，跳过这节。这节是给想把 Bot 7×24 跑在服务器上的人看的。
 
@@ -450,6 +601,20 @@ server {
 ## 使用指令大全
 
 在飞书中和 Bot 私聊，发送以下指令：
+
+### v2 Agent-Pilot（IM → Doc → PPT 闭环）
+
+| 指令 | 效果 |
+| --- | --- |
+| `/pilot <自然语言>` | 启动 Agent-Pilot DAG，自动生成 Doc/Canvas/PPT 并四端同步 |
+| `pilot` / `/pilot` / `飞行员` | 查看 /pilot 用法说明 |
+| `我的飞行员` / `pilot 列表` | 查看最近 8 次 Pilot 运行 |
+
+在群聊里 @LarkMentor 也支持（不需要开启专注模式），示例：
+
+```
+@LarkMentor /pilot 把今天的讨论做成评审 PPT
+```
 
 ### 消息守护（Smart Shield）
 
@@ -563,9 +728,29 @@ larkmentor/
 │   │   ├── task_v2.py           #     飞书任务 v2
 │   │   └── urgent_api.py        #     加急通知
 │   │
-│   ├── mcp_server/              #   MCP 协议 Server（对外暴露 18 个工具）
+│   ├── mcp_server/              #   MCP 协议 Server（对外暴露 21 个工具）
 │   │   ├── server.py            #     HTTP + stdio 双传输模式
-│   │   └── tools.py             #     工具定义：shield/mentor/memory/skill 分组
+│   │   └── tools.py             #     工具定义：shield/mentor/memory/skill/pilot
+│   │
+│   ├── agent_pilot/             #   v2 Agent-Pilot 核心（Scenario A-F 编排）
+│   │   ├── planner.py           #     Scenario B: Doubao LLM + Heuristic DAG planner
+│   │   ├── orchestrator.py      #     DAG 执行器（thread pool parallel groups）
+│   │   ├── scenarios.py         #     6 场景注册
+│   │   ├── advanced.py          #     主动澄清 / 讨论总结 / 下一步推荐
+│   │   ├── service.py           #     Process-wide 单例 + 持久化
+│   │   └── tools/
+│   │       ├── doc_tool.py      #     Scenario C: 飞书 Docx 创建/追加
+│   │       ├── canvas_tool.py   #     Scenario C: tldraw + 飞书画板双写（富媒体）
+│   │       ├── slide_tool.py    #     Scenario D: Slidev → pptx + 演讲稿
+│   │       ├── voice_tool.py    #     Scenario A: Doubao/妙记 STT
+│   │       ├── archive_tool.py  #     Scenario F: 汇总打包 + 分享链接
+│   │       ├── im_tool.py       #     Scenario A: im.fetch_thread 上下文
+│   │       └── mentor_tool.py   #     Advanced: mentor.clarify / summarize
+│   │
+│   ├── sync/                    #   v2 多端同步层（Scenario E）
+│   │   ├── crdt_hub.py          #     Yjs y-py Hub + WebSocket 广播
+│   │   ├── ws_server.py         #     /sync/ws FastAPI 路由
+│   │   └── offline_merge.py     #     离线合并对账
 │   │
 │   └── work_review/             #   工作回顾
 │       ├── weekly_report.py     #     周报：STAR 结构 + 引用追踪
@@ -603,10 +788,21 @@ larkmentor/
 │   └── simulator/               #   场景模拟测试
 │       └── scenarios/           #   12 个 YAML 场景（紧急词/白名单/闲聊/边界等）
 │
+├── mobile_desktop/              # v2 Flutter 4-in-1 客户端（iOS/Android/macOS/Windows）
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── screens/             #   pilot_home / doc_view / canvas_view / slide_view / voice_input / settings
+│   │   ├── services/            #   sync_service (Yjs WS) / api_service / voice_service / offline_cache
+│   │   └── ...
+│   ├── pubspec.yaml
+│   └── README.md                #   构建/运行/打包说明
+│
 └── deploy/                      # 部署脚本
-    ├── deploy_lark_mentor.sh    #   一键部署（含 pytest 验证 + 自动回滚）
+    ├── deploy_lark_mentor.sh    #   v1 一键部署
+    ├── deploy_v2.sh             #   v2 一键部署（含 pytest + 14 项 smoke test + 自动回滚）
+    ├── smoke_test_v2.sh         #   v2 部署后健康检查
     ├── rollback.sh              #   一键回滚（< 60 秒）
-    └── smoke_test.sh            #   部署后 15 项健康检查
+    └── smoke_test.sh            #   v1 smoke
 ```
 
 ---
@@ -615,18 +811,20 @@ larkmentor/
 
 | 指标 | 数值 | 说明 |
 |------|------|------|
-| Python 文件 | 96 个 | — |
-| 代码行数 | 14,511 行 | 不含注释和空行 |
-| pytest 用例 | **178 个，全部通过** | `pytest tests/ -q` 验证 |
+| Python 文件 | 100+ 个 | v2 新增 `core/agent_pilot/` + `core/sync/` + 相关 tools |
+| 代码行数 | 16,000+ 行 | v2 新增 ~1,800 行后端 + ~1,300 行 Flutter Dart |
+| pytest 用例 | **218 个，全部通过** | v2 新增 40 条 agent_pilot/sync/advanced/api 测试 |
 | Promptfoo 红队 | **14/14 通过** | 覆盖 OWASP LLM Top 10 |
 | 6 维分类准确率 | **99%** | 102 个 YAML 场景测试集 |
 | LLM 调用率 | **< 12%** | 规则短路，边界才调 LLM |
 | 规则路径 P99 延迟 | **< 80ms** | 不含网络时延 |
 | LLM 路径 P99 延迟 | **< 2.2s** | 含 Doubao API 调用 |
-| MCP 工具数 | **18 个** | 4 mentor + 4 coach别名 + 6 核心 + 4 扩展 |
+| MCP 工具数 | **21 个** | v1 的 18 个 + v2 新增 `pilot_launch / pilot_status / pilot_list` |
 | 飞书 API 接入 | **7 个** | IM/Docx/Bitable/Calendar/Wiki/Minutes/Reaction |
+| Flutter 目标端 | **4 端** | iOS / Android / macOS / Windows 一套代码 |
+| Agent-Pilot 场景覆盖 | **A-F 全 6 场景** | `core/agent_pilot/scenarios.py` 统一注册 |
 | 安全栈层数 | **8 层** | 全链路必经，无快速路径 |
-| 部署成本 | **2C2G** | 阿里云最低规格，systemd × 3 服务 |
+| 部署成本 | **2C2G 起** | 阿里云最低规格，systemd × 3 服务 |
 
 ---
 
