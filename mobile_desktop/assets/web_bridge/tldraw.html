@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>LarkMentor Canvas (tldraw + Yjs)</title>
+  <style>
+    html, body, #root { height: 100%; margin: 0; background: #1F252E; }
+    #status {
+      position: fixed; top: 8px; right: 12px;
+      padding: 4px 8px; border-radius: 6px;
+      background: rgba(0,0,0,0.6); color: #E6EDF3;
+      font: 12px/1.4 -apple-system, system-ui, sans-serif;
+      z-index: 9999;
+    }
+  </style>
+  <!-- React + tldraw + Yjs loaded via esm.sh; entire bundle is ~1MB.
+       y-indexeddb gives us offline persistence; awareness carries cursor
+       and selection state across devices. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "react": "https://esm.sh/react@18",
+      "react-dom": "https://esm.sh/react-dom@18",
+      "react-dom/client": "https://esm.sh/react-dom@18/client",
+      "yjs": "https://esm.sh/yjs@13.6.27",
+      "y-websocket": "https://esm.sh/y-websocket@2.1.0",
+      "y-indexeddb": "https://esm.sh/y-indexeddb@9.0.12",
+      "@tldraw/tldraw": "https://esm.sh/@tldraw/tldraw@3.15.0",
+      "@tldraw/sync": "https://esm.sh/@tldraw/sync@3.15.0",
+      "@tldraw/tldraw/tldraw.css": "https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css"
+    }
+  }
+  </script>
+  <link rel="stylesheet" href="https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css" />
+</head>
+<body>
+  <div id="status">connecting…</div>
+  <div id="root"></div>
+
+  <script type="module">
+    import React from "react";
+    import { createRoot } from "react-dom/client";
+    import { Tldraw, createTLStore, defaultShapeUtils } from "@tldraw/tldraw";
+    import * as Y from "yjs";
+    import { WebsocketProvider } from "y-websocket";
+    import { IndexeddbPersistence } from "y-indexeddb";
+
+    // ── Configuration pushed from Flutter via window.__BRIDGE_CFG__ ──
+    const cfg = window.__BRIDGE_CFG__ || {
+      wsUrl: "ws://localhost:8000/sync/ws",
+      room:  "canvas:demo",
+      user:  { name: "guest", color: "#58A6FF" },
+    };
+    const statusEl = document.getElementById("status");
+    const post = (type, payload) => {
+      const msg = JSON.stringify({ type, payload });
+      if (window.flutter_inappwebview?.callHandler) {
+        window.flutter_inappwebview.callHandler("bridge", msg);
+      }
+      if (window.Bridge?.postMessage) window.Bridge.postMessage(msg);
+    };
+
+    // ── Yjs document + persistence ──
+    const ydoc = new Y.Doc();
+    const idb = new IndexeddbPersistence(cfg.room, ydoc);
+    idb.on("synced", () => post("offline:loaded", { room: cfg.room }));
+
+    const provider = new WebsocketProvider(cfg.wsUrl, cfg.room, ydoc, { connect: true });
+    provider.awareness.setLocalStateField("user", cfg.user);
+    provider.on("status", ({ status }) => {
+      statusEl.textContent = status;
+      post("ws:status", { status });
+    });
+    provider.awareness.on("change", () => {
+      const peers = Array.from(provider.awareness.getStates().values())
+        .map(s => s.user).filter(Boolean);
+      post("awareness", { peers });
+    });
+
+    // ── tldraw store bound to Yjs ──
+    const store = createTLStore({ shapeUtils: defaultShapeUtils });
+    const yShapes = ydoc.getMap("tl.shapes");
+
+    const flushToY = () => {
+      const snapshot = store.getSnapshot();
+      ydoc.transact(() => {
+        yShapes.clear();
+        for (const [id, rec] of Object.entries(snapshot.store)) {
+          yShapes.set(id, rec);
+        }
+      }, "local");
+    };
+    const applyFromY = () => {
+      const snap = { store: {}, schema: store.schema.serialize() };
+      yShapes.forEach((v, k) => (snap.store[k] = v));
+      if (Object.keys(snap.store).length) store.loadSnapshot(snap);
+    };
+
+    yShapes.observe((e) => { if (e.transaction.origin !== "local") applyFromY(); });
+    store.listen(flushToY, { source: "user", scope: "document" });
+
+    window.addEventListener("online",  () => post("net:online",  {}));
+    window.addEventListener("offline", () => post("net:offline", {}));
+
+    // ── React mount ──
+    const App = () =>
+      React.createElement(Tldraw, {
+        store,
+        onMount: (editor) => {
+          editor.on("change-cursor", (c) =>
+            provider.awareness.setLocalStateField("cursor", c));
+          post("mounted", { room: cfg.room });
+        },
+      });
+    createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>

@@ -26,36 +26,85 @@ DATA_DIR = os.path.join(
     "data", "pilot_plans",
 )
 
+# Toggle: use new Claude Code-style harness ConversationOrchestrator (default=1)
+# or fall back to legacy PilotOrchestrator (set LARKMENTOR_USE_HARNESS=0 to
+# debug the legacy path).
+USE_HARNESS = os.getenv("LARKMENTOR_USE_HARNESS", "1") != "0"
+
 
 def _ensure_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
 
 
-_singleton: Optional[PilotOrchestrator] = None
+_singleton = None  # PilotOrchestrator or ConversationOrchestrator
 _singleton_lock = threading.Lock()
 _plan_cache: Dict[str, Plan] = {}
 
 
-def get_orchestrator() -> PilotOrchestrator:
+def get_orchestrator():
+    """Returns the active orchestrator singleton.
+
+    New harness (``ConversationOrchestrator``) is the default. Legacy
+    ``PilotOrchestrator`` is kept for A/B debugging via env var.
+    """
     global _singleton
     with _singleton_lock:
         if _singleton is None:
-            registry = build_default_registry()
-            orch = PilotOrchestrator(tool_registry=registry)
-            try:
-                from core.sync.crdt_hub import attach_orchestrator
-                attach_orchestrator(orch)
-            except Exception as e:
-                logger.debug("attach_orchestrator skipped: %s", e)
-            _singleton = orch
+            if USE_HARNESS:
+                from .harness import ConversationOrchestrator
+                orch = ConversationOrchestrator()
+                try:
+                    from core.sync.crdt_hub import attach_orchestrator
+                    attach_orchestrator(orch)
+                except Exception as e:
+                    logger.debug("attach_orchestrator (harness) skipped: %s", e)
+                _singleton = orch
+            else:
+                registry = build_default_registry()
+                orch = PilotOrchestrator(tool_registry=registry)
+                try:
+                    from core.sync.crdt_hub import attach_orchestrator
+                    attach_orchestrator(orch)
+                except Exception as e:
+                    logger.debug("attach_orchestrator skipped: %s", e)
+                _singleton = orch
         return _singleton
 
 
 def launch(intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]] = None,
-           async_run: bool = True) -> Plan:
+           async_run: bool = True, execute: bool = True) -> Plan:
+    """Launch a Plan.
+
+    :param execute: when False the plan is generated + persisted but the
+        orchestrator is not invoked. This implements Plan Mode (/plan)
+        where the agent only shows the intended steps for user approval.
+    """
+    # P5.3: rate limit the main Pilot entrypoint.
+    try:
+        from core.security.rate_limiter import acquire as _acquire
+        dec = _acquire(user_open_id=user_open_id or "anonymous", tool="pilot.launch")
+        if not dec.allowed:
+            raise RuntimeError(
+                f"Pilot 启动被限流：{dec.reason}（冷却 {int(dec.reset_in_sec)}s）"
+            )
+    except RuntimeError:
+        raise
+    except Exception as _e_rl:
+        logger.debug("rate limiter skipped: %s", _e_rl)
+    try:
+        from core.observability import incr, audit
+        incr("plan_started", source=(meta or {}).get("source", "unknown"))
+        audit("plan.launch", user=user_open_id, intent=intent[:120],
+              source=(meta or {}).get("source", ""))
+    except Exception:
+        pass
+
     plan = plan_from_intent(intent, user_open_id=user_open_id, meta=meta)
     _plan_cache[plan.plan_id] = plan
     _persist(plan, phase="planned")
+
+    if not execute:
+        return plan
 
     if async_run:
         t = threading.Thread(target=_run_and_persist, args=(plan,), daemon=True)
@@ -68,7 +117,14 @@ def launch(intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]
 def _run_and_persist(plan: Plan) -> None:
     try:
         orch = get_orchestrator()
-        orch.run(plan, context={"plan_id": plan.plan_id, "user_open_id": plan.user_open_id})
+        # P1.2 fix: merge plan.meta into context so chat_id, project_root, etc.
+        # reach tool implementations. Previously meta was dropped here.
+        ctx = {
+            "plan_id": plan.plan_id,
+            "user_open_id": plan.user_open_id,
+        }
+        ctx.update(plan.meta or {})
+        orch.run(plan, context=ctx)
     except Exception as e:
         logger.exception("pilot run failed: %s", e)
     finally:

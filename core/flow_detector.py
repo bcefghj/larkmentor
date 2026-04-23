@@ -239,6 +239,23 @@ def parse_command(text: str) -> dict:
     if text in ("我的飞行员", "pilot 列表", "pilot list", "pilot plans"):
         return {"command": "pilot_list", "args": {}}
 
+    # Evaluator wow points (P4.5)
+    if text.lower() in ("/context", "context", "上下文"):
+        return {"command": "pilot_context", "args": {}}
+
+    if text.lower() in ("/skills", "skills", "技能清单"):
+        return {"command": "pilot_skills", "args": {}}
+
+    match = re.match(r"[/／]plan[：:\s]+(.+)", text, re.S | re.I)
+    if match:
+        return {"command": "pilot_plan_mode", "args": {"intent": match.group(1).strip()}}
+
+    if text.lower() in ("/plan", "plan mode"):
+        return {"command": "pilot_plan_mode", "args": {}}
+
+    if text.lower() in ("/mcp", "mcp"):
+        return {"command": "pilot_mcp", "args": {}}
+
     return {"command": "unknown", "args": {"text": text}}
 
 

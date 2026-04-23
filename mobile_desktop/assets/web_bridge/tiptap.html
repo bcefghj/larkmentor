@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LarkMentor Doc (Tiptap + Yjs)</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #FAFAF8; }
+    #toolbar {
+      display: flex; gap: 6px; padding: 8px 12px;
+      border-bottom: 1px solid #E4E4E4; position: sticky; top: 0;
+      background: #FFFFFFEE; backdrop-filter: blur(6px);
+    }
+    #toolbar button {
+      font: 13px/1 -apple-system, system-ui, sans-serif;
+      border: 1px solid #DDD; background: #fff; border-radius: 4px;
+      padding: 4px 8px; cursor: pointer;
+    }
+    #toolbar button.active { background: #1F6FEB; color: #fff; border-color: #1F6FEB; }
+    #editor { padding: 24px; max-width: 820px; margin: 0 auto; }
+    .ProseMirror { outline: none; font-size: 15px; line-height: 1.7; }
+    .ProseMirror h1 { font-size: 1.8em; font-weight: 700; }
+    .ProseMirror h2 { font-size: 1.4em; font-weight: 600; }
+    .ProseMirror table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    .ProseMirror th, .ProseMirror td { border: 1px solid #DDD; padding: 6px 8px; }
+    .ProseMirror .collaboration-cursor__caret {
+      border-left: 2px solid; border-right: 2px solid;
+      margin-left: -1px; margin-right: -1px; pointer-events: none;
+    }
+    .ProseMirror .collaboration-cursor__label {
+      font: 11px/1 -apple-system, system-ui, sans-serif;
+      padding: 1px 4px; border-radius: 3px; color: #fff;
+      position: absolute; top: -1.4em; left: -1px; white-space: nowrap;
+    }
+    #status { position: fixed; bottom: 12px; right: 16px;
+      padding: 4px 10px; border-radius: 20px;
+      background: #1F252E; color: #E6EDF3; font: 12px/1.4 sans-serif; }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "yjs": "https://esm.sh/yjs@13.6.27",
+      "y-websocket": "https://esm.sh/y-websocket@2.1.0",
+      "y-indexeddb": "https://esm.sh/y-indexeddb@9.0.12",
+      "@tiptap/core": "https://esm.sh/@tiptap/core@2.10.3",
+      "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2.10.3",
+      "@tiptap/extension-collaboration": "https://esm.sh/@tiptap/extension-collaboration@2.10.3",
+      "@tiptap/extension-collaboration-cursor": "https://esm.sh/@tiptap/extension-collaboration-cursor@2.10.3",
+      "@tiptap/extension-table": "https://esm.sh/@tiptap/extension-table@2.10.3",
+      "@tiptap/extension-table-row": "https://esm.sh/@tiptap/extension-table-row@2.10.3",
+      "@tiptap/extension-table-cell": "https://esm.sh/@tiptap/extension-table-cell@2.10.3",
+      "@tiptap/extension-table-header": "https://esm.sh/@tiptap/extension-table-header@2.10.3",
+      "@tiptap/extension-image": "https://esm.sh/@tiptap/extension-image@2.10.3"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="toolbar">
+    <button data-cmd="bold"><b>B</b></button>
+    <button data-cmd="italic"><i>I</i></button>
+    <button data-cmd="h1">H1</button>
+    <button data-cmd="h2">H2</button>
+    <button data-cmd="ul">• List</button>
+    <button data-cmd="ol">1. List</button>
+    <button data-cmd="quote">❝</button>
+    <button data-cmd="code">{ }</button>
+    <button data-cmd="table">⊞ 表格</button>
+    <button data-cmd="image">🖼 图片</button>
+  </div>
+  <div id="editor"></div>
+  <div id="status">connecting…</div>
+
+  <script type="module">
+    import * as Y from "yjs";
+    import { WebsocketProvider } from "y-websocket";
+    import { IndexeddbPersistence } from "y-indexeddb";
+    import { Editor } from "@tiptap/core";
+    import StarterKit from "@tiptap/starter-kit";
+    import Collaboration from "@tiptap/extension-collaboration";
+    import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+    import Table from "@tiptap/extension-table";
+    import TableRow from "@tiptap/extension-table-row";
+    import TableCell from "@tiptap/extension-table-cell";
+    import TableHeader from "@tiptap/extension-table-header";
+    import Image from "@tiptap/extension-image";
+
+    const cfg = window.__BRIDGE_CFG__ || {
+      wsUrl: "ws://localhost:8000/sync/ws",
+      room:  "doc:demo",
+      user:  { name: "guest", color: "#58A6FF" },
+    };
+    const statusEl = document.getElementById("status");
+    const post = (type, payload) => {
+      const msg = JSON.stringify({ type, payload });
+      if (window.flutter_inappwebview?.callHandler) {
+        window.flutter_inappwebview.callHandler("bridge", msg);
+      }
+      if (window.Bridge?.postMessage) window.Bridge.postMessage(msg);
+    };
+
+    const ydoc = new Y.Doc();
+    const idb = new IndexeddbPersistence(cfg.room, ydoc);
+    idb.on("synced", () => post("offline:loaded", { room: cfg.room }));
+
+    const provider = new WebsocketProvider(cfg.wsUrl, cfg.room, ydoc, { connect: true });
+    provider.awareness.setLocalStateField("user", cfg.user);
+    provider.on("status", ({ status }) => {
+      statusEl.textContent = status;
+      post("ws:status", { status });
+    });
+    provider.awareness.on("change", () => {
+      const peers = Array.from(provider.awareness.getStates().values())
+        .map(s => s.user).filter(Boolean);
+      post("awareness", { peers });
+    });
+
+    const editor = new Editor({
+      element: document.querySelector("#editor"),
+      extensions: [
+        StarterKit.configure({ history: false }),
+        Collaboration.configure({ document: ydoc }),
+        CollaborationCursor.configure({ provider, user: cfg.user }),
+        Table.configure({ resizable: true }),
+        TableRow, TableCell, TableHeader,
+        Image,
+      ],
+      autofocus: true,
+      onTransaction: ({ editor }) => {
+        document.querySelectorAll("#toolbar button").forEach(b => {
+          const cmd = b.dataset.cmd;
+          const map = {
+            bold: "bold", italic: "italic",
+            h1: ["heading", { level: 1 }],
+            h2: ["heading", { level: 2 }],
+            ul: "bulletList", ol: "orderedList",
+            quote: "blockquote", code: "codeBlock",
+          };
+          const arg = map[cmd];
+          if (!arg) return;
+          const active = Array.isArray(arg) ? editor.isActive(arg[0], arg[1]) : editor.isActive(arg);
+          b.classList.toggle("active", active);
+        });
+      },
+    });
+
+    document.querySelectorAll("#toolbar button").forEach(btn => {
+      btn.onclick = () => {
+        const cmd = btn.dataset.cmd;
+        const chain = editor.chain().focus();
+        if (cmd === "bold") chain.toggleBold().run();
+        else if (cmd === "italic") chain.toggleItalic().run();
+        else if (cmd === "h1") chain.toggleHeading({ level: 1 }).run();
+        else if (cmd === "h2") chain.toggleHeading({ level: 2 }).run();
+        else if (cmd === "ul") chain.toggleBulletList().run();
+        else if (cmd === "ol") chain.toggleOrderedList().run();
+        else if (cmd === "quote") chain.toggleBlockquote().run();
+        else if (cmd === "code") chain.toggleCodeBlock().run();
+        else if (cmd === "table") chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        else if (cmd === "image") {
+          const url = prompt("图片 URL", "https://placehold.co/600x300?text=LarkMentor");
+          if (url) chain.setImage({ src: url }).run();
+        }
+      };
+    });
+
+    // Allow Flutter (or backend) to pipe a command in via bridge
+    window.applyBridgeCommand = (op, payload) => {
+      try {
+        if (op === "insert_image") editor.chain().focus().setImage({ src: payload.url }).run();
+        else if (op === "insert_table") editor.chain().focus()
+          .insertTable({ rows: payload.rows || 3, cols: payload.cols || 3, withHeaderRow: true }).run();
+        else if (op === "insert_text") editor.chain().focus().insertContent(payload.html || payload.text || "").run();
+      } catch (e) { post("bridge:error", { msg: String(e) }); }
+    };
+
+    window.addEventListener("online",  () => post("net:online",  {}));
+    window.addEventListener("offline", () => post("net:offline", {}));
+    post("mounted", { room: cfg.room });
+  </script>
+</body>
+</html>

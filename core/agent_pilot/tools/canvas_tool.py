@@ -146,23 +146,55 @@ def canvas_add_shape(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     return {"canvas_id": canvas_id, "shape_id": shape_id, "total_shapes": len(scene["shapes"])}
 
 
-# ── Feishu Board (best-effort) ──
+# ── Feishu Board (best-effort, P1.3 upgrade) ──
+
 
 def _try_create_feishu_board(title: str) -> Optional[str]:
-    """Attempt to create a Feishu Whiteboard via Open API.
+    """Attempt to create a Feishu Board whiteboard via Open API.
 
-    The `board:whiteboard` scope is NOT yet enabled on our app in most
-    cases, so we swallow errors and fall back to the local scene.
+    Tries three paths in order:
+      1. ``core.feishu_advanced.board_api.create_board`` (our wrapper)
+      2. Raw HTTP call to ``https://open.feishu.cn/open-apis/board/v1/whiteboards``
+      3. None (fall back to local tldraw scene)
+
+    All failures are swallowed; the tldraw scene remains the source of truth.
     """
     try:
+        try:
+            from core.feishu_advanced.board_api import create_board as _cb  # type: ignore
+            url = _cb(title=title)
+            if url:
+                return url
+        except Exception:
+            pass
+
         from config import Config
         if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
             return None
-        # The Feishu Board API is not part of the bundled lark-oapi SDK in all
-        # versions — wrap in try so missing modules degrade gracefully.
-        from bot.feishu_client import get_client
-        client = get_client()
-        # Board API may not be exposed by the Python SDK yet. Placeholder:
+        # HTTP path: requires board:whiteboard scope. Best-effort only.
+        from bot.feishu_client import get_tenant_access_token  # type: ignore
+        tat = get_tenant_access_token()
+        if not tat:
+            return None
+        import json as _json
+        import urllib.request, urllib.error
+        req = urllib.request.Request(
+            "https://open.feishu.cn/open-apis/board/v1/whiteboards",
+            data=_json.dumps({"name": title}).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": f"Bearer {tat}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=8) as r:
+                body = _json.loads(r.read().decode("utf-8"))
+                token = ((body.get("data") or {}).get("whiteboard") or {}).get("whiteboard_id")
+                if token:
+                    return f"https://www.feishu.cn/board/{token}"
+        except urllib.error.HTTPError as herr:
+            logger.debug("feishu board http error %s", herr.code)
         return None
     except Exception as e:
         logger.debug("feishu board create skipped: %s", e)

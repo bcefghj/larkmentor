@@ -35,6 +35,15 @@ from .planner import Plan, PlanStep
 logger = logging.getLogger("pilot.orchestrator")
 
 
+class ToolNotRegisteredError(RuntimeError):
+    """Raised when the orchestrator encounters a tool name with no callable.
+
+    P1.1 design choice: in the past we silently simulated. That made
+    production failures invisible. Now we bubble up so the verify/reflect
+    loop can retry or replan.
+    """
+
+
 @dataclass
 class ExecutionEvent:
     event_id: str
@@ -173,14 +182,15 @@ class PilotOrchestrator:
         tool_fn = self._tools.get(step.tool)
         try:
             if tool_fn is None:
-                # Soft fallback: mark as simulated so the demo still runs
-                result = _simulate_tool(step.tool, args, plan, ctx)
-                step.result = result
-                step.status = "done"
-            else:
-                result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
-                step.result = result
-                step.status = "done"
+                # P1.1: No silent simulation. Missing tools MUST raise so the
+                # upper layer records a failure and triggers verify → replan.
+                raise ToolNotRegisteredError(
+                    f"tool not registered: {step.tool}. "
+                    f"Register it in core/agent_pilot/tools or via harness MCPClient."
+                )
+            result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
+            step.result = result
+            step.status = "done"
         except Exception as e:
             logger.exception("step %s failed", step.step_id)
             step.status = "failed"
@@ -232,41 +242,7 @@ def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]])
     return out
 
 
-def _simulate_tool(tool: str, args: Dict[str, Any], plan: Plan, ctx: Dict[str, Any]) -> Dict[str, Any]:
-    """Deterministic stub used when a real tool is not registered.
+# P1.1: the legacy _simulate_tool fallback has been removed on purpose.
+# All failures now propagate as ToolNotRegisteredError and the orchestrator
+# (or the new ConversationOrchestrator) classifies them for verify/replan.
 
-    Enables end-to-end demos without external side-effects (e.g. when
-    running the unit tests or pitching offline). Every stub returns the
-    canonical keys downstream steps expect.
-    """
-    ts = int(time.time())
-    if tool == "im.fetch_thread":
-        return {"messages": [
-            {"sender": "demo_user", "ts": ts - 600, "text": "这是模拟的群聊历史消息 1"},
-            {"sender": "demo_user", "ts": ts - 300, "text": "这是模拟的群聊历史消息 2"},
-        ], "count": 2}
-    if tool == "doc.create":
-        return {"doc_token": f"sim_doc_{ts}", "url": f"https://example.feishu.cn/docx/sim_doc_{ts}"}
-    if tool == "doc.append":
-        return {"doc_token": args.get("doc_token", ""), "blocks_added": 5}
-    if tool == "canvas.create":
-        return {"canvas_id": f"sim_canvas_{ts}", "url": f"https://example.feishu.cn/board/sim_canvas_{ts}"}
-    if tool == "canvas.add_shape":
-        return {"canvas_id": args.get("canvas_id", ""), "shape_id": f"shape_{ts}"}
-    if tool == "slide.generate":
-        return {"slide_id": f"sim_slide_{ts}", "pptx_url": f"/artifacts/sim_slide_{ts}.pptx",
-                "pdf_url": f"/artifacts/sim_slide_{ts}.pdf", "pages": 8}
-    if tool == "slide.rehearse":
-        return {"slide_id": args.get("slide_id", ""), "speaker_notes": ["模拟演讲稿 1", "模拟演讲稿 2"]}
-    if tool == "voice.transcribe":
-        return {"text": "（模拟语音转写）把本周讨论整理成 PPT"}
-    if tool == "archive.bundle":
-        return {"share_url": f"https://example.feishu.cn/pilot/{plan.plan_id}",
-                "artifacts": list(ctx["step_results"].keys())}
-    if tool == "sync.broadcast":
-        return {"broadcast_ok": True}
-    if tool == "mentor.clarify":
-        return {"questions": ["请问具体要覆盖哪些时间段？", "汇报对象是谁？"]}
-    if tool == "mentor.summarize":
-        return {"summary": "（模拟）本周围绕 Agent-Pilot 架构达成 3 项共识。"}
-    return {"simulated": True, "tool": tool}

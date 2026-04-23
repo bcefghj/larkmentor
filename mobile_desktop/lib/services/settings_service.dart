@@ -7,14 +7,21 @@ class SettingsService {
   late SharedPreferences _prefs;
   String _backendUrl = 'http://118.178.242.26';
   String _openId = 'ou_local_demo';
+  String _displayName = '本机用户';
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
     _backendUrl = _prefs.getString('backendUrl') ?? _backendUrl;
     _openId = _prefs.getString('openId') ?? _openId;
+    _displayName = _prefs.getString('displayName') ?? _displayName;
   }
 
   String get backendUrl => _backendUrl;
+  String get displayName => _displayName;
+  Future<void> setDisplayName(String v) async {
+    _displayName = v;
+    await _prefs.setString('displayName', v);
+  }
   String get wsUrl {
     if (_backendUrl.startsWith('https')) {
       return _backendUrl.replaceFirst('https', 'wss') + '/sync/ws';

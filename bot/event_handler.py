@@ -105,6 +105,10 @@ def _pilot_help_text() -> str:
         "**预计时间**：40-60秒完成所有产物\n\n"
         "**其他指令**：\n"
         "  • `我的飞行员` / `/pilot list` - 查看历史\n"
+        "  • `/plan <意图>` - 只规划不执行（Plan Mode）\n"
+        "  • `/context` - 查看 Agent 上下文快照\n"
+        "  • `/skills` - 查看挂载的 Skills（22 官方 + 3 自研）\n"
+        "  • `/mcp` - 查看已连接的 MCP 服务器\n"
         "  • `状态` - 查看当前执行状态\n\n"
         "**在线Dashboard**：\n"
         "  http://118.178.242.26/dashboard/pilot\n\n"
@@ -451,7 +455,11 @@ def _do_handle(data):
                 card = urgent_alert_card(sender=sender_name, content=text, chat_name=chat_name)
                 send_card(focused_user.open_id, card)
             elif action == "auto_reply":
-                reply_text(message_id, result["auto_reply_text"])
+                reply_body = (result.get("auto_reply_text") or "").strip()
+                if reply_body:
+                    reply_text(message_id, reply_body)
+                else:
+                    logger.info("skip auto_reply: empty body (level=%s)", level)
 
             # ── v4: Mentor proactive suggestion on P0/P1 ──
             try:
@@ -664,6 +672,72 @@ def _do_handle(data):
     # ── v2 Agent-Pilot commands ──
     if command == "pilot_help":
             send_text(open_id, _pilot_help_text())
+            return
+
+    # Judge wow points (P4.5)
+    if command == "pilot_context":
+            try:
+                from core.agent_pilot.harness import default_orchestrator
+                orch = default_orchestrator()
+                lines = ["🧠 **Context 快照**", ""]
+                lines.append(f"工具：{len(orch.tools.names())} 个 — {', '.join(orch.tools.names()[:8])}…")
+                lines.append(f"Skills：{', '.join(s.name for s in orch.skills.list())}")
+                lines.append(f"权限模式：`{orch.permissions.mode.value}`")
+                lines.append(f"最近 Hook：{len(orch.hooks.history())} 条")
+                lines.append(f"最近事件：{len(orch.events())} 条")
+                lines.append("\n详情：http://118.178.242.26/api/pilot/context")
+                send_text(open_id, "\n".join(lines))
+            except Exception as _e:
+                send_text(open_id, f"context 查询失败：{_e}")
+            return
+
+    if command == "pilot_skills":
+            try:
+                from core.agent_pilot.harness import default_skills
+                from bot.card_v2 import skills_list_card
+                skills = [{"name": s.name, "description": s.description,
+                           "source": s.source, "version": s.version,
+                           "path": s.path}
+                          for s in default_skills().list()]
+                send_card(open_id, skills_list_card(skills))
+            except Exception as _e:
+                send_text(open_id, f"skills 查询失败：{_e}")
+            return
+
+    if command == "pilot_mcp":
+            try:
+                from core.agent_pilot.harness import default_mcp_manager
+                mgr = default_mcp_manager()
+                aliases = mgr.list_aliases() or ["(无)"]
+                tools = mgr.list_tools()
+                send_text(open_id,
+                          "🔌 **MCP Servers**\n" +
+                          "\n".join(f"- `{a}`" for a in aliases) +
+                          f"\n\n总工具数：{len(tools)}")
+            except Exception as _e:
+                send_text(open_id, f"mcp 查询失败：{_e}")
+            return
+
+    if command == "pilot_plan_mode":
+            intent = args.get("intent", "")
+            if not intent:
+                send_text(open_id, "发 `/plan <意图>` 进入 Plan Mode（只规划不执行）。")
+                return
+            try:
+                from core.agent_pilot.service import launch as _pl
+                plan = _pl(intent, user_open_id=open_id,
+                           meta={"source": "feishu_p2p", "plan_mode": True,
+                                 "permission_mode": "plan"},
+                           async_run=False, execute=False)
+                steps = "\n".join(f"  {i+1}. [{s.tool}] {s.description}"
+                                  for i, s in enumerate(plan.steps[:12]))
+                send_text(open_id,
+                          "📝 **Plan Mode（只规划不执行）**\n"
+                          f"Plan: `{plan.plan_id}`\n意图：{intent[:80]}\n\n"
+                          f"共 {len(plan.steps)} 步：\n{steps}\n\n"
+                          "确认执行请发 `/pilot " + intent[:40] + "`；调整请重新描述。")
+            except Exception as _e:
+                send_text(open_id, f"Plan Mode 失败：{_e}")
             return
 
     if command == "pilot_list":
@@ -1138,7 +1212,11 @@ def _do_handle(data):
             card = urgent_alert_card(sender=sender_name, content=text, chat_name=chat_name)
             send_card(open_id, card)
     elif action == "auto_reply":
-            reply_text(message_id, result["auto_reply_text"])
+            reply_body = (result.get("auto_reply_text") or "").strip()
+            if reply_body:
+                reply_text(message_id, reply_body)
+            else:
+                logger.info("skip auto_reply (p2p): empty body")
     if result.get("circuit_breaker_triggered"):
             send_text(
                 open_id,

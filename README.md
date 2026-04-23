@@ -1,20 +1,32 @@
-# LarkMentor v2 · Agent-Pilot
+# LarkMentor v3 · Agent-Pilot（完美版）
 
 > **从 IM 对话到演示稿的一键智能闭环**
 >
-> AI Agent 主驾驶 · GUI 四端（iOS / Android / macOS / Windows）Co-pilot · Yjs CRDT 实时同步
+> AI Agent 主驾驶 · Flutter 四端真协同（iOS / Android / macOS / Windows）· Yjs CRDT 离线无冲突合并 · 飞书 2026 官方 MCP + Card 2.0 + 长连接
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)]()
 [![Tests](https://img.shields.io/badge/pytest-218%20passed-brightgreen)]()
 [![Flutter](https://img.shields.io/badge/Flutter-4端一套代码-02569B)]()
-[![CRDT](https://img.shields.io/badge/Yjs-CRDT%20offline%20merge-violet)]()
-[![Security](https://img.shields.io/badge/安全栈-8层全链路-red)]()
-[![MCP](https://img.shields.io/badge/MCP-21个工具-blueviolet)]()
+[![Harness](https://img.shields.io/badge/Harness-ClaudeCode%20style-ff6f00)]()
+[![MCP](https://img.shields.io/badge/MCP-远程%2B本地%2B22%20Skills-blueviolet)]()
+[![CRDT](https://img.shields.io/badge/Yjs-offline%20merge-violet)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow)]()
 
 **在线体验**：http://118.178.242.26/ &nbsp;|&nbsp;
 **Pilot 驾驶舱**：http://118.178.242.26/dashboard/pilot &nbsp;|&nbsp;
-**技术报告**：[larkmentor_report.pdf](larkmentor_report.pdf)
+**技术报告 v3**：[larkmentor_report_v3.pdf](../larkmentor_report_v3.pdf)
+
+---
+
+## v3 亮点（本次重构）
+
+- **LangGraph 六节点编排**：`gather → plan → dispatch → verify → reflect → replan`，失败自动重规划，三次失败升级到 `AskUserQuestion`。
+- **Claude Code 式 Harness**：4 层 Context 压缩 / 6 模式 Permission / 6 生命周期 Hook / 3 层 Skill 渐进披露 / Subagent 独立 context。
+- **飞书 2026 官方栈全接入**：远程 MCP `mcp.feishu.cn/mcp` + 本地 `@larksuiteoapi/lark-mcp`（2500+ API）+ 22 个 `lark-cli` Skills + Card 2.0 + WebSocket 长连接 + AppLink + 多维表格 AI Agent 节点。
+- **Flutter 真协同客户端**：WebView 内嵌 `tldraw` / `Tiptap` + `y-websocket` + `y-indexeddb`，飞行模式可编辑、联网 2 秒内无冲突合并。
+- **评委 wow 指令**：`/context` `/plan` `/skills` `/mcp` 现场看 Harness 内部状态。
+- **可观测性**：OpenTelemetry + Prometheus + structlog + `~/.larkmentor/audit.jsonl` 审计日志。
+- **蓝绿部署**：`deploy/deploy_v3.sh` 符号链接切换，`deploy/rollback_v3.sh` 一键回滚。
 
 ---
 

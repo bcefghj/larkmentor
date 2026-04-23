@@ -34,7 +34,7 @@ DATA_DIR = ROOT / "data"
 STATIC_DIR = Path(__file__).parent / "static"
 
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, UploadFile, File, Form
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
 except ImportError as e:
@@ -42,6 +42,13 @@ except ImportError as e:
 
 
 app = FastAPI(title="LarkMentor Dashboard", version="3.0")
+
+# P5.1: Prometheus /metrics + OpenTelemetry tracing; both optional.
+try:
+    from core.observability import install_fastapi as _install_obs
+    _install_obs(app)
+except Exception as _e_obs:  # noqa: BLE001
+    pass
 
 # ----- runtime state -----
 DEMO_MODE = False
@@ -482,13 +489,123 @@ async def pilot_plans(limit: int = Query(20, ge=1, le=100),
 
 
 @app.get("/api/pilot/plan/{plan_id}")
-async def pilot_plan_detail(plan_id: str):
+async def pilot_plan_detail(plan_id: str, sig: str = Query("")):
     try:
+        # P1.6: if LARKMENTOR_PILOT_SHARE_SECRET is configured, verify the
+        # HMAC signature and refuse unsigned / expired URLs. When the env
+        # var is absent we run in legacy "open" mode for local dev.
+        secret = os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", "")
+        if secret:
+            from core.agent_pilot.share_sig import verify as _verify
+            if not _verify(plan_id, sig, secret=secret):
+                return JSONResponse({"error": "invalid_or_expired_signature"}, status_code=403)
         from core.agent_pilot.service import get_plan
         plan = get_plan(plan_id)
         if not plan:
             return JSONResponse({"error": "not_found"}, status_code=404)
         return plan.to_dict()
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/sign/{plan_id}")
+async def pilot_sign(plan_id: str, ttl: int = Query(7 * 86400, ge=60, le=30 * 86400)):
+    """Generate a signed share URL (used by share cards / AppLinks)."""
+    try:
+        from core.agent_pilot.share_sig import sign_url
+        base = os.getenv("LARKMENTOR_DASHBOARD_URL", "")
+        return sign_url(plan_id, base_path=f"{base}/pilot/{plan_id}", ttl_sec=ttl)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/context")
+async def pilot_context():
+    """Evaluator-facing snapshot: tokens used, compaction layer, hook trips.
+
+    Exposes the /context "judge wow" view — used in the demo when the
+    presenter types ``/context`` in IM to display the harness state.
+    """
+    try:
+        from core.agent_pilot.harness import default_orchestrator
+        orch = default_orchestrator()
+        return {
+            "tools": orch.tools.names(),
+            "permission_mode": orch.permissions.mode.value,
+            "skills": [s.name for s in orch.skills.list()],
+            "hook_history": orch.hooks.history()[-20:],
+            "recent_events": orch.events()[-30:],
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/skills")
+async def pilot_skills():
+    try:
+        from core.agent_pilot.harness import default_skills
+        return [
+            {"name": s.name, "description": s.description,
+             "source": s.source, "version": s.version, "path": s.path,
+             "when_to_use": s.when_to_use}
+            for s in default_skills().list()
+        ]
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/pilot/mcp/servers")
+async def pilot_mcp_servers():
+    try:
+        from core.agent_pilot.harness import default_mcp_manager
+        mgr = default_mcp_manager()
+        return {
+            "aliases": mgr.list_aliases(),
+            "tools": [{"alias": a, "tool": t.get("name"),
+                       "desc": (t.get("description") or "")[:120]}
+                      for a, t in mgr.list_tools()],
+        }
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/pilot/bitable")
+async def pilot_bitable_hook(body: Dict[str, Any]):
+    """Endpoint the Feishu Bitable AI Agent node hits on row change.
+
+    Expected body::
+
+        {
+          "app_token": "...", "table_id": "...", "record_id": "...",
+          "fields": {"需求": "生成评审方案", "要求": "..."},
+          "ai_field_name": "AI 结果",
+          "intent_template": "{需求} 生成文档 + PPT"
+        }
+    """
+    try:
+        from core.agent_pilot.service import launch
+        from core.feishu_advanced.bitable_agent import (
+            build_intent_from_fields, writeback_ai_result,
+        )
+        data = body or {}
+        intent = build_intent_from_fields(data.get("fields") or {}, data.get("intent_template", ""))
+        if not intent:
+            return JSONResponse({"error": "empty intent"}, status_code=400)
+        plan = launch(intent, user_open_id=data.get("user_open_id", ""),
+                      meta={"bitable_hook": True,
+                            "app_token": data.get("app_token", ""),
+                            "table_id": data.get("table_id", ""),
+                            "record_id": data.get("record_id", "")},
+                      async_run=True)
+        if data.get("app_token") and data.get("table_id") and data.get("record_id"):
+            writeback_ai_result(
+                app_token=data["app_token"], table_id=data["table_id"],
+                record_id=data["record_id"],
+                ai_field_name=data.get("ai_field_name", "AI 结果"),
+                verdict="处理中",
+                share_url=f"/pilot/{plan.plan_id}",
+            )
+        return {"plan_id": plan.plan_id, "intent": intent, "steps": len(plan.steps)}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -588,18 +705,39 @@ async def pilot_recommend(plan_id: str):
 
 
 @app.post("/api/pilot/voice/transcribe")
-async def pilot_voice_transcribe(body: Dict[str, Any]):
-    """Stub endpoint Flutter mobile posts recorded audio to.
+async def pilot_voice_transcribe(
+    audio: UploadFile = File(None),
+    open_id: str = Form(""),
+    minute_token: str = Form(""),
+    url: str = Form(""),
+):
+    """Accept either a multipart audio file (mobile client) or a
+    ``minute_token`` / remote ``url`` reference (desktop client).
 
-    Real ASR back-ends live behind the `voice_tool`; this HTTP entry
-    normalises the file reference into the same `voice.transcribe`
-    tool call the Orchestrator uses.
+    Backends tried in order: Feishu Minutes → Doubao ASR → Whisper.cpp.
+    Flutter uploads an ``audio`` m4a file captured by `package:record`.
     """
     try:
         from core.agent_pilot.tools.voice_tool import voice_transcribe
         from core.agent_pilot.planner import PlanStep
+        import tempfile
+
+        args: Dict[str, Any] = {"open_id": open_id}
+        if minute_token:
+            args["minute_token"] = minute_token
+        if url:
+            args["url"] = url
+        if audio is not None:
+            # Persist the upload to a tmp file and let the tool read it.
+            suffix = os.path.splitext(audio.filename or "audio.m4a")[1] or ".m4a"
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            tmp.write(await audio.read())
+            tmp.close()
+            args["file_path"] = tmp.name
+
         step = PlanStep(step_id="http", tool="voice.transcribe", description="http")
-        return voice_transcribe(step, {"resolved_args": body or {}, "plan_id": "", "step_results": {}})
+        return voice_transcribe(step, {"resolved_args": args, "plan_id": "",
+                                       "step_results": {}})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

@@ -2,145 +2,189 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:webview_flutter/webview_flutter.dart';
 
-import '../services/api_service.dart';
 import '../services/settings_service.dart';
 import '../services/sync_service.dart';
 
-/// Native rendering of the tldraw scene that `canvas_tool.py` emits.
-/// We do NOT embed tldraw itself here (Flutter doesn't have a native
-/// tldraw port yet) — instead we render the scene's shape list with
-/// CustomPaint. This mirrors the same JSON the Web + Feishu Board use.
+/// Real-collab canvas view (P3.1).
+///
+/// Loads `assets/web_bridge/tldraw.html` into a WebView; the HTML bundle
+/// binds a tldraw editor to a Yjs document backed by `y-websocket`
+/// against the backend `/sync/ws` hub, and `y-indexeddb` for offline
+/// persistence. Awareness (peer cursors + presence) is surfaced back to
+/// Flutter via a postMessage bridge so the status chip shows who else is
+/// editing.
 class CanvasView extends StatefulWidget {
-  const CanvasView({super.key});
+  const CanvasView({super.key, this.room = "canvas:default"});
+  final String room;
+
   @override
   State<CanvasView> createState() => _CanvasViewState();
 }
 
 class _CanvasViewState extends State<CanvasView> {
-  Map<String, dynamic>? _scene;
-  Timer? _timer;
+  late final WebViewController _controller;
+  final List<Map<String, dynamic>> _peers = [];
+  String _wsStatus = "init";
+  bool _offlineLoaded = false;
+  StreamSubscription? _sub;
 
   @override
   void initState() {
     super.initState();
-    _loadLatest();
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _loadLatest());
-    SyncService.instance.stream.listen((msg) {
-      final state = msg['state'];
-      if (state is Map && state['type'] == 'canvas.shape_added') {
-        _loadLatest();
-      }
+    _bootstrap();
+    _sub = SyncService.instance.stream.listen((msg) {
+      if (msg['type'] == 'canvas.refresh') _reload();
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _sub?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadLatest() async {
+  Future<void> _bootstrap() async {
+    final html = await rootBundle.loadString('assets/web_bridge/tldraw.html');
+    final wsUrl = SettingsService.instance.wsUrl;
+    final user = {
+      "name": SettingsService.instance.displayName,
+      "color": "#58A6FF",
+    };
+    final cfgJson = jsonEncode({
+      "wsUrl": wsUrl,
+      "room": widget.room,
+      "user": user,
+    });
+    final injected = html.replaceFirst(
+      '<head>',
+      '<head>\n<script>window.__BRIDGE_CFG__ = $cfgJson;</script>',
+    );
+
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF1F252E))
+      ..addJavaScriptChannel('Bridge',
+          onMessageReceived: (m) => _onBridge(m.message))
+      ..loadHtmlString(injected, baseUrl: 'https://larkmentor.local/');
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _reload() async {
+    try { await _controller.reload(); } catch (_) {}
+  }
+
+  void _onBridge(String payload) {
     try {
-      final plans = await ApiService.instance.listPlans(limit: 3);
-      for (final p in plans) {
-        final detail = await ApiService.instance.getPlan(p['plan_id'].toString());
-        if (detail == null) continue;
-        for (final s in (detail['steps'] as List?) ?? []) {
-          final r = (s as Map)['result'] as Map?;
-          if (r == null) continue;
-          final id = r['canvas_id']?.toString();
-          if (id != null) {
-            final uri = Uri.parse(
-                '${SettingsService.instance.backendUrl}/artifacts/$id.json');
-            try {
-              final resp = await http.get(uri).timeout(const Duration(seconds: 5));
-              if (resp.statusCode == 200) {
-                setState(() => _scene = jsonDecode(resp.body));
-                return;
-              }
-            } catch (_) {}
-          }
-        }
+      final Map msg = jsonDecode(payload);
+      switch (msg['type']) {
+        case 'ws:status':
+          setState(() => _wsStatus = (msg['payload']['status'] ?? '').toString());
+          break;
+        case 'awareness':
+          final peers = (msg['payload']['peers'] as List?)?.cast<Map>() ?? [];
+          setState(() {
+            _peers
+              ..clear()
+              ..addAll(peers.map((m) => Map<String, dynamic>.from(m)));
+          });
+          break;
+        case 'offline:loaded':
+          setState(() => _offlineLoaded = true);
+          break;
+        case 'net:offline':
+          setState(() => _wsStatus = 'offline');
+          break;
+        case 'net:online':
+          setState(() => _wsStatus = 'reconnecting');
+          break;
       }
     } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
-    final scene = _scene;
-    if (scene == null) {
-      return const Center(child: Text('尚无画布。先在 IM 或 Web 端触发 /pilot。'));
-    }
-    final shapes = (scene['shapes'] as List?)?.cast<Map>() ?? const [];
     return Column(children: [
-      Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text('${scene['title']} · v${scene['version']} · ${shapes.length} 个形状',
-            style: Theme.of(context).textTheme.labelLarge),
+      _StatusBar(
+        wsStatus: _wsStatus,
+        peers: _peers,
+        offlineReady: _offlineLoaded,
+        onReload: _reload,
       ),
       Expanded(
-        child: Center(
-          child: InteractiveViewer(
-            minScale: 0.3,
-            maxScale: 3,
-            child: CustomPaint(
-              size: const Size(900, 600),
-              painter: _ScenePainter(shapes),
-            ),
-          ),
-        ),
+        child: WebViewWidget(controller: _controller),
       ),
     ]);
   }
 }
 
-class _ScenePainter extends CustomPainter {
-  _ScenePainter(this.shapes);
-  final List<Map> shapes;
+class _StatusBar extends StatelessWidget {
+  const _StatusBar({
+    required this.wsStatus,
+    required this.peers,
+    required this.offlineReady,
+    required this.onReload,
+  });
+  final String wsStatus;
+  final List<Map<String, dynamic>> peers;
+  final bool offlineReady;
+  final VoidCallback onReload;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = const Color(0xFF1F252E);
-    canvas.drawRect(Offset.zero & size, bg);
-    final node = Paint()
-      ..color = const Color(0xFF58A6FF)
-      ..style = PaintingStyle.fill;
-    final stroke = Paint()
-      ..color = const Color(0xFFE6EDF3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    for (final s in shapes) {
-      final x = (s['x'] as num?)?.toDouble() ?? 0;
-      final y = (s['y'] as num?)?.toDouble() ?? 0;
-      final w = (s['w'] as num?)?.toDouble() ?? 120;
-      final h = (s['h'] as num?)?.toDouble() ?? 60;
-      final type = s['type']?.toString() ?? 'node';
-      final rect = Rect.fromLTWH(x, y, w, h);
-
-      if (type == 'arrow') {
-        canvas.drawLine(rect.centerLeft, rect.centerRight, stroke);
-      } else if (type == 'frame') {
-        canvas.drawRect(rect, stroke);
-      } else {
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(rect, const Radius.circular(6)), node);
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(rect, const Radius.circular(6)), stroke);
-      }
-      final text = s['text']?.toString() ?? '';
-      if (text.isNotEmpty) {
-        final tp = TextPainter(
-          text: TextSpan(text: text, style: const TextStyle(color: Colors.white, fontSize: 14)),
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: w);
-        tp.paint(canvas, Offset(x + (w - tp.width) / 2, y + (h - tp.height) / 2));
-      }
-    }
+  Widget build(BuildContext context) {
+    final color = wsStatus == 'connected'
+        ? Colors.green
+        : wsStatus == 'offline'
+            ? Colors.red
+            : Colors.orange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: const Color(0xFF252C38),
+      child: Row(children: [
+        Icon(Icons.circle, color: color, size: 10),
+        const SizedBox(width: 6),
+        Text('实时协同 · $wsStatus',
+            style: const TextStyle(color: Color(0xFFE6EDF3), fontSize: 12)),
+        const SizedBox(width: 16),
+        if (offlineReady)
+          const Chip(
+            label: Text('离线可编辑', style: TextStyle(color: Colors.white, fontSize: 11)),
+            backgroundColor: Color(0xFF238636),
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+          ),
+        const Spacer(),
+        ...peers.take(5).map((p) => Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Tooltip(
+                message: p['name']?.toString() ?? 'peer',
+                child: CircleAvatar(
+                  radius: 10,
+                  backgroundColor: Color(int.tryParse(
+                          (p['color']?.toString() ?? '#58A6FF').replaceFirst('#', 'FF'),
+                          radix: 16) ??
+                      0xFF58A6FF),
+                  child: Text(
+                    (p['name']?.toString().isNotEmpty ?? false)
+                        ? p['name'].toString().substring(0, 1)
+                        : '?',
+                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                ),
+              ),
+            )),
+        if (peers.length > 5)
+          Text('+${peers.length - 5}',
+              style: const TextStyle(color: Color(0xFF8B949E), fontSize: 12)),
+        IconButton(
+          onPressed: onReload,
+          icon: const Icon(Icons.refresh, color: Color(0xFF8B949E), size: 18),
+          visualDensity: VisualDensity.compact,
+          tooltip: '重连',
+        ),
+      ]),
+    );
   }
-
-  @override
-  bool shouldRepaint(_ScenePainter oldDelegate) => oldDelegate.shapes != shapes;
 }

@@ -23,14 +23,40 @@ def im_fetch_thread(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
         limit = 20
 
     messages = _try_fetch_real(chat_id, limit)
+    synthetic = False
     if not messages:
         messages = _synthetic(limit)
+        synthetic = True
+
+    # P1.5: PII scrub every message before the downstream planner / LLM
+    # sees it. We keep the original in ctx["im_raw"] only if explicitly
+    # requested (``include_raw=true``); otherwise only redacted survives.
+    scrubbed, report = _scrub_messages(messages)
 
     return {
         "chat_id": chat_id,
-        "messages": messages,
-        "count": len(messages),
+        "messages": scrubbed,
+        "count": len(scrubbed),
+        "synthetic": synthetic,
+        "pii_redactions": report,
     }
+
+
+def _scrub_messages(messages: List[Dict[str, Any]]):
+    try:
+        from core.security.pii_scrubber import scrub_pii  # type: ignore
+    except Exception:
+        return messages, {}
+    counts = {}
+    out = []
+    for m in messages:
+        r = scrub_pii(m.get("text") or "")
+        new_m = dict(m)
+        new_m["text"] = r.redacted_text
+        for k, v in (r.counts or {}).items():
+            counts[k] = counts.get(k, 0) + v
+        out.append(new_m)
+    return out, counts
 
 
 def _try_fetch_real(chat_id: str, limit: int) -> List[Dict[str, Any]]:

@@ -51,11 +51,25 @@ def _try_doubao(audio_url: str) -> str:
 
 
 def _try_feishu_minutes(file_key: str) -> str:
+    """Try Feishu Minutes API for pre-recorded meeting transcription.
+
+    ``file_key`` is treated as a ``minute_token`` when prefixed with ``minute_``
+    or passed verbatim otherwise. Returns the flat transcript string.
+    """
     if not file_key:
         return ""
     try:
         from core.feishu_advanced.minutes_fetch import fetch_minutes  # type: ignore
-        r = fetch_minutes(file_key)
+        r = fetch_minutes(file_key, need_speaker=True, need_timestamp=True) or {}
+        if not r.get("ok"):
+            return ""
+        # Prefer segmented speaker-tagged output when available.
+        segs = r.get("segments") or []
+        if segs:
+            return "\n".join(
+                f"[{s.get('speaker') or '?'} @ {int(s.get('ts_ms', 0)) // 1000}s] {s.get('text', '')}"
+                for s in segs
+            )
         return r.get("text", "")
     except Exception as e:
         logger.debug("feishu minutes skipped: %s", e)

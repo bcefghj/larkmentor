@@ -42,6 +42,23 @@ class ApiService {
     return [];
   }
 
+  /// Upload a recorded audio file to the backend, get transcript back.
+  ///
+  /// The backend `/api/pilot/voice/transcribe` endpoint tries Feishu Minutes
+  /// → Doubao ASR → Whisper.cpp in order (see `voice_tool.py`).
+  Future<String?> transcribe(String localPath) async {
+    final uri = Uri.parse('$_base/api/pilot/voice/transcribe');
+    final req = http.MultipartRequest('POST', uri);
+    req.files.add(await http.MultipartFile.fromPath('audio', localPath));
+    req.fields['open_id'] = SettingsService.instance.openId;
+    final streamed = await req.send().timeout(const Duration(seconds: 60));
+    if (streamed.statusCode >= 400) return null;
+    final raw = await streamed.stream.bytesToString();
+    final body = jsonDecode(raw);
+    if (body is Map && body['text'] is String) return body['text'] as String;
+    return null;
+  }
+
   Future<Map<String, dynamic>> launch(String intent) async {
     final uri = Uri.parse('$_base/api/pilot/launch');
     final resp = await http

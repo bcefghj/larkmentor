@@ -27,10 +27,25 @@ class _VoiceInputScreenState extends State<VoiceInputScreen> {
     final file = await VoiceService.instance.stop();
     setState(() => _recording = false);
     if (file == null) return;
-    // TODO: POST file to /api/pilot/voice/transcribe (backend tool is
-    // registered but HTTP endpoint will be added in cycle 3). For now
-    // fall back to text input so the end-to-end flow still works.
-    _promptForText();
+    setState(() => _lastTranscript = '转写中…');
+    try {
+      final text = await ApiService.instance.transcribe(file.path);
+      if (text == null || text.trim().isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('转写为空，改用文本输入')));
+        _promptForText();
+        return;
+      }
+      setState(() => _lastTranscript = text);
+      final resp = await ApiService.instance.launch(text);
+      setState(() => _lastPlanId = resp['plan_id']?.toString());
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('语音启动失败：$e')));
+      _promptForText();
+    }
   }
 
   Future<void> _promptForText() async {

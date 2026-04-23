@@ -1,124 +1,121 @@
-# LarkMentor v2 · Agent-Pilot Demo 录屏脚本（≤ 5 分钟）
+# LarkMentor · Agent-Pilot v3 · 10 分钟 Demo 视频逐帧台本
 
-> 目标：**清晰展示多端协同 + Agent 驱动主流程 + Office 套件覆盖**（赛题 3 大验收点）。
-
----
-
-## 前置准备
-
-1. 启动服务端：`ssh root@118.178.242.26 'systemctl status larkmentor-v2 larkmentor-v2-dashboard larkmentor-v2-mcp'` 确认 3 个服务都 `active (running)`。
-2. 在 macOS 上打开 Flutter 桌面端：`cd mobile_desktop && flutter run -d macos`。
-3. 手机打开 Android/iOS 版（APK / TestFlight）或备用浏览器。
-4. Chrome 打开 `http://118.178.242.26/dashboard/pilot` 作为评委观看入口。
-5. 飞书 PC 端登录主账号，打开与 `@LarkMentor` Bot 的私聊 / 测试群。
-
-确保**四块屏幕同时可见**（录屏软件分屏布局）：
-- 左上：飞书 PC 端（IM 入口）
-- 右上：Chrome Dashboard（观察员视角）
-- 左下：Flutter macOS（Co-pilot 驾驶舱）
-- 右下：iPhone/Android（移动端同步 + 语音）
+目标观众：评委（飞书 AI 校园挑战赛，Agent-Pilot 赛道）。
+录制分辨率：1920×1080，屏幕分屏布局见每段说明。
+建议时长：10:00（含 20 秒片头 + 40 秒片尾），场景 A–F 各 1:30，加分项 1:30。
 
 ---
 
-## 脚本
+## 0:00 – 0:20 · 片头（20s）
 
-### 段 1（0:00 - 0:45）| 问题陈述 + 产品定位
-
-**配音**：
-> LarkMentor v2 · Agent-Pilot 解决的问题是：**把一次 IM 讨论，自动变成文档 + 画布 + PPT 三端同步的完整成果**。传统做法要开 5 个应用、切 20 次页面；我们让一句自然语言就完成。
-
-**屏幕动作**：
-- 全屏展示架构图（[README.md](../README.md) 中的 6 场景图）
-- 切换到 4 分屏视图
+- **画面**：黑底 fade-in，居中 logo + 标题「LarkMentor · Agent-Pilot · 从 IM 对话到演示稿的一键智能闭环」。
+- **旁白**（可字幕）：
+  > 这是 LarkMentor v3，一个对标 Claude Code 工程架构、深度接入飞书 2026 官方栈、Flutter 四端真协同的 Agent-Pilot。接下来十分钟，您会看到全部 6 个必做场景 + 4 个加分项，没有仿真，没有剪辑跳步。
 
 ---
 
-### 段 2（0:45 - 2:15）| 从 IM 触发 Agent
+## 0:20 – 1:50 · 场景 A · IM 意图入口（1:30）
 
-**配音**：
-> 第一步，在飞书群里 @ LarkMentor，下达一条自然语言指令。
-
-**飞书 PC 端**输入：
-```
-/pilot 把今天关于 Agent-Pilot 架构的讨论整理成产品方案和评审 PPT，并画一张架构图
-```
-
-**观察点**：
-1. Bot 立刻回复 `🛫 Agent-Pilot 已启动 plan_xxx（共 8 步）`，附 Dashboard 链接。
-2. **Chrome Dashboard** 的 Plan 列表出现新 Plan，右侧事件流开始刷新。
-3. **Flutter macOS** 的 Pilot Home 页自动跳转到新 Plan 并开始显示步骤进度条。
-4. **移动端** Pilot Home 页也同步显示同一 Plan。
-
-> 关键话术：**这就是「多端协同」—— 一端触发，四端同步，我没有在任何一端做第二次操作。**
+- **布局**：左半屏飞书桌面客户端，右半屏 Flutter 移动端模拟器（或真机投屏）。
+- **操作序列**：
+  1. 飞书私聊 `LarkMentor Bot` 输入 `/help`，展示完整指令帮助卡（Card 2.0，元素可折叠）。
+  2. 发送：`/pilot 把本周"新人培训"群的讨论整理成产品方案 + 架构图 + 评审PPT`。
+  3. 立即切到 Flutter 移动端，按住底部麦克风按钮语音说："同时帮我预订周四下午 3 点的评审会议"。
+  4. Flutter 端本地 `record` 录音 → multipart 上传 → 后端 Doubao ASR 转写 → 自动补发到同一 Plan 的 `/pilot` 入口。
+- **口播重点**：Card 2.0 的 `element_id` 精准 patch、多端入口共用一个 `plan_id`。
 
 ---
 
-### 段 3（2:15 - 3:30）| Agent 驱动主流程
+## 1:50 – 3:20 · 场景 B · 任务理解与规划（1:30）
 
-**配音**：
-> Agent 现在把意图拆成了 DAG：先拉群聊上下文 → 并行创建飞书文档 / tldraw 画布 / Slidev PPT → 最后 Scenario F 归档生成分享链接。整个过程由 Planner 自主完成，我们不再干预。
-
-**屏幕动作**：
-- 在 Dashboard 展开 DAG 图（scenario tag 标注每步属于 A-F 哪个场景）
-- 聚焦到 `doc.create` 步骤完成 → 点击飞书 Docx 链接，展示自动生成的文档（有「背景/目标/摘要/下一步」结构）
-- 切换到 `canvas.create` → Flutter 桌面端的「画布协作」页面已渲染出架构图（3 节点 + 2 箭头）
-- `slide.generate` 完成 → Flutter 桌面端的「演示稿」页面能翻页，底部显示演讲稿
-
----
-
-### 段 4（3:30 - 4:20）| 移动端语音 + 跨端同步
-
-**配音**：
-> 现在演示**语音驱动 + 跨端一致性**：我在手机上长按录音说「第 3 页加一个 2026 Q2 里程碑」，桌面端 PPT 实时更新。
-
-**手机动作**：
-- 进入 Voice Input 页 → 长按圆形按钮 → 说："第 3 页加一个 2026 Q2 里程碑"
-- 松开 → 弹窗显示转写结果（离线 demo 下为占位文本）→ 确认
-- 后端 Orchestrator 收到新指令，生成子 Plan 修改 slide outline
-
-**桌面端/Web 端**：
-- Dashboard Pilot 事件流出现新事件
-- Slide 页第 3 页自动加入 "2026 Q2 里程碑" bullet
+- **布局**：全屏 Dashboard Pilot 驾驶舱（`/dashboard/pilot/{plan_id}`）。
+- **操作序列**：
+  1. 打开驾驶舱，展示 LangGraph 六节点状态机（gather / plan / dispatch / verify / reflect / replan）实时进度。
+  2. 展示 `/context` 指令结果：当前 token 使用、四层压缩触发线（40/60/78/92%）、已执行 hook 事件流。
+  3. 故意触发一次 `drive.delete`（敏感工具），展示 Permission Gate deny-first 弹出 `AskUserQuestion` 卡片。
+  4. 在卡片上点"允许本次"，plan 继续；另开一个 `/plan`（Plan Mode）展示"只规划不执行"模式下非 readonly 工具被 block。
+- **口播重点**：这是 Claude Code harness 的最小可用子集，评委看到的不是单纯 LLM 调用，而是带 verify / replan / permission / hook 的完整 agent loop。
 
 ---
 
-### 段 5（4:20 - 4:50）| 离线合并 + 归档
+## 3:20 – 4:50 · 场景 C · 文档 + 白板真协同（1:30）
 
-**配音**：
-> 最后演示**离线支持**：我把 macOS 断网，仍然能编辑画布；重联后所有改动通过 Yjs CRDT **无冲突合并**。
-
-**屏幕动作**：
-- macOS 关 WiFi → 在 Flutter 画布上添加一个 "2026 Q3" 便签
-- 开 WiFi → 几秒后 Web Dashboard 画布页也出现便签（无冲突）
-- 点击 `archive.bundle` 步骤 → 跳转到分享页 `http://118.178.242.26/pilot/<plan_id>`
-
----
-
-### 段 6（4:50 - 5:00）| 结尾
-
-**配音**：
-> LarkMentor v2：AI Agent 主驾驶，GUI 四端协作，飞书 + Doc + 画布 + PPT 一键闭环。GitHub：`bcefghj/larkmentor`。谢谢。
+- **布局**：左半屏 Flutter 桌面端，右半屏 Flutter 移动端。
+- **操作序列**：
+  1. 两端同时打开 Plan 生成的文档（Tiptap + Yjs）和画布（tldraw + Yjs）。
+  2. 桌面端输入一段需求描述；移动端几乎同时看到字符流入（y-websocket awareness 光标可见）。
+  3. 移动端在画布插入一个圆形 + sticky note；桌面端同步出现。
+  4. 在 Plan 驾驶舱点击「插入架构图」，Agent 自动在画布里铺出 4 层方框 + 箭头（`/pilot 富媒体` 能力）。
+- **口播重点**：这不是"三个客户端看同一份 HTTP"，而是 CRDT 真协同，光标/选区/presence 全部可视化。
 
 ---
 
-## 备用演示指令（若主流程卡壳）
+## 4:50 – 6:20 · 场景 D · 演示稿生成与排练（1:30）
 
-| 指令 | 预期产物 |
-| --- | --- |
-| `/pilot 帮我画一张 Agent-Pilot 的架构图` | canvas 场景单独演示 |
-| `/pilot 为飞书 AI 比赛写一份评审 PPT` | slide 场景单独演示 |
-| `/pilot 帮我处理` | 演示 Advanced Agent 主动澄清 |
-| `我的飞行员` | 列出历史 Plan |
+- **布局**：全屏浏览器（生成的 Slidev PPT）。
+- **操作序列**：
+  1. 驾驶舱点击「生成 PPT」，Agent 根据文档 + 白板抽取要点 → Slidev Markdown → 静态 HTML。
+  2. 打开生成的 PPT，展示首页 + 架构图页 + 结尾页。
+  3. 在驾驶舱点「一键排练」，调用 Agent 的 `rehearse` 子工具：给每一页生成讲稿（带语气标记）。
+  4. 展示讲稿卡片回流到飞书 IM 原对话（Card 2.0 折叠容器展开）。
+- **口播重点**：PPT 不是截图，是可交互 HTML；讲稿是真实 LLM 生成，带 timeout/retry/token budget/prompt 防注入加固。
 
-## 评分对齐自检表
+---
 
-| 赛题验收要点 | 本次 Demo 对应段落 |
-| --- | --- |
-| 多端协同（移动 ↔ 桌面 实时双向同步） | 段 2、段 4 |
-| Agent 驱动主流程（IM → 多场景编排） | 段 2、段 3 |
-| Office 套件覆盖（IM + Doc + PPT/Canvas） | 段 3（三工具并行）、段 5（归档） |
-| 自然语言交互（文本 + 语音） | 段 2（文本）、段 4（语音） |
-| 加分：离线支持 | 段 5 |
-| 加分：Advanced Agent（澄清/总结/推荐） | 段 3（澄清 fallback）+ 备用指令 |
-| 加分：富媒体画布 | 段 5（便签）+ 段 3（节点/箭头） |
-| 加分：飞书 API 深度集成 | 整个段 3（Docx API） |
+## 6:20 – 7:50 · 场景 E · 多端一致性与离线合并（1:30）
+
+- **布局**：左半屏桌面 Flutter，右半屏移动 Flutter。
+- **操作序列**：
+  1. 两端同时在 Tiptap 文档里敲字，确认实时同步；
+  2. **移动端开启飞行模式**，继续编辑 5 行文字 + 一张图片；
+  3. **桌面端**同时编辑同一段落；
+  4. **移动端关闭飞行模式**：2 秒内 y-indexeddb flush → y-websocket resync，两端自动无冲突合并；
+  5. 展示 `awareness` 光标重新出现在两端。
+- **口播重点**：CRDT 天然合并、y-indexeddb 离线持久化、hive 双层缓存；这是加分项 1 的完整兑现。
+
+---
+
+## 7:50 – 9:20 · 场景 F · 飞书全家桶串联交付（1:30）
+
+- **布局**：四分屏：飞书 IM / 飞书文档 / 多维表格 / 飞书日历。
+- **操作序列**（详见 `docs/DEMO_FEISHU_PLUS.md`）：
+  1. 一句话 `/pilot 启动项目Kickoff`：
+  2. **IM**：自动发确认卡到群（Card 2.0 + AppLink 回跳）；
+  3. **Doc**：自动建立会议纪要；
+  4. **Bitable AI Agent 节点**：改一行状态 → 回写 AI 字段；
+  5. **Calendar**：创建评审会议 + 邀请成员；
+  6. **Minutes**：会议中自动拉妙记逐字稿（带 speaker + timestamp）；
+  7. **Board**：生成看板；
+  8. **Drive**：归档 PPT 附件；
+  9. **Wiki**：沉淀到知识库。
+- **口播重点**：同时跑 8 个子应用，MCP 远程 + 本地 + CLI Skills 三源协同。
+
+---
+
+## 9:20 – 9:40 · 加分项集中展示（20s）
+
+- **画面切换**：
+  - `/skills` 列表：22 官方 + 3 自研 Skills
+  - `/mcp` 列表：remote + local + 自研 3 个 MCP 源
+  - `/context` 触发 autocompact 的实时进度条
+  - Mem0g 跨会话记忆：上周的决议被本周 Plan 自动引用
+
+---
+
+## 9:40 – 10:00 · 片尾（20s）
+
+- **画面**：项目首页 + 技术报告 PDF 封面 + GitHub 仓库 URL。
+- **字幕**：
+  > LarkMentor · Agent-Pilot · 飞书 AI 校园挑战赛 · 2026 年 4 月
+  > 源码：[https://github.com/bcefghj/larkmentor](https://github.com/bcefghj/larkmentor) ｜ 在线体验：[http://118.178.242.26/](http://118.178.242.26/)
+
+---
+
+## 录制前 Checklist
+
+- 服务器 `/health` 200
+- 飞书 Bot 已发布最新版本，WS 长连接已跑起来
+- Flutter 桌面/移动端都拉最新 `main` 分支并构建（`scripts/build_flutter_all.sh`）
+- Dashboard 已清理旧 Plan（`scripts/demo_offline.sh`）
+- 录屏软件关闭通知、关闭 VPN、关闭截图水印
+- OBS 场景预设：左右分屏 / 四分屏 / 单屏三套
