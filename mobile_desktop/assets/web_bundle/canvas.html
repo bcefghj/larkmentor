@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>LarkMentor · Canvas</title>
+  <style>
+    html, body, #root { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, 'PingFang SC', sans-serif; }
+    #status-bar { position: fixed; top: 0; left: 0; right: 0; background: rgba(0, 0, 0, 0.55); color: white; padding: 4px 10px; font-size: 12px; z-index: 1000; }
+  </style>
+</head>
+<body>
+  <div id="status-bar">🟡 加载中…</div>
+  <div id="root"></div>
+  <script type="module" src="/src/canvas-entry.jsx"></script>
+</body>
+</html>

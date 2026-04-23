@@ -1,0 +1,30 @@
+{
+  "name": "larkmentor-web-bundle",
+  "version": "4.0.0",
+  "private": true,
+  "description": "LarkMentor v4 · tldraw + Tiptap + Yjs 离线 bundle (Vite build)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --outDir dist",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "yjs": "^13.6.10",
+    "y-websocket": "^1.5.3",
+    "y-indexeddb": "^9.0.12",
+    "y-protocols": "^1.0.6",
+    "tldraw": "^3.0.0",
+    "@tiptap/core": "^2.2.0",
+    "@tiptap/starter-kit": "^2.2.0",
+    "@tiptap/extension-collaboration": "^2.2.0",
+    "@tiptap/extension-collaboration-cursor": "^2.2.0",
+    "@tiptap/extension-image": "^2.2.0",
+    "@tiptap/extension-table": "^2.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.0"
+  }
+}

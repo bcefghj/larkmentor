@@ -1,9 +1,22 @@
-"""Central event handler – routes all Feishu messages and card actions."""
+"""Central event handler – routes all Feishu messages and card actions.
+
+v4: 新增 bot/handlers_v4.py 统一入口路由（Agent-Pilot + 多 agent + Named Agents）。
+    v4 命令/Agent Pilot 场景会由 v4 handlers 处理；Shield/Mentor legacy 路径保留。
+"""
 
 import json
 import logging
 import threading
 import time as _time
+
+# v4 统一入口（new!）
+_USE_V4_HANDLERS = True  # feature flag; set False to disable v4 routing
+try:
+    from bot.handlers_v4 import handle_message as _v4_handle_message, classify_intent as _v4_classify
+except Exception as _e:
+    _USE_V4_HANDLERS = False
+    _v4_handle_message = None  # type: ignore
+    _v4_classify = None  # type: ignore
 
 import lark_oapi as lark
 from lark_oapi.event.callback.model.p2_card_action_trigger import (
