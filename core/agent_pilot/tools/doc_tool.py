@@ -59,7 +59,9 @@ def doc_create(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 def doc_append(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
     doc_token = args.get("doc_token") or ""
-    markdown = args.get("markdown") or _default_markdown_from_intent(ctx)
+    markdown = args.get("markdown") or ""
+    if not markdown or (isinstance(markdown, str) and "{{" in markdown):
+        markdown = _default_markdown_from_intent(ctx)
 
     if doc_token and not doc_token.startswith("local_doc_"):
         added = _try_append_feishu_blocks(doc_token, markdown)

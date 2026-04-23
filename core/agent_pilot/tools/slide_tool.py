@@ -35,7 +35,11 @@ def _ensure_dir():
 def slide_generate(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
     title = args.get("title") or "Agent-Pilot 演示"
-    outline = args.get("outline") or _default_outline_from_ctx(ctx, title)
+    if "{{" in str(title):
+        title = "Agent-Pilot 演示"
+    outline = args.get("outline")
+    if not outline or (isinstance(outline, str) and "{{" in outline):
+        outline = _default_outline_from_ctx(ctx, title)
     outline = _normalise_outline(outline)
 
     _ensure_dir()
