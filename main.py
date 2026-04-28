@@ -135,12 +135,25 @@ def _coach_weekly_growth_summary():
 
 
 def main():
+    dashboard_port = int(os.getenv("DASHBOARD_PORT", "8001") or "8001")
+    sync_port = int(os.getenv("SYNC_HUB_PORT", "8767") or "8767")
     print(r"""
-    ╔═══════════════════════════════════════════╗
-    ║  LarkMentor – 消息守护 + 表达引导            ║
-    ║  Smart Shield · Mentor · MCP · FlowMemory    ║
-    ║  飞书 AI 校园挑战赛参赛作品                 ║
-    ╚═══════════════════════════════════════════╝
+    ╔══════════════════════════════════════════════════════════╗
+    ║  Agent-Pilot · 三线产品 · 飞书 AI 校园挑战赛              ║
+    ║  从 IM 对话到演示稿的一键智能闭环                          ║
+    ║                                                          ║
+    ║  [✓] @pilot   主驾驶 · IntentDetector + ContextPack +     ║
+    ║              5 推理模式 + 多 Agent + 学习闭环             ║
+    ║  [✓] @shield  消息守护 · 6 维分类 + Recovery Card 双线点  ║
+    ║  [✓] @mentor  表达带教 · Write/Task/Review/Onboard 4 Skills ║
+    ║                                                          ║
+    ║  Bot       :  飞书 lark-oapi WebSocket 长连接             ║""")
+    print(f"    ║  Dashboard :  http://0.0.0.0:{dashboard_port:<5}/tasks                  ║")
+    print(f"    ║  Sync Hub  :  ws://0.0.0.0:{sync_port:<5}/sync                      ║")
+    print(r"""    ║                                                          ║
+    ║  在飞书发送  /pilot <意图>  启动主驾驶                     ║
+    ║  或在群聊中自然提到任务，Agent 主动识别（PRD §5）          ║
+    ╚══════════════════════════════════════════════════════════╝
     """)
 
     _validate_config()
@@ -152,6 +165,14 @@ def main():
     load_decisions()
     load_workspaces()
     init_dispatcher()
+
+    # ── v7 Pilot: subscribe learner to event bus (auto SKILL.md after 3 similar) ──
+    try:
+        from core.agent_pilot.application import default_pilot_learner
+        default_pilot_learner().attach_to_bus()
+        logger.info("PilotLearner attached to domain event bus")
+    except Exception as e:
+        logger.debug("PilotLearner attach failed (non-critical): %s", e)
 
     _start_scheduler()
 
