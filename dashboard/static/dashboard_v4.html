@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LarkMentor v4 · Agent 驾驶舱</title>
+  <style>
+    :root { --bg: #0e1117; --fg: #e6edf3; --accent: #58a6ff; --muted: #8b949e; --ok: #3fb950; --warn: #d29922; --err: #f85149; --box: #161b22; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, 'PingFang SC', sans-serif; }
+    .header { padding: 20px; background: var(--box); border-bottom: 1px solid #30363d; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .container { padding: 20px; max-width: 1400px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .card { background: var(--box); padding: 16px; border-radius: 8px; border: 1px solid #30363d; }
+    .card h2 { margin: 0 0 12px 0; font-size: 15px; color: var(--accent); }
+    .card .metric { font-size: 22px; font-weight: 600; }
+    .pipeline { display: flex; flex-wrap: wrap; gap: 4px; margin: 12px 0; }
+    .step { padding: 4px 8px; border-radius: 4px; font-size: 11px; background: #21262d; }
+    .step.ok { background: var(--ok); color: #0e1117; }
+    .step.running { background: var(--warn); color: #0e1117; animation: pulse 1.2s infinite; }
+    .step.failed { background: var(--err); color: white; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .log { background: #010409; padding: 10px; border-radius: 4px; font-family: Consolas, monospace; font-size: 11px; max-height: 220px; overflow-y: auto; }
+    .bar { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; margin: 4px 0; }
+    .bar > div { height: 100%; background: var(--accent); transition: width 0.3s; }
+    .status-good { color: var(--ok); }
+    .status-warn { color: var(--warn); }
+    .status-err { color: var(--err); }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; }
+    th { color: var(--muted); font-weight: normal; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 10px; font-size: 10px; background: #21262d; }
+    .badge.ok { background: var(--ok); color: #0e1117; }
+    .badge.running { background: var(--warn); color: #0e1117; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 LarkMentor v4 · Agent 驾驶舱</h1>
+    <div class="sub">
+      对标 Claude Code 9 步 pipeline · Multi-Agent 编排可视化 · 5 Quality Gates · 
+      <span id="cluster-status">🟢 所有服务在线</span> · 
+      <span id="last-update">—</span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Row 1: 3 overview cards -->
+    <div class="grid">
+      <div class="card">
+        <h2>🧠 Agent Harness</h2>
+        <div class="metric" id="harness-count">—</div>
+        <div style="color: var(--muted); font-size: 12px;">tools / <span id="skills-count">—</span> skills / <span id="mcp-count">—</span> MCP 源</div>
+        <div class="bar"><div id="harness-bar" style="width: 0%"></div></div>
+      </div>
+      <div class="card">
+        <h2>🎭 Multi-Provider 路由</h2>
+        <div class="metric" id="provider-active">—</div>
+        <div style="color: var(--muted); font-size: 12px;">当前 plan 成本 <span id="plan-cost">¥0</span> / 日总成本 <span id="daily-cost">¥0</span></div>
+        <div id="provider-list" style="font-size: 11px; color: var(--muted); margin-top: 6px;"></div>
+      </div>
+      <div class="card">
+        <h2>💭 记忆层</h2>
+        <div class="metric" id="mem-total">—</div>
+        <div style="color: var(--muted); font-size: 12px;">条记忆 · <span id="skill-gen-count">—</span> 个学习闭环生成的 skill</div>
+        <div id="memory-hierarchy" style="font-size: 11px; margin-top: 6px;"></div>
+      </div>
+    </div>
+
+    <!-- Row 2: 9-step pipeline + active plans -->
+    <div class="grid">
+      <div class="card" style="grid-column: span 2;">
+        <h2>⚙️ 9 步 Pipeline · 最近一次执行</h2>
+        <div class="pipeline" id="pipeline-steps">
+          <div class="step" data-idx="1">1. Settings</div>
+          <div class="step" data-idx="2">2. State init</div>
+          <div class="step" data-idx="3">3. Context</div>
+          <div class="step" data-idx="4">4. Compaction</div>
+          <div class="step" data-idx="5">5. Model call</div>
+          <div class="step" data-idx="6">6. Tool dispatch</div>
+          <div class="step" data-idx="7">7. Permission</div>
+          <div class="step" data-idx="8">8. Execute</div>
+          <div class="step" data-idx="9">9. Stop check</div>
+        </div>
+        <div class="log" id="pipeline-log">等待首次执行…</div>
+      </div>
+
+      <div class="card">
+        <h2>🛡️ 5 Quality Gates</h2>
+        <table>
+          <tr><th>Gate</th><th>得分</th></tr>
+          <tr><td>G1 Completeness</td><td id="g1">—</td></tr>
+          <tr><td>G2 Consistency</td><td id="g2">—</td></tr>
+          <tr><td>G3 Factuality</td><td id="g3">—</td></tr>
+          <tr><td>G4 Readability</td><td id="g4">—</td></tr>
+          <tr><td>G5 Safety</td><td id="g5">—</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 3: Orchestrator-Worker + Context compaction -->
+    <div class="grid">
+      <div class="card" style="grid-column: span 2;">
+        <h2>🎯 Orchestrator-Worker 编排（Anthropic 90.2% 提升核心）</h2>
+        <table id="workers-table">
+          <tr><th>Agent</th><th>Role</th><th>Status</th><th>耗时</th><th>Tokens</th></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h2>📦 Context 压缩 5 层</h2>
+        <div id="compaction-events" style="font-size: 12px;">未触发压缩</div>
+      </div>
+    </div>
+
+    <!-- Row 4: Teams + approvals -->
+    <div class="grid">
+      <div class="card">
+        <h2>👥 Agent Teams（在线辩论）</h2>
+        <div id="teams-list" style="font-size: 12px;">暂无 team</div>
+      </div>
+      <div class="card">
+        <h2>🛡️ 待审批（Human-in-Loop）</h2>
+        <div id="approvals-list" style="font-size: 12px;">无待审</div>
+      </div>
+      <div class="card">
+        <h2>📈 5 分钟流量</h2>
+        <div id="flow-chart">(占位，后端暴露 /metrics 后填)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchAndRender() {
+      try {
+        const resp = await fetch('/api/pilot/v4/dashboard');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        // Harness
+        document.getElementById('harness-count').textContent = data.tools?.total || '—';
+        document.getElementById('skills-count').textContent = data.skills?.total || '—';
+        document.getElementById('mcp-count').textContent = (data.mcp?.servers || []).filter(s => s.connected).length;
+
+        // Providers
+        const providers = data.providers?.providers || {};
+        const activeProviders = Object.keys(providers).filter(k => providers[k].has_key);
+        document.getElementById('provider-active').textContent = activeProviders.length + '/' + Object.keys(providers).length;
+        document.getElementById('plan-cost').textContent = '¥' + (data.providers?.budget?.current_plan_cost || 0).toFixed(3);
+        document.getElementById('daily-cost').textContent = '¥' + (data.providers?.budget?.daily_cost || 0).toFixed(2);
+        document.getElementById('provider-list').innerHTML = Object.entries(providers).map(([k, v]) =>
+          `<span class="badge ${v.has_key ? 'ok' : ''}">${k}</span>`
+        ).join(' ');
+
+        // Memory
+        document.getElementById('mem-total').textContent = data.memory?.total_memories || 0;
+        document.getElementById('skill-gen-count').textContent = data.learner?.skills_generated || 0;
+        const layers = data.memory?.system_prompt_layers || {};
+        document.getElementById('memory-hierarchy').innerHTML = 
+          Object.entries(layers).map(([k, v]) => `<span class="badge ${v ? 'ok' : ''}">${k}</span>`).join(' ');
+
+        // Last pipeline
+        if (data.last_run && data.last_run.steps) {
+          const steps = document.querySelectorAll('#pipeline-steps .step');
+          steps.forEach(el => el.className = 'step');
+          data.last_run.steps.forEach(s => {
+            const el = document.querySelector(`#pipeline-steps .step[data-idx="${s.index}"]`);
+            if (el) el.className = 'step ' + (s.status || 'ok');
+          });
+          document.getElementById('pipeline-log').textContent = 
+            data.last_run.steps.map(s => `[${s.index}] ${s.name} → ${s.status} ${s.duration_ms}ms`).join('\n');
+        }
+
+        // Quality gates
+        if (data.last_quality) {
+          data.last_quality.gates.forEach((g, i) => {
+            const el = document.getElementById(`g${i + 1}`);
+            if (el) el.innerHTML = `<span class="${g.passed ? 'status-good' : 'status-err'}">${Math.round(g.score * 100)}%</span>`;
+          });
+        }
+
+        // Workers
+        const wt = document.getElementById('workers-table');
+        const workers = data.last_run?.workers || [];
+        wt.innerHTML = '<tr><th>Agent</th><th>Role</th><th>Status</th><th>耗时</th><th>Tokens</th></tr>';
+        workers.forEach(w => {
+          const row = wt.insertRow();
+          row.innerHTML = `<td>@${w.type || w.agent_id}</td><td>${w.role || '-'}</td>
+            <td><span class="badge ${w.status === 'ok' ? 'ok' : ''}">${w.status}</span></td>
+            <td>${w.duration_ms || 0}ms</td><td>${w.tokens_used || 0}</td>`;
+        });
+
+        // Compaction events
+        const events = data.context?.recent_events || [];
+        document.getElementById('compaction-events').innerHTML = events.length === 0
+          ? '未触发压缩'
+          : events.map(e => `<div><span class="badge">${e.layer}</span> ${e.before} → ${e.after} (${e.ratio})</div>`).join('');
+
+        // Teams
+        const teams = data.teams || [];
+        document.getElementById('teams-list').innerHTML = teams.length === 0
+          ? '暂无 team'
+          : teams.map(t => `<div>${t.team_id} · ${t.agents.length} agents · 消息 ${t.messages_count}</div>`).join('');
+
+        // Approvals
+        const appr = (data.approvals?.recent || []).filter(a => !a.resolved);
+        document.getElementById('approvals-list').innerHTML = appr.length === 0
+          ? '无待审'
+          : appr.map(a => `<div>🛡️ ${a.tool}</div>`).join('');
+
+        document.getElementById('last-update').textContent = '最后更新: ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        document.getElementById('cluster-status').innerHTML = '🔴 dashboard API 未响应';
+      }
+    }
+    fetchAndRender();
+    setInterval(fetchAndRender, 3000);
+  </script>
+</body>
+</html>

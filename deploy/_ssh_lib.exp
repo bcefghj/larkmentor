@@ -1,0 +1,18 @@
+#!/usr/bin/expect -f
+# 通用 SSH 远程命令执行
+# 用法: ./_ssh_lib.exp "<远程命令>"
+set timeout 600
+set host "118.178.242.26"
+set user "root"
+set password "bcefghj@Github666"
+set cmd [lindex $argv 0]
+
+spawn ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=30 $user@$host $cmd
+expect {
+    "yes/no" { send "yes\r"; exp_continue }
+    "*assword*" { send "$password\r" }
+    timeout { puts "TIMEOUT_AT_PASSWORD"; exit 2 }
+}
+expect eof
+catch wait result
+exit [lindex $result 3]

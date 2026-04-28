@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LarkMentor · 飞书 AI 协作伙伴（消息守护 + 表达引导）</title>
+<meta name="description" content="LarkMentor 是飞书 IM 上的双引擎协同助手——一边守消息层（挡掉不该看的），一边守表达层（接住新人不会写的）。一个 Bot 同时做 Smart Shield（消息守护）+ Mentor（表达引导）。2026 飞书 AI 校园挑战赛参赛作品。">
+<meta name="theme-color" content="#fafaf9">
+<meta property="og:title" content="LarkMentor · 飞书 AI 工作伙伴">
+<meta property="og:description" content="守护消息层 + 带教表达层 · 飞书 IM 上的双引擎协同助手。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============== Nav ============== -->
+<nav class="topbar">
+  <div class="inner">
+    <a href="#top" class="logo"><span class="dot"></span>LarkMentor</a>
+    <div class="links">
+      <a href="#two-pains">两件事</a>
+      <a href="#solution">解法</a>
+      <a href="#shield">Smart Shield</a>
+      <a href="#mentor">Mentor Skills</a>
+      <a href="#memory">Memory</a>
+      <a href="#mcp">MCP</a>
+      <a href="#security">Security</a>
+      <a href="#team">Team</a>
+      <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">☾</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ============== Hero ============== -->
+<section id="top" class="hero container">
+  <div class="tag">2026 飞书 AI 校园挑战赛 · 参赛作品 · 一套代码三志愿覆盖</div>
+  <div class="hero-grid">
+    <div>
+      <h1>飞书里的 <em>AI 工作伙伴</em><br/>守护注意力 · 带教新人</h1>
+      <p class="subtitle">
+        在飞书里，每个人每天都在和两件事较劲：<strong>这条消息现在该不该让我看到</strong>？<strong>这条消息我该用什么方式发出去</strong>？<br/><br/>
+        没有产品把这两件事一起解。LarkMentor 把它们放在<strong>同一个 IM Bot</strong> 里——
+        一边守消息层，一边守表达层，背后是同一份「这家公司怎么做事」的知识。
+      </p>
+      <div class="cta-row">
+        <a href="#shield" class="btn btn-primary">看 Smart Shield 怎么打分 →</a>
+        <a href="#mentor" class="btn btn-ghost">看 Mentor 怎么改稿</a>
+        <a href="#mcp" class="btn btn-ghost">在线调 MCP API</a>
+        <a href="https://github.com/bcefghj/larkmentor" target="_blank" rel="noopener" class="btn btn-ghost">GitHub ↗</a>
+      </div>
+      <div class="meta-row">
+        <span>由 <strong>李洁盈</strong>（产品 / 设计 / 演讲）与 <strong>戴尚好</strong>（全栈 / Agent / 部署）共同打造</span>
+        <span class="sep">·</span>
+        <span>2026 / 04 · v1.0</span>
+      </div>
+      <div class="stats" id="heroStats"></div>
+    </div>
+
+    <div class="imsim-frame">
+      <div class="imsim-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="title">飞书 · 工程师群 · 你正在专注 90 分钟</span>
+        <span class="badge" id="simStateBadge">FOCUS</span>
+      </div>
+      <div class="imsim-body">
+        <div class="imsim-stream" id="simStream"></div>
+        <div class="imsim-controls">
+          <button id="simPlay" title="播放 / 暂停">▶</button>
+          <button id="simStep" title="单步">⏭</button>
+          <button id="simReset" title="重播">↻</button>
+          <div class="progress"><i id="simProgress"></i></div>
+          <span class="label" id="simLabel">0 / 0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Two Pains / One Bot ============== -->
+<section id="two-pains" class="container">
+  <div class="section-tag reveal">Two Pains · One Bot</div>
+  <h2 class="section-title reveal">两件事，<em>本来就该一起解</em>。</h2>
+  <p class="section-desc reveal">
+    今天打开飞书插件市场，<strong>做静音的不管表达，做写作的不管打扰</strong>——
+    没有人意识到这两件事发生在同一个工位上、同一个人身上、同一段时间内。
+  </p>
+  <div class="pains-grid reveal">
+    <div class="pain-card">
+      <div class="lbl">PAIN · 01 · 消息层</div>
+      <h3>这条消息现在该不该让我看到？</h3>
+      <p>
+        重要 @ 和噪音 @ 用同样的方式震动你的手机；不点开就不知道是谁在叫你。
+        知识工作者每被打断一次，平均需要 <strong>23 分 15 秒</strong> 才能回到原来的工作状态。
+      </p>
+      <div class="sample">「老板：今晚 10 点上线 P0」 ←→ 「群里：今天午饭吃啥」</div>
+    </div>
+    <div class="pain-merge"><div class="ring"></div>
+      <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="40" cy="40" r="14" stroke="currentColor" stroke-width="1.5" opacity=".35"/>
+        <path d="M40 8 L40 26 M40 54 L40 72 M8 40 L26 40 M54 40 L72 40"
+              stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".35"/>
+        <circle cx="40" cy="40" r="4" fill="currentColor"/>
+      </svg>
+    </div>
+    <div class="pain-card">
+      <div class="lbl">PAIN · 02 · 表达层</div>
+      <h3>这条消息我该用什么方式发出去？</h3>
+      <p>
+        新人在群里输入框前面犹豫半分钟、删了 3 遍——
+        「好的」够不够正式？「收到」会不会显得敷衍？
+        企业里 <strong>80%+</strong> 的关键知识是隐性的，从未被写下来。
+      </p>
+      <div class="sample">「老板让我跟一下需求 → 我下一步该做啥？」</div>
+    </div>
+  </div>
+  <div class="quote-block reveal">
+    LarkMentor 把它们放在同一个 IM Bot 里——一边守消息层（Smart Shield），一边守表达层（Mentor），
+    背后是同一份「这家公司怎么做事」的 FlowMemory + per-user RAG。
+    <span class="attr">— 团队产品观</span>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Solution · 4 大职责 ============== -->
+<section id="solution" class="container">
+  <div class="section-tag reveal">Solution · 4 大 Mentor 职责</div>
+  <h2 class="section-title reveal">Mentor 4 技能，<em>全部代码化</em>。</h2>
+  <p class="section-desc reveal">
+    LarkMentor 4 个 Skill：写作改写 / 任务澄清 / 周报生成 / 新人入职。
+    LarkMentor 把这套规范做成飞书原生 AI Bot——给每个新人 24 小时在线的 AI Mentor，
+    让真人 Mentor 杠杆放大 5 倍。
+  </p>
+  <div class="solution-grid" id="solutionGrid"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Smart Shield · 6 维分类 Live ============== -->
+<section id="shield" class="container">
+  <div class="section-tag reveal">Smart Shield · 6 维分类</div>
+  <h2 class="section-title reveal">看得懂、可解释、<em>能回滚</em>。</h2>
+  <p class="section-desc reveal">
+    大多数 AI 黑箱让人不敢用。Smart Shield 给每条消息生成 6 维评分卡：
+    <strong>紧急度 · 与你相关 · 工作相关 · 时间敏感 · 发送方权重 · 频道权重</strong>，
+    加权得到 P0 / P1 / P2 / P3 四档。任何一条决策都能在 Dashboard 一键回滚。
+  </p>
+  <div class="shield-wrap reveal">
+    <div class="shield-input">
+      <textarea id="shieldText" placeholder="试试输入一条消息……">老板：今晚 10 点 P0 上线，你和 @张三 留一下确认下</textarea>
+      <div class="row">
+        <select id="shieldSender">
+          <option value="boss">发送方：直属上级</option>
+          <option value="peer" selected>发送方：同组同事</option>
+          <option value="cross">发送方：跨部门</option>
+          <option value="bot">发送方：机器人/通知</option>
+        </select>
+        <select id="shieldChat">
+          <option value="dm">频道：私聊</option>
+          <option value="team" selected>频道：核心工作群</option>
+          <option value="big">频道：大群</option>
+          <option value="biz">频道：业务通知群</option>
+        </select>
+      </div>
+      <button id="shieldRun">实时打分 →</button>
+    </div>
+    <div class="shield-output" id="shieldOutput">
+      <div class="head">
+        <span style="font-weight:700">六维评分卡</span>
+        <span class="verdict p2" id="shieldVerdict">P2 · 默认</span>
+      </div>
+      <div id="shieldDims"></div>
+      <div class="total" id="shieldTotal">加权总分 · —</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Rookie Mentor · 4 个 Skill ============== -->
+<section id="mentor" class="container">
+  <div class="section-tag reveal">Mentor · 4 个 Skill</div>
+  <h2 class="section-title reveal">永远是草稿，<em>永远不自动发</em>。</h2>
+  <p class="section-desc reveal">
+    Mentor 4 个 Skill 全部走<strong>「先看后发」</strong>——AI 出三个版本，
+    你点哪个发哪个；可改可弃。我们做的是<strong>表达层带教</strong>，不是替你说话。
+  </p>
+  <div class="skills-grid" id="skillsGrid"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== FlowMemory + 6-tier MD ============== -->
+<section id="memory" class="container">
+  <div class="section-tag reveal">FlowMemory · 长程记忆</div>
+  <h2 class="section-title reveal">三层流水线 · 把会话<em>沉淀成组织默契</em>。</h2>
+  <p class="section-desc reveal">
+    Working Memory 抓最近 N 条 → Compaction 压成会话摘要 → Archival 永久存档可检索。
+    再叠加 6 级 <code>flow_memory.md</code>（企业 → 部门 → 团队 → 项目 → 个人 → 会话），
+    Smart Shield 与 Mentor 共享同一份记忆。
+  </p>
+  <div class="memory-wrap">
+    <div class="memory-pipeline reveal">
+      <div class="mem-flow">
+        <div class="mem-node" id="memN1">
+          <div class="lvl">L1</div><div class="nm">Working</div>
+          <div class="desc">最近 N 条原始事件</div>
+        </div>
+        <div class="mem-arrow">→</div>
+        <div class="mem-node" id="memN2">
+          <div class="lvl">L2</div><div class="nm">Compaction</div>
+          <div class="desc">超阈值压成 1 段 200 字摘要</div>
+        </div>
+        <div class="mem-arrow">→</div>
+        <div class="mem-node" id="memN3">
+          <div class="lvl">L3</div><div class="nm">Archival</div>
+          <div class="desc">向量+BM25 双索引，永久检索</div>
+        </div>
+      </div>
+      <div class="mem-pkg" id="memPkg"></div>
+    </div>
+    <div class="mem-md reveal">
+      <h4><code>flow_memory.md</code> · 6 tier</h4>
+      <div id="memMdList"></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Engine ============== -->
+<section id="engine" class="container">
+  <div class="section-tag reveal">Inside the Engine</div>
+  <h2 class="section-title reveal">借鉴 <em>Anthropic Claude Code</em> 的架构源流。</h2>
+  <p class="section-desc reveal">
+    重构了 Agent Loop、记忆与安全三大核心，分别对应 Claude Code 的 nO 主循环、wU2 三层压缩、7-gate 沙箱。
+    我们把这套办公场景"翻译"得忠实而克制。
+  </p>
+  <div id="engineWrap" class="engine-wrap"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== MCP Live ============== -->
+<section id="mcp" class="container">
+  <div class="section-tag reveal">MCP · Live</div>
+  <h2 class="section-title reveal">不只是 Bot · <em>真·活的 MCP 工具集</em>。</h2>
+  <p class="section-desc reveal">
+    通过 Model Context Protocol，LarkMentor 把"飞书工作状态感知 + Mentor 表达带教"暴露给任何 Agent。
+    点下面任一卡片，会现场 fetch <code>/mcp/call</code>，结果即时回写到下方控制台。
+  </p>
+  <div class="mcp-grid reveal" id="mcpGrid"></div>
+  <pre class="mcp-result" id="mcpResult">// 点上方任一工具卡片，结果会出现在这里 ……
+// 也可以直接 curl：
+//   curl http://118.178.242.26/mcp/tools.json
+//   curl -XPOST http://118.178.242.26/mcp/call \
+//        -d '{"tool":"get_focus_status","arguments":{"open_id":"ou_demo"}}'</pre>
+  <div class="meta-row" style="margin-top:12px">
+    <span>支持 Cursor / Claude Code / OpenClaw 的 stdio · SSE · HTTP 三种 transport。</span>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Security ============== -->
+<section id="security" class="container">
+  <div class="section-tag reveal">Security · Trust</div>
+  <h2 class="section-title reveal">8 道闸门 · <em>OWASP LLM Top 10 全覆盖</em>。</h2>
+  <p class="section-desc reveal">
+    每条消息都要过 8 道闸门，任何一道发现风险都会 audit-log 一条 HIGH/WARN 事件，并被分级降级或直接拦截。
+    所有决策可在 Dashboard 一键回滚。Promptfoo 红队 14/14 PASS。
+  </p>
+  <div class="gate-grid" id="gateGrid"></div>
+  <h3 style="font-size:1.15rem;font-weight:700;margin-top:42px;letter-spacing:-.01em" class="reveal">
+    企业敢用的前提：<em style="font-style:normal;color:var(--accent)">说清楚不越界</em>。
+  </h3>
+  <div class="privacy-grid" id="privacyGrid"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Tracks (志愿) + API ============== -->
+<section id="tracks" class="container">
+  <div class="section-tag reveal">Tracks</div>
+  <h2 class="section-title reveal">一套代码 · <em>三个赛道志愿</em>。</h2>
+  <p class="section-desc reveal">
+    LarkMentor 同时具备三个赛道课题的核心要素，已按报名表填写第一/二/三志愿。
+    我们希望优先安排到第一志愿——飞书 AI 产品创新 · 课题二「IM 办公协同智能助手」。
+  </p>
+  <div class="tracks-grid" id="tracksGrid"></div>
+
+  <h3 style="font-size:1.15rem;font-weight:700;margin-top:48px;letter-spacing:-.01em" class="reveal">
+    飞书 9 个 API <em style="font-style:normal;color:var(--accent)">深度整合</em>。
+  </h3>
+  <p class="section-desc reveal" style="margin-bottom:0">
+    绿点 = 已生产；橙点 = 已编码、等飞书后台权限审批后启用。
+  </p>
+  <div class="api-cloud reveal" id="apiCloud"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Honest Status ============== -->
+<section id="status" class="container">
+  <div class="section-tag reveal">Honest Status</div>
+  <h2 class="section-title reveal">我们做完了什么 · <em>什么还在路上</em>。</h2>
+  <p class="section-desc reveal">
+    诚实分组：「Built」是代码可跑、有测试覆盖的功能；「Lab」是已编码、等待飞书后台权限审批的；
+    「Planned」是设计已完成、规划在评审窗口期推进的。我们不冒充未完成的部分。
+  </p>
+  <div class="status-grid" id="statusGrid"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Team ============== -->
+<section id="team" class="container">
+  <div class="section-tag reveal">Team</div>
+  <h2 class="section-title reveal">两个人，<em>互补的能力</em>。</h2>
+  <p class="section-desc reveal"></p>
+  <div class="team-grid" id="teamGrid"></div>
+  <div class="team-narrative reveal">
+    我们都在飞书生态里做过事，深知办公协作里"假动作"的成本——说半句话比说错话更难收。
+    所以 LarkMentor 的两条线都遵循一条铁律：<strong>AI 出草稿、人类按发送</strong>，
+    所有决策都能被审计、能被回滚、能被解释。
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== Resources ============== -->
+<section id="resources" class="container">
+  <div class="section-tag reveal">Resources</div>
+  <h2 class="section-title reveal">材料 · 链接 · 入口。</h2>
+  <p class="section-desc reveal">PDF、GitHub、Live Dashboard、MCP 工具、官方报名页 —— 评委可能想点的入口都在这里。</p>
+  <div class="res-grid" id="resGrid"></div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ============== FAQ ============== -->
+<section id="faq" class="narrow">
+  <div class="section-tag reveal">FAQ</div>
+  <h2 class="section-title reveal">常见问题。</h2>
+  <div class="faq-list" id="faqList" style="margin-top:24px"></div>
+</section>
+
+<!-- ============== Footer ============== -->
+<footer class="site-footer">
+  <div class="container" style="padding-top:0;padding-bottom:0">
+    <p><strong>LarkMentor</strong> · 飞书 IM 上的双引擎协同助手 · Smart Shield + Mentor</p>
+    <p style="margin-top:6px">2026 飞书 AI 校园挑战赛参赛作品 · MIT License · © 戴尚好 / 李洁盈</p>
+    <div class="links">
+      <a href="https://github.com/bcefghj/larkmentor" target="_blank" rel="noopener">GitHub</a>
+      <a href="/dashboard" target="_blank">Live Dashboard</a>
+      <a href="/mcp" target="_blank">MCP Visual</a>
+      <a href="/mcp/tools" target="_blank">MCP API · JSON</a>
+      <a href="https://bytedance.aiforce.cloud/app/app_4jv6kvy942afr" target="_blank" rel="noopener">2026 飞书 AI 校园挑战赛</a>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

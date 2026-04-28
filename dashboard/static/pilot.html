@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Agent-Pilot · LarkMentor v2</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1f252e;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+  }
+  html, body { background: var(--bg); color: var(--text); margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; }
+  header { padding: 18px 32px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  header h1 { margin: 0; font-size: 20px; }
+  header .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  main { display: grid; grid-template-columns: 340px 1fr 420px; gap: 16px; padding: 16px 24px; min-height: calc(100vh - 80px); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow: auto; }
+  .panel h2 { font-size: 14px; color: var(--muted); text-transform: uppercase; margin-top: 0; margin-bottom: 12px; letter-spacing: 0.05em; }
+  textarea { width: 100%; min-height: 80px; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-family: inherit; resize: vertical; }
+  button { background: var(--accent); color: white; border: 0; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .plan-item { padding: 10px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; cursor: pointer; font-size: 13px; }
+  .plan-item:hover { background: var(--panel-2); }
+  .plan-item.active { border-color: var(--accent); background: var(--panel-2); }
+  .plan-meta { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .step { display: flex; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+  .step:last-child { border-bottom: 0; }
+  .step .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .step.pending .dot { background: var(--muted); }
+  .step.running .dot { background: var(--yellow); animation: pulse 1s infinite; }
+  .step.done .dot { background: var(--green); }
+  .step.failed .dot { background: var(--red); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .step-tool { color: var(--accent); font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+  .step-desc { margin-top: 2px; font-size: 14px; }
+  .step-result { margin-top: 6px; font-size: 12px; color: var(--muted); background: var(--panel-2); border-radius: 4px; padding: 6px 8px; max-height: 80px; overflow: auto; word-break: break-all; }
+  .event-log { font-family: "SF Mono", Menlo, monospace; font-size: 11px; max-height: 480px; overflow: auto; }
+  .event-item { padding: 6px 8px; border-left: 2px solid var(--border); margin-bottom: 4px; }
+  .event-item.event { border-left-color: var(--accent); }
+  .event-item.state { border-left-color: var(--green); }
+  .event-item.yupdate { border-left-color: var(--yellow); }
+  .status-pills { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; font-size: 11px; }
+  .pill { background: var(--panel-2); padding: 3px 8px; border-radius: 10px; color: var(--muted); }
+  .pill.ok { color: var(--green); }
+  .pill.fail { color: var(--red); }
+  .scenario-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .scenario-tag { background: var(--panel-2); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--muted); }
+  .scenario-tag.active { background: var(--accent); color: white; }
+  code { background: var(--panel-2); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .artifact-list a { display: block; color: var(--accent); font-size: 13px; padding: 4px 0; text-decoration: none; }
+  .artifact-list a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Agent-Pilot · IM 到演示稿的一键闭环</h1>
+    <div class="sub">LarkMentor v2 · 飞书 AI 校园挑战赛 · Scenario A-F 驾驶舱</div>
+  </div>
+  <div class="status-pills">
+    <span class="pill" id="ws-status">WS 连接中…</span>
+    <span class="pill" id="room-status">未加入房间</span>
+    <span class="pill" id="clients-status">0 客户端</span>
+  </div>
+</header>
+<main>
+  <section class="panel">
+    <h2>启动 Agent-Pilot</h2>
+    <textarea id="intent-input" placeholder="用自然语言描述你的需求，例如：把本周讨论整理成产品方案 + 评审 PPT"></textarea>
+    <button id="launch-btn">🛫 启动 Pilot</button>
+    <h2 style="margin-top:24px">最近运行</h2>
+    <div id="plan-list"></div>
+  </section>
+
+  <section class="panel">
+    <h2 id="plan-title">选择或启动一个 Plan</h2>
+    <div class="scenario-list" id="scenario-list"></div>
+    <div id="step-list"></div>
+  </section>
+
+  <section class="panel">
+    <h2>实时事件流（Yjs CRDT）</h2>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+      此面板通过 <code>/sync/ws</code> 订阅选定 Plan 房间，<br/>飞书 Bot / Flutter / Web 三端任何一端的操作都会出现在这里。
+    </div>
+    <h2 style="margin-top:16px">产物链接</h2>
+    <div class="artifact-list" id="artifact-list">—</div>
+    <h2 style="margin-top:16px">Agent 推荐下一步</h2>
+    <div id="next-steps" style="font-size:12px;color:var(--muted)">—</div>
+    <h2 style="margin-top:16px">事件日志</h2>
+    <div class="event-log" id="event-log"></div>
+  </section>
+</main>
+
+<script>
+let ws = null, currentPlanId = null;
+const wsStatus = document.getElementById('ws-status');
+const roomStatus = document.getElementById('room-status');
+const clientsStatus = document.getElementById('clients-status');
+const planList = document.getElementById('plan-list');
+const stepList = document.getElementById('step-list');
+const eventLog = document.getElementById('event-log');
+const planTitle = document.getElementById('plan-title');
+const scenarioListEl = document.getElementById('scenario-list');
+const artifactList = document.getElementById('artifact-list');
+const intentInput = document.getElementById('intent-input');
+const launchBtn = document.getElementById('launch-btn');
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/sync/ws`);
+  ws.onopen = () => { wsStatus.textContent = 'WS 已连接'; wsStatus.className = 'pill ok'; };
+  ws.onclose = () => { wsStatus.textContent = 'WS 断开，重连中…'; wsStatus.className = 'pill fail'; setTimeout(connectWS, 2000); };
+  ws.onmessage = (m) => {
+    try {
+      const msg = JSON.parse(m.data);
+      handleWsMessage(msg);
+    } catch (e) {}
+  };
+}
+
+function handleWsMessage(msg) {
+  if (msg.kind === 'hello') return;
+  if (msg.kind === 'history') {
+    msg.items.forEach(appendEvent);
+    return;
+  }
+  appendEvent(msg);
+  if (msg.kind === 'event' && msg.event && msg.event.plan_id === currentPlanId) {
+    refreshPlan();
+  }
+}
+
+function appendEvent(msg) {
+  if (msg.room && currentPlanId && msg.room !== currentPlanId) return;
+  const el = document.createElement('div');
+  el.className = `event-item ${msg.kind}`;
+  const short = JSON.stringify(msg).slice(0, 260);
+  el.textContent = `[${new Date(msg.ts||Date.now()).toLocaleTimeString()}] ${msg.kind} · ${short}`;
+  eventLog.insertBefore(el, eventLog.firstChild);
+  while (eventLog.children.length > 60) eventLog.removeChild(eventLog.lastChild);
+}
+
+async function refreshPlans() {
+  try {
+    const r = await fetch('/api/pilot/plans?limit=12');
+    const rows = await r.json();
+    planList.innerHTML = '';
+    rows.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'plan-item' + (p.plan_id === currentPlanId ? ' active' : '');
+      div.innerHTML = `<div><code>${p.plan_id}</code> ${p.done_steps}/${p.total_steps}</div>
+                       <div class="plan-meta">${new Date(p.created_ts*1000).toLocaleString()} · ${p.phase}</div>
+                       <div style="font-size:12px;margin-top:4px">${p.intent}</div>`;
+      div.onclick = () => selectPlan(p.plan_id);
+      planList.appendChild(div);
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function refreshScenarios() {
+  try {
+    const r = await fetch('/api/pilot/scenarios');
+    const list = await r.json();
+    scenarioListEl.innerHTML = '';
+    list.forEach(s => {
+      const tag = document.createElement('span');
+      tag.className = 'scenario-tag';
+      tag.textContent = `${s.key} · ${s.name}`;
+      tag.title = s.description;
+      scenarioListEl.appendChild(tag);
+    });
+  } catch (e) {}
+}
+
+async function selectPlan(planId) {
+  currentPlanId = planId;
+  planTitle.textContent = `Plan · ${planId}`;
+  roomStatus.textContent = `已加入房间 ${planId}`;
+  roomStatus.className = 'pill ok';
+  eventLog.innerHTML = '';
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ op: 'join', room: planId, client_id: 'web_dashboard' }));
+  }
+  refreshPlan();
+  refreshPlans();
+}
+
+async function refreshPlan() {
+  if (!currentPlanId) return;
+  try {
+    const r = await fetch(`/api/pilot/plan/${currentPlanId}`);
+    const plan = await r.json();
+    stepList.innerHTML = '';
+    const urls = [];
+    (plan.steps || []).forEach((s, idx) => {
+      const div = document.createElement('div');
+      div.className = 'step ' + s.status;
+      const tool = s.tool.replace(/"/g, '&quot;');
+      const res = s.result ? JSON.stringify(s.result, null, 2).slice(0, 400) : '';
+      div.innerHTML = `<div class="dot"></div>
+        <div style="flex:1">
+          <div><span class="step-tool">${idx+1}. ${tool}</span> · <small style="color:var(--muted)">${s.status}</small></div>
+          <div class="step-desc">${s.description || ''}</div>
+          ${res ? `<div class="step-result">${res}</div>` : ''}
+        </div>`;
+      stepList.appendChild(div);
+      if (s.result) {
+        ['url', 'pptx_url', 'pdf_url', 'share_url', 'markdown_path'].forEach(k => {
+          if (s.result[k]) urls.push({ label: `${s.tool} · ${k}`, url: s.result[k] });
+        });
+      }
+    });
+    artifactList.innerHTML = urls.length
+      ? urls.map(u => `<a href="${u.url}" target="_blank">${u.label}</a>`).join('')
+      : '暂无产物';
+    try {
+      const rec = await fetch(`/api/pilot/recommend/${currentPlanId}`).then(r => r.json());
+      const nxt = (rec.next_steps || []);
+      document.getElementById('next-steps').innerHTML = nxt.length
+        ? nxt.map(s => `• ${s}`).join('<br/>')
+        : '—';
+    } catch (e) {}
+  } catch (e) { console.error(e); }
+}
+
+launchBtn.onclick = async () => {
+  const intent = intentInput.value.trim();
+  if (!intent) return;
+  launchBtn.disabled = true;
+  launchBtn.textContent = '启动中…';
+  try {
+    const r = await fetch('/api/pilot/launch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intent, open_id: 'web_demo' }),
+    });
+    const data = await r.json();
+    if (data.plan_id) {
+      intentInput.value = '';
+      setTimeout(() => selectPlan(data.plan_id), 300);
+    }
+  } catch (e) { alert('启动失败：' + e); }
+  finally {
+    launchBtn.disabled = false;
+    launchBtn.textContent = '🛫 启动 Pilot';
+    refreshPlans();
+  }
+};
+
+connectWS();
+refreshScenarios();
+refreshPlans();
+setInterval(refreshPlans, 5000);
+setInterval(() => { if (currentPlanId) refreshPlan(); }, 2000);
+</script>
+</body>
+</html>

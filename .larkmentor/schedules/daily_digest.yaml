@@ -1,0 +1,5 @@
+name: daily_digest_morning
+cron: "0 9 * * 1-5"  # 工作日早 9:00
+kind: pilot
+task: "总结昨天未回复的飞书消息 + 今天的日程 + 推荐 3 个优先级最高的事项"
+description: 每个工作日早上 9 点推送 daily digest

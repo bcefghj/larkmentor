@@ -1,0 +1,5 @@
+name: weekly_report_friday
+cron: "30 17 * * 5"  # 周五 17:30
+kind: weekly_report
+description: 每周五下班前自动生成周报草稿
+# user_open_id: ou_xxx  # 填入你的 open_id

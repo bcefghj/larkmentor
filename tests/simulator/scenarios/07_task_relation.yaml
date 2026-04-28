@@ -1,0 +1,51 @@
+# Category: 与当前任务高度相关 → 提升优先级
+scenarios:
+  - id: tr_001
+    category: task_relation
+    description: "高度相关 + 私聊"
+    sender: { name: "M", id: "u_tr_001", identity: peer }
+    chat: { type: p2p, name: "M" }
+    user_context: "Q3 产品方案 用户增长"
+    message: "Q3 用户增长方案我有些建议想和你讨论一下"
+    expected_level: P1
+    expected_action: queue
+
+  - id: tr_002
+    category: task_relation
+    description: "无关消息但来自同事 → P1（私聊+提问）"
+    sender: { name: "N", id: "u_tr_002", identity: peer }
+    chat: { type: p2p, name: "N" }
+    user_context: "Q3 产品方案"
+    message: "下周的篮球赛你要参加吗"
+    expected_level: P1
+    expected_action: queue
+
+  - id: tr_003
+    category: task_relation
+    description: "中度相关 + 提问"
+    sender: { name: "O", id: "u_tr_003", identity: peer }
+    chat: { type: group, name: "通用技术", member_count: 25 }
+    user_context: "API 重构"
+    message: "讨论一下 RESTful 与 GraphQL 在重构中的取舍，你怎么看？"
+    expected_level: P1
+    expected_action: queue
+
+  - id: tr_004
+    category: task_relation
+    description: "完全无关 → 大群闲聊 P3"
+    sender: { name: "P", id: "u_tr_004", identity: occasional }
+    chat: { type: group, name: "随便聊", member_count: 300 }
+    user_context: "API 重构"
+    message: "今晚游戏开黑吗"
+    expected_level: P3
+    expected_action: archive
+
+  - id: tr_005
+    category: task_relation
+    description: "项目阻塞相关"
+    sender: { name: "Q", id: "u_tr_005", identity: peer }
+    chat: { type: p2p, name: "Q" }
+    user_context: "支付链路开发"
+    message: "支付链路这边的回调地址要怎么配？"
+    expected_level: P1
+    expected_action: queue

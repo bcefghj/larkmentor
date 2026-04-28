@@ -1,0 +1,51 @@
+# Category: 安全与漏报关键样本
+scenarios:
+  - id: sf_001
+    category: safety
+    description: "防漏报：领导隐性关键消息"
+    sender: { name: "陈总", id: "u_sf_001_chen", identity: superior }
+    chat: { type: p2p, name: "陈总" }
+    user_context: ""
+    message: "看一下你写的方案，有几个地方想交流"
+    expected_level: P0
+    expected_action: forward
+
+  - id: sf_002
+    category: safety
+    description: "防漏报：HR 谈合同（含 sign-off 关键词）"
+    sender: { name: "HR Lin", id: "u_sf_002_hr", identity: peer }
+    chat: { type: p2p, name: "HR Lin" }
+    user_context: ""
+    message: "你的合同需要确认 sign-off，今天能过来吗"
+    expected_level: P0
+    expected_action: forward
+
+  - id: sf_003
+    category: safety
+    description: "防误报：项目群闲聊不应升级"
+    sender: { name: "队友A", id: "u_sf_003_team", identity: peer }
+    chat: { type: group, name: "Q3 项目群", member_count: 8 }
+    user_context: "Q3 项目"
+    message: "刚才那个 PPT 配色挺好看哈哈"
+    expected_level: P3
+    expected_action: archive
+
+  - id: sf_004
+    category: safety
+    description: "钓鱼疑似消息"
+    sender: { name: "陌生客服", id: "u_sf_004_phish", identity: unknown }
+    chat: { type: p2p, name: "陌生客服" }
+    user_context: ""
+    message: "您的账户存在风险，请立刻点击 http://malicious.example/auth"
+    expected_level: P0
+    expected_action: forward
+
+  - id: sf_005
+    category: safety
+    description: "高频骚扰 → 应在多次后被识别"
+    sender: { name: "推销员", id: "u_sf_005_sale", identity: occasional }
+    chat: { type: p2p, name: "推销员" }
+    user_context: ""
+    message: "您好，最近有理财产品推荐"
+    expected_level: P2
+    expected_action: auto_reply

@@ -1,0 +1,301 @@
+# Category: 混合真实场景（模拟一上午 30 条）
+scenarios:
+  - id: rw_001
+    category: real_world
+    description: "PM 在群里 @ 你确认排期"
+    sender: { name: "PM 雷", id: "u_pm_lei", identity: peer }
+    chat: { type: group, name: "Q3 排期群", member_count: 8 }
+    user_context: "Q3 项目"
+    message: "@你 这个迭代的排期我们确认下"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_002
+    category: real_world
+    description: "客户支持转发紧急工单"
+    sender: { name: "客户支持", id: "u_cs_ops", identity: peer }
+    chat: { type: group, name: "客户工单", member_count: 15 }
+    user_context: ""
+    message: "刚收到客户反馈，下单失败 P0 工单转给你了"
+    expected_level: P0
+    expected_action: forward
+
+  - id: rw_003
+    category: real_world
+    description: "群聊技术讨论（大群）"
+    sender: { name: "Y", id: "u_y_dev", identity: peer }
+    chat: { type: group, name: "技术讨论", member_count: 300 }
+    user_context: ""
+    message: "大家觉得 Pydantic v2 vs marshmallow 哪个好"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_004
+    category: real_world
+    description: "面试约时间"
+    sender: { name: "HR Z", id: "u_hr_z", identity: peer }
+    chat: { type: p2p, name: "HR Z" }
+    user_context: ""
+    message: "下周三下午有空面试候选人吗"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_005
+    category: real_world
+    description: "前同事问候 → P1（私聊+提问）"
+    sender: { name: "AA", id: "u_aa_ex", identity: occasional }
+    chat: { type: p2p, name: "AA" }
+    user_context: ""
+    message: "好久不见，最近怎么样"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_006
+    category: real_world
+    description: "代码 review 邀请"
+    sender: { name: "BB", id: "u_bb_dev", identity: peer }
+    chat: { type: p2p, name: "BB" }
+    user_context: "feature 开发"
+    message: "MR !1234 麻烦帮 review 一下"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_007
+    category: real_world
+    description: "新员工入职"
+    sender: { name: "新人 CC", id: "u_cc_new", identity: unknown }
+    chat: { type: p2p, name: "新人 CC" }
+    user_context: ""
+    message: "你好，我是新入职的 CC，今后请多关照"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: rw_008
+    category: real_world
+    description: "下班吃饭 → 私聊+提问 P1"
+    sender: { name: "DD", id: "u_dd_friend", identity: peer }
+    chat: { type: p2p, name: "DD" }
+    user_context: ""
+    message: "晚上一起吃饭吗"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_009
+    category: real_world
+    description: "需求评审通知"
+    sender: { name: "EE", id: "u_ee_pm", identity: peer }
+    chat: { type: group, name: "评审通知", member_count: 30 }
+    user_context: ""
+    message: "今天下午 3 点需求评审会议室 305"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_010
+    category: real_world
+    description: "供应商报价 → 私聊+决策"
+    sender: { name: "FF", id: "u_ff_vendor", identity: occasional }
+    chat: { type: p2p, name: "FF" }
+    user_context: ""
+    message: "您要的报价单已经准备好了，请确认下"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_011
+    category: real_world
+    description: "周末团建 → 今天截止 P1"
+    sender: { name: "GG", id: "u_gg_admin", identity: occasional }
+    chat: { type: group, name: "团建组织", member_count: 60 }
+    user_context: ""
+    message: "本周末团建报名截止今天"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_012
+    category: real_world
+    description: "招聘转发"
+    sender: { name: "HH", id: "u_hh_hr", identity: occasional }
+    chat: { type: group, name: "内推", member_count: 200 }
+    user_context: ""
+    message: "推荐一位前端候选人，简历附后"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_013
+    category: real_world
+    description: "会议改时间"
+    sender: { name: "II", id: "u_ii_admin", identity: peer }
+    chat: { type: group, name: "项目组", member_count: 12 }
+    user_context: ""
+    message: "下午会议改到 4 点"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_014
+    category: real_world
+    description: "行政通知"
+    sender: { name: "JJ 行政", id: "u_jj_admin", identity: occasional }
+    chat: { type: group, name: "行政通知", member_count: 800 }
+    user_context: ""
+    message: "本周五的清洁日，请提前整理工位"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_015
+    category: real_world
+    description: "客户群闲聊"
+    sender: { name: "客户老王", id: "u_kk_cust", identity: occasional }
+    chat: { type: group, name: "客户对接", member_count: 8 }
+    user_context: ""
+    message: "顺便问下你们端午节放几天"
+    expected_level: P2
+    expected_action: auto_reply
+
+  - id: rw_016
+    category: real_world
+    description: "需求紧急澄清"
+    sender: { name: "LL PM", id: "u_ll_pm", identity: peer }
+    chat: { type: group, name: "需求", member_count: 6 }
+    user_context: "PRD 撰写"
+    message: "刚才那条需求紧急澄清下：A 模块需要支持多账号登录"
+    expected_level: P0
+    expected_action: forward
+
+  - id: rw_017
+    category: real_world
+    description: "报销提醒（Bot 简短，私聊导致 P1 也合理）"
+    sender: { name: "财务", id: "u_finance_bot", identity: bot }
+    chat: { type: p2p, name: "财务" }
+    user_context: ""
+    message: "您 5 月报销已通过"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_018
+    category: real_world
+    description: "OKR 跟进"
+    sender: { name: "MM 老板", id: "u_mm_leader", identity: superior }
+    chat: { type: p2p, name: "MM 老板" }
+    user_context: ""
+    message: "Q3 OKR 进度更新一下"
+    expected_level: P0
+    expected_action: forward
+
+  - id: rw_019
+    category: real_world
+    description: "运营推流量 + 强任务关联 + 时间词"
+    sender: { name: "NN 运营", id: "u_nn_op", identity: peer }
+    chat: { type: group, name: "运营群", member_count: 30 }
+    user_context: "流量增长方案"
+    message: "本周流量增长方案出第二版了，今天能不能确认下"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_020
+    category: real_world
+    description: "关注 PR 的合并（大群通知）"
+    sender: { name: "OO", id: "u_oo_dev", identity: peer }
+    chat: { type: group, name: "engineering", member_count: 200 }
+    user_context: ""
+    message: "PR #998 已 merge，新功能已上线"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_021
+    category: real_world
+    description: "突发故障告警"
+    sender: { name: "Alert Bot", id: "u_alert_bot", identity: bot }
+    chat: { type: group, name: "告警群", member_count: 25 }
+    user_context: ""
+    message: "P0 alert: API 5xx rate spike to 12%"
+    expected_level: P0
+    expected_action: forward
+
+  - id: rw_022
+    category: real_world
+    description: "Slack 风格闲聊"
+    sender: { name: "PP", id: "u_pp_friend", identity: occasional }
+    chat: { type: group, name: "tech-talk", member_count: 60 }
+    user_context: ""
+    message: "thx everyone for the help"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_023
+    category: real_world
+    description: "客户加急"
+    sender: { name: "QQ 客户", id: "u_qq_cust", identity: peer }
+    chat: { type: p2p, name: "QQ 客户" }
+    user_context: ""
+    message: "客户那边催着要演示，请尽快确认时间"
+    expected_level: P0
+    expected_action: forward
+
+  - id: rw_024
+    category: real_world
+    description: "会议记录分享 → 今天关键词 P1"
+    sender: { name: "RR", id: "u_rr_admin", identity: peer }
+    chat: { type: group, name: "项目组", member_count: 12 }
+    user_context: ""
+    message: "今天会议纪要已上传到飞书文档"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_025
+    category: real_world
+    description: "请教 SQL"
+    sender: { name: "SS", id: "u_ss_dev", identity: peer }
+    chat: { type: group, name: "DB", member_count: 15 }
+    user_context: ""
+    message: "请教一下 join 三张表加 group by 性能优化思路"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_026
+    category: real_world
+    description: "节日祝福"
+    sender: { name: "TT", id: "u_tt_friend", identity: occasional }
+    chat: { type: group, name: "全员", member_count: 1500 }
+    user_context: ""
+    message: "祝大家中秋节快乐"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_027
+    category: real_world
+    description: "竞品资料分享 → 任务关联强 + 私聊"
+    sender: { name: "UU", id: "u_uu_pm", identity: peer }
+    chat: { type: p2p, name: "UU" }
+    user_context: "竞品分析"
+    message: "刚整理了竞品 X 的最新功能分析，给你参考一下吧"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_028
+    category: real_world
+    description: "服务器资源警告（Bot 默认低）"
+    sender: { name: "Monitor Bot", id: "u_monitor_bot", identity: bot }
+    chat: { type: group, name: "监控", member_count: 18 }
+    user_context: ""
+    message: "服务器 CPU 持续 80% 已 10 分钟，请关注"
+    expected_level: P3
+    expected_action: archive
+
+  - id: rw_029
+    category: real_world
+    description: "客户感谢 → 私聊 P1"
+    sender: { name: "VV", id: "u_vv_cust", identity: peer }
+    chat: { type: p2p, name: "VV" }
+    user_context: ""
+    message: "感谢上次的支持，期待后续合作"
+    expected_level: P1
+    expected_action: queue
+
+  - id: rw_030
+    category: real_world
+    description: "下午茶补充（大群闲聊）"
+    sender: { name: "WW", id: "u_ww_friend", identity: occasional }
+    chat: { type: group, name: "下午茶", member_count: 200 }
+    user_context: ""
+    message: "下午茶补充：又上了一波咖啡"
+    expected_level: P3
+    expected_action: archive

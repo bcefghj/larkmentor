@@ -1,0 +1,24 @@
+lark-oapi>=1.5.0
+openai>=1.0.0
+python-dotenv>=1.0.0
+apscheduler>=3.10.0
+fastapi>=0.110.0
+uvicorn>=0.27.0
+rank-bm25>=0.2.2
+numpy>=1.24.0
+pytest>=7.0.0
+# v2 Agent-Pilot additions
+websockets>=12.0
+# y-py provides real Yjs CRDT (good-to-have; falls back to plain JSON if absent)
+y-py>=0.6.2; python_version < "3.13"
+# v3 Agent-Pilot harness additions
+python-multipart>=0.0.9
+requests>=2.32.0
+structlog>=24.1.0
+# optional — long-term memory (Mem0g); harness falls back to local JSONL if unavailable
+mem0ai>=0.1.30; python_version >= "3.10"
+# optional — observability; the hook wire-up is soft-optional
+prometheus-client>=0.20.0
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-instrumentation-fastapi>=0.46b0

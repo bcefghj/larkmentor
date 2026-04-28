@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>LarkMentor 分类引擎准确率报告</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          background: #F8FAFC; color: #0F172A; margin: 0; padding: 32px; }
+  .container { max-width: 1280px; margin: 0 auto; }
+  h1 { margin: 0 0 4px 0; font-weight: 700; font-size: 28px; }
+  .meta { color: #64748B; margin-bottom: 24px; }
+  .summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .card .label { font-size: 12px; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; }
+  .card .value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+  .accuracy .value { color: #10B981; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden;
+           box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  th { text-align: left; padding: 12px 16px; background: #F1F5F9; font-size: 12px;
+        text-transform: uppercase; color: #475569; border-bottom: 1px solid #E2E8F0; }
+  td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid #F1F5F9; vertical-align: top; }
+  tr.fail td { background: #FEF2F2; }
+  .status { font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  tr.pass .status { background: #DCFCE7; color: #166534; }
+  tr.fail .status { background: #FEE2E2; color: #991B1B; }
+  .dims .dim { display: inline-block; background: #EEF2FF; color: #3730A3; padding: 1px 6px;
+                border-radius: 3px; margin-right: 4px; margin-top: 2px; font-size: 11px; }
+  .msg { max-width: 280px; }
+  h2 { margin-top: 32px; }
+</style></head><body><div class="container">
+<h1>LarkMentor 6 维分类引擎准确率报告</h1>
+<div class="meta">运行 102 个场景 · 耗时 0.00s · 报告时间 2026-04-17 21:49:37</div>
+
+<div class="summary">
+  <div class="card"><div class="label">总场景</div><div class="value">102</div></div>
+  <div class="card"><div class="label">通过</div><div class="value">101</div></div>
+  <div class="card accuracy"><div class="label">总准确率</div><div class="value">99.0%</div></div>
+</div>
+
+<h2>分类别准确率</h2>
+<table>
+  <thead><tr><th>分类</th><th>通过/总数</th><th>准确率</th></tr></thead>
+  <tbody><tr><td>urgent_keyword</td><td>10/10</td><td>100.0%</td></tr>
+<tr><td>whitelist</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>chitchat</td><td>7/7</td><td>100.0%</td></tr>
+<tr><td>question</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>decision</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>broadcast</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>task_relation</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>time_sensitive</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>identity</td><td>5/5</td><td>100.0%</td></tr>
+<tr><td>real_world</td><td>29/30</td><td>96.7%</td></tr>
+<tr><td>edge</td><td>15/15</td><td>100.0%</td></tr>
+<tr><td>safety</td><td>5/5</td><td>100.0%</td></tr></tbody>
+</table>
+
+<h2>详细结果</h2>
+<table>
+  <thead><tr>
+    <th>状态</th><th>ID</th><th>分类</th><th>描述</th>
+    <th>发送者</th><th>频道</th><th>消息</th>
+    <th>期望</th><th>实际</th><th>6 维分数</th>
+  </tr></thead>
+  <tbody>
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_001</td>
+          <td>urgent_keyword</td>
+          <td>中文紧急关键词</td>
+          <td>运维小王 (peer)</td>
+          <td>group 运维群</td>
+          <td class="msg">线上紧急故障！订单服务挂了，立刻处理！</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_002</td>
+          <td>urgent_keyword</td>
+          <td>P0 关键词</td>
+          <td>Alice (peer)</td>
+          <td>group DevOps</td>
+          <td class="msg">P0 事故，需要紧急回滚</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_en_003</td>
+          <td>urgent_keyword</td>
+          <td>英文 urgent</td>
+          <td>Bob (peer)</td>
+          <td>p2p Bob</td>
+          <td class="msg">urgent: please review PR before EOD</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_en_004</td>
+          <td>urgent_keyword</td>
+          <td>blocking</td>
+          <td>Carol (peer)</td>
+          <td>group engineering</td>
+          <td class="msg">this issue is blocking production deployment</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_005</td>
+          <td>urgent_keyword</td>
+          <td>马上</td>
+          <td>Dan (peer)</td>
+          <td>p2p Dan</td>
+          <td class="msg">马上来开会，会议室501</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_006</td>
+          <td>urgent_keyword</td>
+          <td>立刻</td>
+          <td>Eva (peer)</td>
+          <td>p2p Eva</td>
+          <td class="msg">立刻停止部署，配置错了</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_007</td>
+          <td>urgent_keyword</td>
+          <td>严重bug</td>
+          <td>Frank (peer)</td>
+          <td>group QA</td>
+          <td class="msg">发现了严重bug影响支付链路</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_008</td>
+          <td>urgent_keyword</td>
+          <td>ASAP 大写</td>
+          <td>George (peer)</td>
+          <td>group intl-team</td>
+          <td class="msg">ASAP we need a decision on the API contract</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_009</td>
+          <td>urgent_keyword</td>
+          <td>生产事故</td>
+          <td>Helen (peer)</td>
+          <td>group oncall</td>
+          <td class="msg">生产事故，DB 主从同步延迟，需要立即处理</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>urgent_cn_010</td>
+          <td>urgent_keyword</td>
+          <td>阻塞</td>
+          <td>Ivan (peer)</td>
+          <td>p2p Ivan</td>
+          <td class="msg">API 调不通，阻塞了我这边的开发</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>wl_001</td>
+          <td>whitelist</td>
+          <td>白名单姓名命中</td>
+          <td>张三 (peer)</td>
+          <td>p2p 张三</td>
+          <td class="msg">今天午饭吃啥</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (1.00)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>wl_002</td>
+          <td>whitelist</td>
+          <td>白名单 + 闲聊内容仍 P0</td>
+          <td>李四 (occasional)</td>
+          <td>group 随便群</td>
+          <td class="msg">哈哈哈这个梗笑死我了</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (1.00)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>wl_003</td>
+          <td>whitelist</td>
+          <td>ID 白名单命中</td>
+          <td>Wang (occasional)</td>
+          <td>p2p Wang</td>
+          <td class="msg">周末去爬山吗</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (1.00)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>wl_004</td>
+          <td>whitelist</td>
+          <td>白名单内成员发紧急消息</td>
+          <td>陈总 (superior)</td>
+          <td>p2p 陈总</td>
+          <td class="msg">下午3点对一下 Q3 OKR</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (1.00)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>wl_005</td>
+          <td>whitelist</td>
+          <td>白名单 + 时间敏感</td>
+          <td>Mary (peer)</td>
+          <td>p2p Mary</td>
+          <td class="msg">今晚到家几点</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (1.00)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_001</td>
+          <td>chitchat</td>
+          <td>纯闲聊</td>
+          <td>陌生人A (unknown)</td>
+          <td>group 公司大群</td>
+          <td class="msg">哈哈哈这个表情包太搞笑了</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.30</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_002</td>
+          <td>chitchat</td>
+          <td>OK 收到</td>
+          <td>陌生人B (unknown)</td>
+          <td>group 讨论群</td>
+          <td class="msg">OK</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.30</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_003</td>
+          <td>chitchat</td>
+          <td>早安问候</td>
+          <td>Sam (occasional)</td>
+          <td>group 早起群</td>
+          <td class="msg">早，新的一天开始啦</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_004</td>
+          <td>chitchat</td>
+          <td>奶茶</td>
+          <td>Tom (occasional)</td>
+          <td>group 下午茶</td>
+          <td class="msg">今天喝奶茶吗，平台3-3</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_005</td>
+          <td>chitchat</td>
+          <td>周末聊天</td>
+          <td>Jerry (occasional)</td>
+          <td>group 兴趣群</td>
+          <td class="msg">周末去看话剧的有伙伴吗</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_006</td>
+          <td>chitchat</td>
+          <td>嗯嗯</td>
+          <td>Kim (occasional)</td>
+          <td>group 同事群</td>
+          <td class="msg">嗯嗯</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>chat_007</td>
+          <td>chitchat</td>
+          <td>晚安</td>
+          <td>Lily (occasional)</td>
+          <td>group 夜聊</td>
+          <td class="msg">晚安各位</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>q_001</td>
+          <td>question</td>
+          <td>技术问询</td>
+          <td>新人小A (peer)</td>
+          <td>p2p 新人小A</td>
+          <td class="msg">请教一下，FastAPI 怎么实现 streaming response？</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.45)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>q_002</td>
+          <td>question</td>
+          <td>业务问询</td>
+          <td>B 同学 (peer)</td>
+          <td>group 产品组</td>
+          <td class="msg">用户分群的 RFM 模型是怎么算的</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.46)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>q_003</td>
+          <td>question</td>
+          <td>无关问询</td>
+          <td>C (occasional)</td>
+          <td>group 公司大群</td>
+          <td class="msg">请问公司食堂今天有什么菜</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>q_004</td>
+          <td>question</td>
+          <td>一般请教</td>
+          <td>D (occasional)</td>
+          <td>group 技术群</td>
+          <td class="msg">Postgres 的 jsonb 索引怎么建呀</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.33)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>q_005</td>
+          <td>question</td>
+          <td>时间问询</td>
+          <td>E (peer)</td>
+          <td>p2p E</td>
+          <td class="msg">下周三的 review 几点开始</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>dec_001</td>
+          <td>decision</td>
+          <td>需要确认</td>
+          <td>F (peer)</td>
+          <td>p2p F</td>
+          <td class="msg">这个方案确认按 A 走吗？</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.52)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>dec_002</td>
+          <td>decision</td>
+          <td>approve</td>
+          <td>G (superior)</td>
+          <td>p2p G</td>
+          <td class="msg">PRD 已发邮件，请你 approve</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>dec_003</td>
+          <td>decision</td>
+          <td>拒绝/通过+今天deadline → P0</td>
+          <td>H (peer)</td>
+          <td>group 评审群</td>
+          <td class="msg">这个 design 我觉得需要决定一下，今天能给个回复吗</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>dec_004</td>
+          <td>decision</td>
+          <td>签字</td>
+          <td>I (superior)</td>
+          <td>p2p I</td>
+          <td class="msg">请尽快 sign-off 这份合同</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>dec_005</td>
+          <td>decision</td>
+          <td>合作决定</td>
+          <td>J (peer)</td>
+          <td>p2p J</td>
+          <td class="msg">对方说必须今天决定要不要合作</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>bc_001</td>
+          <td>broadcast</td>
+          <td>公司公告</td>
+          <td>公司公告 (bot)</td>
+          <td>group 全员通知</td>
+          <td class="msg">本周五的全员大会改到周一上午 10 点</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>bc_002</td>
+          <td>broadcast</td>
+          <td>周报机器人</td>
+          <td>周报BOT (bot)</td>
+          <td>group 周报频道</td>
+          <td class="msg">本周市场周报已发布，请查阅</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>bc_003</td>
+          <td>broadcast</td>
+          <td>学习广播</td>
+          <td>K (occasional)</td>
+          <td>group 技术学习</td>
+          <td class="msg">推荐一篇好文章：xxxx</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>bc_004</td>
+          <td>broadcast</td>
+          <td>活动广播</td>
+          <td>工会 (bot)</td>
+          <td>group 工会群</td>
+          <td class="msg">本月生日会安排在 28 号</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>bc_005</td>
+          <td>broadcast</td>
+          <td>中等大群一般消息</td>
+          <td>L (occasional)</td>
+          <td>group 产品大群</td>
+          <td class="msg">新版本上线了，欢迎试用</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>tr_001</td>
+          <td>task_relation</td>
+          <td>高度相关 + 私聊</td>
+          <td>M (peer)</td>
+          <td>p2p M</td>
+          <td class="msg">Q3 用户增长方案我有些建议想和你讨论一下</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>tr_002</td>
+          <td>task_relation</td>
+          <td>无关消息但来自同事 → P1（私聊+提问）</td>
+          <td>N (peer)</td>
+          <td>p2p N</td>
+          <td class="msg">下周的篮球赛你要参加吗</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>tr_003</td>
+          <td>task_relation</td>
+          <td>中度相关 + 提问</td>
+          <td>O (peer)</td>
+          <td>group 通用技术</td>
+          <td class="msg">讨论一下 RESTful 与 GraphQL 在重构中的取舍，你怎么看？</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.41)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>tr_004</td>
+          <td>task_relation</td>
+          <td>完全无关 → 大群闲聊 P3</td>
+          <td>P (occasional)</td>
+          <td>group 随便聊</td>
+          <td class="msg">今晚游戏开黑吗</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>tr_005</td>
+          <td>task_relation</td>
+          <td>项目阻塞相关</td>
+          <td>Q (peer)</td>
+          <td>p2p Q</td>
+          <td class="msg">支付链路这边的回调地址要怎么配？</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.45)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ts_001</td>
+          <td>time_sensitive</td>
+          <td>今晚 deadline</td>
+          <td>R (peer)</td>
+          <td>p2p R</td>
+          <td class="msg">deadline 是今晚 8 点，进度怎么样</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ts_002</td>
+          <td>time_sensitive</td>
+          <td>30 分钟内 + 决策</td>
+          <td>S (peer)</td>
+          <td>p2p S</td>
+          <td class="msg">30分钟内能给我答复吗，立刻要结论</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ts_003</td>
+          <td>time_sensitive</td>
+          <td>下班前</td>
+          <td>T (superior)</td>
+          <td>p2p T</td>
+          <td class="msg">下班前把这个表整理一下发我</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ts_004</td>
+          <td>time_sensitive</td>
+          <td>明天再说</td>
+          <td>U (peer)</td>
+          <td>p2p U</td>
+          <td class="msg">这个事情明天再说也行</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ts_005</td>
+          <td>time_sensitive</td>
+          <td>tonight + urgent</td>
+          <td>V (peer)</td>
+          <td>group intl-team</td>
+          <td class="msg">tonight please immediately push the fix before midnight</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>idsup_001</td>
+          <td>identity</td>
+          <td>Superior 私聊</td>
+          <td>陈总 (superior)</td>
+          <td>p2p 陈总</td>
+          <td class="msg">明天上午腾出半小时聊一下</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>idsup_002</td>
+          <td>identity</td>
+          <td>VIP 私聊</td>
+          <td>投资人 W (vip)</td>
+          <td>p2p 投资人 W</td>
+          <td class="msg">下个季度的进展什么时候同步</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.60)</td>
+          <td class="dims"><span class="dim">identity:1.00</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>idsup_003</td>
+          <td>identity</td>
+          <td>Superior 大群普通发言</td>
+          <td>李 VP (superior)</td>
+          <td>group 全员</td>
+          <td class="msg">大家辛苦了</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.30)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>idsup_004</td>
+          <td>identity</td>
+          <td>Bot 身份</td>
+          <td>CI Bot (bot)</td>
+          <td>group CI 通知</td>
+          <td class="msg">构建任务 #1024 已完成</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>idsup_005</td>
+          <td>identity</td>
+          <td>陌生人在大群发提问</td>
+          <td>陌生人X (unknown)</td>
+          <td>group 技术分享</td>
+          <td class="msg">大家好，分享一下经验</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.30</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_001</td>
+          <td>real_world</td>
+          <td>PM 在群里 @ 你确认排期</td>
+          <td>PM 雷 (peer)</td>
+          <td>group Q3 排期群</td>
+          <td class="msg">@你 这个迭代的排期我们确认下</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.47)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_002</td>
+          <td>real_world</td>
+          <td>客户支持转发紧急工单</td>
+          <td>客户支持 (peer)</td>
+          <td>group 客户工单</td>
+          <td class="msg">刚收到客户反馈，下单失败 P0 工单转给你了</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_003</td>
+          <td>real_world</td>
+          <td>群聊技术讨论（大群）</td>
+          <td>Y (peer)</td>
+          <td>group 技术讨论</td>
+          <td class="msg">大家觉得 Pydantic v2 vs marshmallow 哪个好</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_004</td>
+          <td>real_world</td>
+          <td>面试约时间</td>
+          <td>HR Z (peer)</td>
+          <td>p2p HR Z</td>
+          <td class="msg">下周三下午有空面试候选人吗</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_005</td>
+          <td>real_world</td>
+          <td>前同事问候 → P1（私聊+提问）</td>
+          <td>AA (occasional)</td>
+          <td>p2p AA</td>
+          <td class="msg">好久不见，最近怎么样</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.44)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_006</td>
+          <td>real_world</td>
+          <td>代码 review 邀请</td>
+          <td>BB (peer)</td>
+          <td>p2p BB</td>
+          <td class="msg">MR !1234 麻烦帮 review 一下</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_007</td>
+          <td>real_world</td>
+          <td>新员工入职</td>
+          <td>新人 CC (unknown)</td>
+          <td>p2p 新人 CC</td>
+          <td class="msg">你好，我是新入职的 CC，今后请多关照</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.30</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_008</td>
+          <td>real_world</td>
+          <td>下班吃饭 → 私聊+提问 P1</td>
+          <td>DD (peer)</td>
+          <td>p2p DD</td>
+          <td class="msg">晚上一起吃饭吗</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_009</td>
+          <td>real_world</td>
+          <td>需求评审通知</td>
+          <td>EE (peer)</td>
+          <td>group 评审通知</td>
+          <td class="msg">今天下午 3 点需求评审会议室 305</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.47)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_010</td>
+          <td>real_world</td>
+          <td>供应商报价 → 私聊+决策</td>
+          <td>FF (occasional)</td>
+          <td>p2p FF</td>
+          <td class="msg">您要的报价单已经准备好了，请确认下</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.50)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_011</td>
+          <td>real_world</td>
+          <td>周末团建 → 今天截止 P1</td>
+          <td>GG (occasional)</td>
+          <td>group 团建组织</td>
+          <td class="msg">本周末团建报名截止今天</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_012</td>
+          <td>real_world</td>
+          <td>招聘转发</td>
+          <td>HH (occasional)</td>
+          <td>group 内推</td>
+          <td class="msg">推荐一位前端候选人，简历附后</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_013</td>
+          <td>real_world</td>
+          <td>会议改时间</td>
+          <td>II (peer)</td>
+          <td>group 项目组</td>
+          <td class="msg">下午会议改到 4 点</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.39)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_014</td>
+          <td>real_world</td>
+          <td>行政通知</td>
+          <td>JJ 行政 (occasional)</td>
+          <td>group 行政通知</td>
+          <td class="msg">本周五的清洁日，请提前整理工位</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_015</td>
+          <td>real_world</td>
+          <td>客户群闲聊</td>
+          <td>客户老王 (occasional)</td>
+          <td>group 客户对接</td>
+          <td class="msg">顺便问下你们端午节放几天</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.32)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_016</td>
+          <td>real_world</td>
+          <td>需求紧急澄清</td>
+          <td>LL PM (peer)</td>
+          <td>group 需求</td>
+          <td class="msg">刚才那条需求紧急澄清下：A 模块需要支持多账号登录</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_017</td>
+          <td>real_world</td>
+          <td>报销提醒（Bot 简短，私聊导致 P1 也合理）</td>
+          <td>财务 (bot)</td>
+          <td>p2p 财务</td>
+          <td class="msg">您 5 月报销已通过</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.45)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_018</td>
+          <td>real_world</td>
+          <td>OKR 跟进</td>
+          <td>MM 老板 (superior)</td>
+          <td>p2p MM 老板</td>
+          <td class="msg">Q3 OKR 进度更新一下</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.60)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="fail">
+          <td><span class="status">FAIL</span></td>
+          <td>rw_019</td>
+          <td>real_world</td>
+          <td>运营推流量 + 强任务关联 + 时间词</td>
+          <td>NN 运营 (peer)</td>
+          <td>group 运营群</td>
+          <td class="msg">本周流量增长方案出第二版了，今天能不能确认下</td>
+          <td>P1</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_020</td>
+          <td>real_world</td>
+          <td>关注 PR 的合并（大群通知）</td>
+          <td>OO (peer)</td>
+          <td>group engineering</td>
+          <td class="msg">PR #998 已 merge，新功能已上线</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_021</td>
+          <td>real_world</td>
+          <td>突发故障告警</td>
+          <td>Alert Bot (bot)</td>
+          <td>group 告警群</td>
+          <td class="msg">P0 alert: API 5xx rate spike to 12%</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_022</td>
+          <td>real_world</td>
+          <td>Slack 风格闲聊</td>
+          <td>PP (occasional)</td>
+          <td>group tech-talk</td>
+          <td class="msg">thx everyone for the help</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_023</td>
+          <td>real_world</td>
+          <td>客户加急</td>
+          <td>QQ 客户 (peer)</td>
+          <td>p2p QQ 客户</td>
+          <td class="msg">客户那边催着要演示，请尽快确认时间</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.56)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_024</td>
+          <td>real_world</td>
+          <td>会议记录分享 → 今天关键词 P1</td>
+          <td>RR (peer)</td>
+          <td>group 项目组</td>
+          <td class="msg">今天会议纪要已上传到飞书文档</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.47)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_025</td>
+          <td>real_world</td>
+          <td>请教 SQL</td>
+          <td>SS (peer)</td>
+          <td>group DB</td>
+          <td class="msg">请教一下 join 三张表加 group by 性能优化思路</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.39)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_026</td>
+          <td>real_world</td>
+          <td>节日祝福</td>
+          <td>TT (occasional)</td>
+          <td>group 全员</td>
+          <td class="msg">祝大家中秋节快乐</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_027</td>
+          <td>real_world</td>
+          <td>竞品资料分享 → 任务关联强 + 私聊</td>
+          <td>UU (peer)</td>
+          <td>p2p UU</td>
+          <td class="msg">刚整理了竞品 X 的最新功能分析，给你参考一下吧</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.38)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_028</td>
+          <td>real_world</td>
+          <td>服务器资源警告（Bot 默认低）</td>
+          <td>Monitor Bot (bot)</td>
+          <td>group 监控</td>
+          <td class="msg">服务器 CPU 持续 80% 已 10 分钟，请关注</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.05</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.70</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_029</td>
+          <td>real_world</td>
+          <td>客户感谢 → 私聊 P1</td>
+          <td>VV (peer)</td>
+          <td>p2p VV</td>
+          <td class="msg">感谢上次的支持，期待后续合作</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>rw_030</td>
+          <td>real_world</td>
+          <td>下午茶补充（大群闲聊）</td>
+          <td>WW (occasional)</td>
+          <td>group 下午茶</td>
+          <td class="msg">下午茶补充：又上了一波咖啡</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_001</td>
+          <td>edge</td>
+          <td>空消息（私聊降级到 P2）</td>
+          <td>X1 (peer)</td>
+          <td>p2p X1</td>
+          <td class="msg"><i>(empty)</i></td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.35)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.05</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_002</td>
+          <td>edge</td>
+          <td>纯表情</td>
+          <td>X2 (occasional)</td>
+          <td>group 聊天群</td>
+          <td class="msg">👍</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_003</td>
+          <td>edge</td>
+          <td>超长技术问询</td>
+          <td>X3 (peer)</td>
+          <td>p2p X3</td>
+          <td class="msg">我们在 API 重构里遇到的问题：1. 旧版客户端兼容；2. 限流策略；3. 文档同步；4. 灰度发布；5. 监控；6. 错误码；7. 日志；8. 版本号管理。</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.40)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.12</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_004</td>
+          <td>edge</td>
+          <td>全英文询问</td>
+          <td>X4 (peer)</td>
+          <td>p2p X4</td>
+          <td class="msg">could you help me check why the deploy failed?</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.50)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_005</td>
+          <td>edge</td>
+          <td>数字时间</td>
+          <td>X5 (peer)</td>
+          <td>p2p X5</td>
+          <td class="msg">15:30 有 30 分钟的 sync</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.47)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.60</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_006</td>
+          <td>edge</td>
+          <td>中英混杂</td>
+          <td>X6 (peer)</td>
+          <td>p2p X6</td>
+          <td class="msg">刚 push 了一个 fix，麻烦 review please</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.43)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_007</td>
+          <td>edge</td>
+          <td>重复字符（大群闲聊）</td>
+          <td>X7 (occasional)</td>
+          <td>group 聊天群</td>
+          <td class="msg">好好好好好</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_008</td>
+          <td>edge</td>
+          <td>无关链接转发</td>
+          <td>X8 (occasional)</td>
+          <td>group 信息流</td>
+          <td class="msg">https://example.com/news/123 大家看看</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_009</td>
+          <td>edge</td>
+          <td>上级转闲聊（大群压制 P3）</td>
+          <td>陈总 (superior)</td>
+          <td>group 公司大群</td>
+          <td class="msg">天气真好</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_010</td>
+          <td>edge</td>
+          <td>多轮提及自己昵称</td>
+          <td>X10 (peer)</td>
+          <td>group 项目组</td>
+          <td class="msg">@你 这个事情你看一下哈</td>
+          <td>P1</td>
+          <td><strong>P1</strong> (0.39)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_011</td>
+          <td>edge</td>
+          <td>冷僻领域问询（大群广播 → P2 提问）</td>
+          <td>X11 (occasional)</td>
+          <td>group 杂谈</td>
+          <td class="msg">有人懂量子计算的相位估计算法吗？</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.35)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.55</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_012</td>
+          <td>edge</td>
+          <td>私聊单独消息</td>
+          <td>X12 (occasional)</td>
+          <td>p2p X12</td>
+          <td class="msg">在吗</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.30)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_013</td>
+          <td>edge</td>
+          <td>纯标点</td>
+          <td>X13 (occasional)</td>
+          <td>group 聊天群</td>
+          <td class="msg">...</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.40</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_014</td>
+          <td>edge</td>
+          <td>超大群闲聊</td>
+          <td>X14 (occasional)</td>
+          <td>group 万人群</td>
+          <td class="msg">大家中午好</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.18)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.15</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>ec_015</td>
+          <td>edge</td>
+          <td>客户在群里 @ 你紧急</td>
+          <td>客户XX (peer)</td>
+          <td>group 客户对接</td>
+          <td class="msg">@你 这个问题客户那边非常紧急，请尽快解决</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>sf_001</td>
+          <td>safety</td>
+          <td>防漏报：领导隐性关键消息</td>
+          <td>陈总 (superior)</td>
+          <td>p2p 陈总</td>
+          <td class="msg">看一下你写的方案，有几个地方想交流</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.60)</td>
+          <td class="dims"><span class="dim">identity:0.85</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>sf_002</td>
+          <td>safety</td>
+          <td>防漏报：HR 谈合同（含 sign-off 关键词）</td>
+          <td>HR Lin (peer)</td>
+          <td>p2p HR Lin</td>
+          <td class="msg">你的合同需要确认 sign-off，今天能过来吗</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.65)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.75</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.95</span> <span class="dim">channel:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>sf_003</td>
+          <td>safety</td>
+          <td>防误报：项目群闲聊不应升级</td>
+          <td>队友A (peer)</td>
+          <td>group Q3 项目群</td>
+          <td class="msg">刚才那个 PPT 配色挺好看哈哈</td>
+          <td>P3</td>
+          <td><strong>P3</strong> (0.20)</td>
+          <td class="dims"><span class="dim">identity:0.50</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.10</span> <span class="dim">task_relation:0.00</span> <span class="dim">time:0.15</span> <span class="dim">channel:0.60</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>sf_004</td>
+          <td>safety</td>
+          <td>钓鱼疑似消息</td>
+          <td>陌生客服 (unknown)</td>
+          <td>p2p 陌生客服</td>
+          <td class="msg">您的账户存在风险，请立刻点击 http://malicious.example/auth</td>
+          <td>P0</td>
+          <td><strong>P0</strong> (0.55)</td>
+          <td class="dims"><span class="dim">content:1.00</span> <span class="dim">shortcircuit:1.00</span></td>
+        </tr>
+
+        <tr class="pass">
+          <td><span class="status">PASS</span></td>
+          <td>sf_005</td>
+          <td>safety</td>
+          <td>高频骚扰 → 应在多次后被识别</td>
+          <td>推销员 (occasional)</td>
+          <td>p2p 推销员</td>
+          <td class="msg">您好，最近有理财产品推荐</td>
+          <td>P2</td>
+          <td><strong>P2</strong> (0.36)</td>
+          <td class="dims"><span class="dim">identity:0.25</span> <span class="dim">relation:0.50</span> <span class="dim">content:0.30</span> <span class="dim">task_relation:0.30</span> <span class="dim">time:0.15</span> <span class="dim">channel:1.00</span></td>
+        </tr></tbody>
+</table>
+
+</div></body></html>

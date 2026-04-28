@@ -1,0 +1,101 @@
+# Category: 紧急关键词必须分级为 P0
+scenarios:
+  - id: urgent_cn_001
+    category: urgent_keyword
+    description: "中文紧急关键词"
+    sender: { name: "运维小王", id: "u_001", identity: peer }
+    chat: { type: group, name: "运维群", member_count: 25 }
+    user_context: "写Q3产品方案"
+    message: "线上紧急故障！订单服务挂了，立刻处理！"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_002
+    category: urgent_keyword
+    description: "P0 关键词"
+    sender: { name: "Alice", id: "u_002", identity: peer }
+    chat: { type: group, name: "DevOps", member_count: 12 }
+    user_context: "PRD 文档"
+    message: "P0 事故，需要紧急回滚"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_en_003
+    category: urgent_keyword
+    description: "英文 urgent"
+    sender: { name: "Bob", id: "u_003", identity: peer }
+    chat: { type: p2p, name: "Bob" }
+    user_context: "coding"
+    message: "urgent: please review PR before EOD"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_en_004
+    category: urgent_keyword
+    description: "blocking"
+    sender: { name: "Carol", id: "u_004", identity: peer }
+    chat: { type: group, name: "engineering", member_count: 30 }
+    user_context: "feature dev"
+    message: "this issue is blocking production deployment"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_005
+    category: urgent_keyword
+    description: "马上"
+    sender: { name: "Dan", id: "u_005", identity: peer }
+    chat: { type: p2p, name: "Dan" }
+    user_context: ""
+    message: "马上来开会，会议室501"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_006
+    category: urgent_keyword
+    description: "立刻"
+    sender: { name: "Eva", id: "u_006", identity: peer }
+    chat: { type: p2p, name: "Eva" }
+    user_context: ""
+    message: "立刻停止部署，配置错了"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_007
+    category: urgent_keyword
+    description: "严重bug"
+    sender: { name: "Frank", id: "u_007", identity: peer }
+    chat: { type: group, name: "QA", member_count: 8 }
+    user_context: ""
+    message: "发现了严重bug影响支付链路"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_008
+    category: urgent_keyword
+    description: "ASAP 大写"
+    sender: { name: "George", id: "u_008", identity: peer }
+    chat: { type: group, name: "intl-team", member_count: 15 }
+    user_context: ""
+    message: "ASAP we need a decision on the API contract"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_009
+    category: urgent_keyword
+    description: "生产事故"
+    sender: { name: "Helen", id: "u_009", identity: peer }
+    chat: { type: group, name: "oncall", member_count: 6 }
+    user_context: "writing code"
+    message: "生产事故，DB 主从同步延迟，需要立即处理"
+    expected_level: P0
+    expected_action: forward
+
+  - id: urgent_cn_010
+    category: urgent_keyword
+    description: "阻塞"
+    sender: { name: "Ivan", id: "u_010", identity: peer }
+    chat: { type: p2p, name: "Ivan" }
+    user_context: ""
+    message: "API 调不通，阻塞了我这边的开发"
+    expected_level: P0
+    expected_action: forward
