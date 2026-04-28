@@ -62,6 +62,34 @@ _SUSPICIOUS_PATTERNS: List[tuple[str, str]] = [
     (r"删除\s*(所有|全部|最近)\s*(白名单|任务|消息|记录|决策)", "destructive_intent_zh"),
     (r"<\!\-\-.*?\-\-\>", "html_comment"),
     (r"(?i)base64[:：]\s*[A-Za-z0-9+/=]{40,}", "long_base64"),
+
+    # ── v7 OWASP LLM Top 10 扩展 ──
+    # LLM01 Prompt Injection
+    (r"#{2,}\s*system\s*#{2,}", "system_marker_injection"),
+    (r"(?i)disregard\s+all\s+(?:previous|prior)\s+instructions", "disregard_instructions"),
+    (r"(把|输出|复述)?\s*(?:上面|以上|之前)?\s*(?:的)?\s*system\s*prompt\s*(?:完整|前)?\s*(?:复述|输出|说一下|发一下)?", "exfil_prompt_zh2"),
+    (r"(?i)repeat\s+verbatim.*?system\s+prompt", "exfil_prompt_repeat_verbatim"),
+    # LLM02 Insecure Output Handling
+    (r"(?i)<\s*script[^>]*>", "html_script_inject"),
+    (r"(?i)javascript\s*:", "javascript_uri_inject"),
+    (r"(?i)on(?:click|load|error)\s*=\s*[\"']", "html_event_handler"),
+    # LLM05 Supply Chain
+    (r"(?i)按这个链接(?:的指令)?执行|fetch\s+and\s+execute", "supply_chain_fetch"),
+    (r"system_prompt\.txt|prompt\.json", "external_prompt_link"),
+    # LLM06 Sensitive Information Disclosure
+    (r"(?i)环境变量\s*(?:ARK_API_KEY|MINIMAX_API_KEY|FEISHU_APP_SECRET|API_KEY)",
+     "env_secret_request"),
+    (r"(?i)(?:输出|告诉|发给我|reveal|print)\s*(?:env|environment|secret|api[_ ]?key)",
+     "env_secret_request_alt"),
+    # LLM07 Insecure Plugin Design (privileged tool calls)
+    (r"(?i)@\s*(?:feishu|larkmentor|admin)[\w_]*\s+(?:强制|force|reset|clear|清空|删除)",
+     "privileged_plugin_call"),
+    # LLM08 Excessive Agency (destructive shell-level)
+    (r"(?:^|\s)rm\s+-rf\b", "rm_rf_root"),
+    (r"(?i)delete\s+all\s+messages\s+(?:in\s+the\s+chat|without\s+asking)",
+     "delete_all_no_ask"),
+    # LLM10 Model Theft / system prompt extraction (extra patterns)
+    (r"(?i)system\s+prompt\s+above\s+(?:and|or)?\s*ignore", "exfil_prompt_modeltheft"),
 ]
 
 JUDGE_PROMPT = """\
