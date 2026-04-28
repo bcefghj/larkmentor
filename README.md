@@ -1,80 +1,167 @@
-# LarkMentor v4 · 统一 Agent Harness（对标 Claude Code）
+# Agent-Pilot v7 · 三线产品 · 飞书 AI 校园挑战赛
 
-> **从 IM 对话到演示稿的一键智能闭环** · Anthropic 官方数据：多 agent 协同比单 agent 质量提升 **90.2%**。
+> **从 IM 对话到演示稿的一键智能闭环** —— 「工位上同时发生」的 AI 同事
 >
-> AI Agent 主驾驶 · Flutter 四端真协同 · Yjs CRDT 离线无冲突合并 · 飞书 2026 官方 MCP + Card 2.0 + 长连接 · 4 模型一键切换（豆包/MiniMax M2.7/DeepSeek/Kimi）
+> AI Agent 主驾驶 · 三线产品（@shield 消息守护 + @mentor 表达带教 + **@pilot 主驾驶**）· Claude Code 7 支柱借鉴 · 6 级 Memory · y-websocket CRDT 多端同步 · 4 模型供应商（豆包 / MiniMax M2.7 / DeepSeek / Kimi）
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)]()
-[![Tests](https://img.shields.io/badge/pytest-233%20passed-brightgreen)]()
-[![Flutter](https://img.shields.io/badge/Flutter-4端-02569B)]()
-[![Harness](https://img.shields.io/badge/Claude%20Code-对标%2090%25-ff6f00)]()
-[![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Orchestrator%20Worker-purple)]()
-[![MCP](https://img.shields.io/badge/MCP-远程%2B本地%2B22%20Skills-blueviolet)]()
-[![CRDT](https://img.shields.io/badge/Yjs-offline%20merge-violet)]()
+[![Tests](https://img.shields.io/badge/PRD%20unit-169%2F169-brightgreen)]()
+[![Promptfoo](https://img.shields.io/badge/Red%20Team-32%2F32%20OWASP%20LLM%20Top10-green)]()
+[![Multi-Agent](https://img.shields.io/badge/Multi--Agent-Builder--Validator--Citation-purple)]()
+[![CRDT](https://img.shields.io/badge/y--websocket-offline%20merge-violet)]()
+[![Memory](https://img.shields.io/badge/Memory-6--tier%20Inject-blueviolet)]()
 
 **在线体验**：http://118.178.242.26/ &nbsp;|&nbsp;
-**Pilot 驾驶舱**：http://118.178.242.26/dashboard/pilot &nbsp;|&nbsp;
-**技术报告 v3**：[larkmentor_report_v3.pdf](../larkmentor_report_v3.pdf)
+**主驾驶舱**：http://118.178.242.26/v7/pilot &nbsp;|&nbsp;
+**6 级 Memory**：http://118.178.242.26/v7/memory &nbsp;|&nbsp;
+**三线雷达**：http://118.178.242.26/v7/triad
+
+📖 [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程 v3→v7](docs/EVOLUTION.md) · [架构文档](docs/ARCHITECTURE_v6.md) · [立意完整版](docs/立意_工位上同时发生.md) · [5 分钟 Demo 脚本](docs/DEMO_SCRIPT.md) · [决策日志](docs/DECISIONS.md)
 
 ---
 
-## v4 亮点（Agent Mode 完整重构）
+## v7 三线产品（不是单线工具）
 
-### 对标 Claude Code 的统一 Agent Harness（~90% 完成度）
-- **9 步 pipeline**（agent/loop.py）：Settings → State → Context → 5-Layer Compaction → Model → Tool Dispatch → Permission → Execute → Stop
-- **5 层 Context 压缩**（Budget / Snip / Microcompact / Collapse / Autocompact），arxiv:2604.14228 §4.3 完整移植
-- **4 层 CLAUDE.md 记忆继承**（Enterprise / Project / User / Local）+ Auto Memory（decisions/patterns/learnings/followups，Agent 自写）
-- **7 层安全栈**（Permission / Classifier / Hook / Tool Safety / FS / Secret Scan / Sandbox）
-- **6 hooks 生命周期**（SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / PreCompact / Stop）
-- **3 层 Skills 渐进披露**（metadata / body / references）
-- **Subagent sidechain transcript**（父 context 被保护，只回传 summary）
+| 线 | 角色 | 解决什么 | 实现位置 |
+|---|---|---|---|
+| 左线 @shield | 消息守护 | 6 维分类挡掉低优先级，专注后给 Recovery Card | `core/security/` + `core/smart_shield_v3.py` |
+| 右线 @mentor | 表达带教 | 起草消息、澄清任务、STAR 周报、新人 5 问 | `core/mentor/` |
+| **新主线 @pilot** | **从 IM 到演示稿** | **主动识别任务、Owner 流转、上下文确认、生成 Doc/PPT、多端同步、归档** | `core/agent_pilot/` + `bot/cards_pilot.py` + `bot/pilot_router.py` |
 
-### 多 Agent 协同 —— Anthropic 官方 90.2% 提升核心
-- **Orchestrator-Worker 模式**（agent/orchestrator_worker.py）：Lead Agent 分解 + N Specialists 并行
-- **4 种 Multi-Agent Pattern**（agent/patterns/multi_agent.py）：Fan-out / Pipeline / Map-Reduce / Specialist Delegation
-- **Builder-Validator 分离**：每个输出由独立 Validator 审查，永不自审
-- **Citation Agent**（Anthropic 独家）：每条 claim 自动标注 source
-- **Majority Voting + 5 Quality Gates**：3 模型并行 + judge；Completeness / Consistency / Factuality / Readability / Safety
-- **Shannon 8 执行策略 + 5 推理模式**：Simple / DAG / ReAct / Research / Exploratory / Swarm / Browser / Domain + React / Reflection / CoT / Debate / ToT
-- **Named Agents**（ShanClaw 启发）：@pilot / @shield / @mentor / @debater / @researcher 独立 instruction + model + tools
-- **Agent Teams**（Claude Code 2026 实验特性）：Redis pub/sub 多 agent 在线辩论
+三线 3 个工程合体点（不可破，见 [ARCHITECTURE §2 原则 3](docs/ARCHITECTURE_v6.md)）：
+1. 同一份组织默契知识（KB 被三线共用）
+2. Recovery Card UI 升级版（Shield 拦截 + Pilot 识别 + Mentor 起草）
+3. 同一份 FlowMemory 共同学习
 
-### 4 模型 Multi-Provider + Cost Budget
-```yaml
-豆包      → 中文快速（$0.8/$2.0/1M）
-MiniMax M2.7 → 规划/推理（97 百分位智商，205K context，$0.30/$1.20/1M，用户提供的 Max 套餐）
-DeepSeek  → 便宜审查（$0.14/$0.28/1M，5x 省钱）
-Kimi      → 长文档（128K context）
+---
+
+## v7 Pilot 主流程（PRD §5/§6/§7/§10 完整实现）
+
+### 主动识别 三闸门（PRD §5 + Q5）
+- **闸门 1（规则层）**：30+ 关键词 + 上下文信号（多人参与 / 时间节点 / 资料引用）
+- **闸门 2（LLM 层）**：结构化 JSON 判断 → task_type / goal / resources / next_step / confidence
+- **闸门 3（最小信息）**：ContextPack.has_min_info() ; 低置信度走澄清卡
+- **冷却 + 忽略**：60 min 同主题不重复 + per-chat 忽略列表
+- 文件：`core/agent_pilot/application/intent_detector.py` · 26 单元测试
+
+### Task 状态机（PRD §10 完整 10+2 状态）
+```
+SUGGESTED → ASSIGNED → CONTEXT_PENDING → PLANNING
+  → DOC_GENERATING / PPT_GENERATING / CANVAS_GENERATING
+  → REVIEWING → DELIVERED
+辅助：PAUSED / FAILED / IGNORED
+```
+50+ 合法转移注册在 `_TRANSITIONS` 表。Owner 锁定在高影响动作前严格校验。
+- 文件：`core/agent_pilot/domain/state_machine.py` + `domain/owner.py` · 41 单元测试
+
+### 标准化 ContextPack（PRD §7.4）
+PRD §7.4 7 字段全对齐：`task_goal / source_messages / source_docs / user_added_materials / output_requirements / constraints / owner`
+- 三档资料源（Q4 决策）：粘贴链接 / 上传文件 / 飞书 Wiki+Docx 真实 API
+- 文件：`core/agent_pilot/domain/context_pack.py` + `application/context_service.py` · 19 单元测试
+
+### 6 级 Memory 真实注入（v6 写好但未注入 → v7 真正注入）
+Enterprise → Workspace → Department → Group → User → Session 自动合并到 system prompt。低层覆盖高层。
+- 文件：`core/agent_pilot/application/memory_inject.py` + `core/flow_memory/flow_memory_md.py` · 7 单元测试
+- 接到 ContextService 与 IntentDetector，每次 LLM 调用前自动注入
+
+### 7 张飞书 v2 卡片 + cardkit.v1 流式（PRD §5.4 + 评委 wow #1）
+- task_suggested_card · 5 按钮（确认 / 添加资料 / 指派 / 详情 / 忽略）
+- assign_picker_card · 群成员选择器
+- context_confirm_card · 三段式（已用 / 缺失 / 建议补充）
+- multi_agent_card · 5 named agents 协同实时可视化
+- task_progress_card · cardkit.v1 流式打字机
+- task_delivered_card · artifact 链接 + 归档 + 继续生成 PPT
+- task_clarify_card · 信息不足时的澄清卡
+- 文件：`bot/cards_pilot.py` · 17 单元测试 · 全部 element_id 稳定支持 patch
+
+---
+
+## v3→v7 借鉴的 Claude Code 7 支柱（保留并增强）
+
+| 支柱 | 实现 |
+|---|---|
+| 1 ToolRegistry | `core/runtime/tool_registry.py` |
+| 2 HookSystem | `core/security/hook_system.py` 9 lifecycle |
+| 3 Skills | `agent/skills.py` + `core/mentor/` 4 Skills |
+| 4 PermissionManager | `core/security/permission_manager.py` 5 级 + Allow/Deny/Ask 三态 |
+| 5 6-tier Memory | `core/flow_memory/flow_memory_md.py` + v7 真正注入 |
+| 6 MCP Native | `core/mcp_server/` HTTP + stdio |
+| 7 AuditLog | `core/security/audit_log.py` JSONL append-only |
+
+加上 **8 层安全栈全链路必经**（不允许快速路径绕过）：Permission → TranscriptClassifier → Hook → PII → Denylist → RateLimit → ToolSandbox → AuditLog。
+
+---
+
+## 多 Agent 协同（5 named agents · Builder-Validator 严格分离）
+
+```
+@pilot 编排 → @researcher 调研（FlowMemory archival 召回）
+       → @debater 辩论（仅 reasoning_pattern == debate）
+       → 工具执行（doc/canvas/slide）
+       → @validator 独立审查（5 Quality Gates）
+       → @citation 标 source（每条 claim → reference）
+       → @mentor 风格审查（NVC + 老板汇报场景）
+       → @shield 安全审查（PII / 注入）
 ```
 
-### Hermes Agent 启发
-- **学习闭环**：3 次类似任务后自动生成 `SKILL.md`（self-improving）
-- **SQLite FTS5 记忆**（不用向量 DB，10ms 级延迟）
-- **Cron 定时任务**：APScheduler + `.larkmentor/schedules/*.yaml`
-- **CLI 入口**：`python -m agent chat` 本地 TUI 对话
+每个 sub-agent 通过 transcript 隔离（独立 context window），父 context 不被污染。
+- 文件：`core/agent_pilot/application/multi_agent_pipeline.py` · 11 单元测试
 
-### 飞书 2026 官方栈
-- 远程 MCP（mcp.feishu.cn/mcp）+ 本地 @larksuiteoapi/lark-mcp（2500+ API）
-- 22 个 lark-cli 官方 Skills + 3 个自研
-- **cardkit.v1 流式打字机卡片**（评委 wow #1）
-- WebSocket 长连接订阅（免公网出口）
-- AppLink 回跳协议
-- Bitable AI Agent Node 接入（改一行触发 Plan → 回写 AI 字段）
+5 推理模式 + 4 multi-agent pattern 真实落地：
+- **5 推理**：ReAct / Reflection / CoT / Debate / Tree-of-Thoughts （`agent/patterns/`）
+- **4 multi-agent**：Fan-out / Pipeline / Map-Reduce / Specialist Delegation（`agent/patterns/multi_agent.py`）
+- **6 validators**：critic / citation / quality_gates / risk / security / a11y（`agent/validators/`）
+- **自动选模式**：`PlannerService.select_reasoning_pattern()` 根据 intent 长度+关键词+constraints 自动选
 
-### 质量提升数据（A/B 矩阵测试）
-| 配置 | 综合得分 |
+---
+
+## 学习闭环（评委 wow #3）
+
+`PilotLearner` 监听 EventBus `task_delivered` 事件：
+- JSONL 归档每条任务的 (intent, plan_outline, tokens)
+- Jaccard 相似度（中文 bigram + 英文 word lowercase）
+- 3 次相似任务后自动生成 `.larkmentor/skills/auto/<slug>/SKILL.md`
+- 第 4 次类似任务直接命中（`PilotLearner.hit_skill`）
+
+文件：`core/agent_pilot/application/learner.py` · 13 单元测试 · 纯 Python，2C2G 友好。
+
+---
+
+## 真实数据（无 mock）
+
+### Promptfoo 红队 32/32 通过
+覆盖：v6 14 经典用例（prompt injection / role hijack / data exfil / control group）+ v7 18 OWASP LLM Top 10 用例。
+- 文件：`tests/promptfoo/promptfooconfig.yaml` + `tests/promptfoo/run_local.py` + `tests/promptfoo/reports/redteam_v7.md`
+- 离线运行：`PYTHONPATH=. python tests/promptfoo/run_local.py`
+
+### 169 个 PRD-aligned 单元测试
+| 模块 | 测试数 |
 |---|---|
-| 单 agent baseline | 65.2 |
-| Orchestrator-Worker | 84.4 |
-| + Builder-Validator | 92.7 |
-| + Citation Agent | **93.5** |
+| domain (state machine + owner + context pack) | 41 |
+| intent detector (3 gates + cooldown) | 26 |
+| context service (3 source types) | 19 |
+| planner + orchestrator (5 reasoning modes) | 16 |
+| multi-agent pipeline (Builder-Validator + 5 named agents) | 11 |
+| pilot router (IM → state machine) | 13 |
+| pilot cards (PRD §5.4 §6.3 §7.2) | 17 |
+| learner (auto SKILL.md) | 13 |
+| memory inject (6-tier system prompt) | 7 |
+| dashboard v7 API + HTML | 12 |
+| **小计** | **175** |
 
-**+43% 绝对值提升** —— 这是多 agent 的真实回报。
+### A/B 矩阵真实 LLM 调用（75 次 · 见 `tests/reports/ab_matrix.json`）
+5 配置 × 3 模型供应商 × 5 真实办公任务 = 75 次真实 LLM 调用。
+- 配置档：single_agent_baseline / orchestrator_worker / +builder_validator / +citation / +debate
+- 模型：豆包（Doubao）/ MiniMax M2.7 / DeepSeek
+- 任务：复盘汇报 PPT / PRD / 季度复盘 / 入职文档 / 战略辩论
+- 评分：5 quality gates（completeness / consistency / factuality / readability / safety）
+
+> 早期 README 写过的「Anthropic 官方 90.2%」「+43% 绝对值提升」「Shannon 8 执行策略」均已替换为真实可核对的数据，详见 [docs/EVOLUTION.md](docs/EVOLUTION.md)。
 
 ### 评委 3 个 wow 点
-1. **cardkit 流式打字机**（国内唯一）
-2. **跨会话 FTS5 记忆召回**（10ms 查询 + LLM 精化）
-3. **学习闭环**（现场做 3 次任务 → 第 4 次 Agent 自动命中生成的 skill）
+1. **cardkit.v1 流式打字机**（task_progress_card 实时 patch · 见 `bot/cards_pilot.task_progress_card`）
+2. **6 级 Memory 真实注入**（Enterprise→Session 自动合并到 system prompt · 见 `core/agent_pilot/application/memory_inject.py`）
+3. **学习闭环 SKILL.md**（3 次相似任务自动生成 · 第 4 次直接命中 · 见 `core/agent_pilot/application/learner.py`）
 
 ### 评委指令
 - `/pilot <意图>` — 全链路编排
