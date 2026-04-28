@@ -18,6 +18,7 @@ from .context_service import (
     default_context_service,
     parse_feishu_doc_token,
 )
+from .multi_agent_pipeline import MultiAgentPipeline, AgentReport, AgentTranscript
 from .orchestrator_service import OrchestratorService, OrchestratorConfig
 from .planner_service import (
     PlannerService,
@@ -54,4 +55,7 @@ __all__ = [
     "select_reasoning_pattern",
     "OrchestratorService",
     "OrchestratorConfig",
+    "MultiAgentPipeline",
+    "AgentReport",
+    "AgentTranscript",
 ]
