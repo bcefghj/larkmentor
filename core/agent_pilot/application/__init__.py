@@ -18,6 +18,12 @@ from .context_service import (
     default_context_service,
     parse_feishu_doc_token,
 )
+from .learner import (
+    PilotLearner,
+    TaskMemory,
+    GeneratedSkill,
+    default_pilot_learner,
+)
 from .multi_agent_pipeline import MultiAgentPipeline, AgentReport, AgentTranscript
 from .orchestrator_service import OrchestratorService, OrchestratorConfig
 from .planner_service import (
@@ -58,4 +64,8 @@ __all__ = [
     "MultiAgentPipeline",
     "AgentReport",
     "AgentTranscript",
+    "PilotLearner",
+    "TaskMemory",
+    "GeneratedSkill",
+    "default_pilot_learner",
 ]
