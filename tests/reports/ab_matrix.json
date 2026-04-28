@@ -1,0 +1,1401 @@
+{
+  "run_ts": 1777413011,
+  "configs": [
+    "single_agent_baseline",
+    "orchestrator_worker",
+    "+builder_validator",
+    "+citation",
+    "+debate"
+  ],
+  "providers": [
+    "doubao",
+    "minimax",
+    "deepseek"
+  ],
+  "tasks": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5"
+  ],
+  "results": [
+    {
+      "task_id": "T1",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "doubao",
+      "prompt_chars": 37,
+      "output_chars": 656,
+      "duration_sec": 31.39,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 0.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 60.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 622,
+      "duration_sec": 24.62,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 60.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 72.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "doubao",
+      "prompt_chars": 30,
+      "output_chars": 545,
+      "duration_sec": 23.58,
+      "score": {
+        "completeness": 90.83333333333333,
+        "consistency": 100,
+        "factuality": 33.33333333333333,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 64.83333333333333
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 689,
+      "duration_sec": 33.55,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 25.0,
+        "readability": 14.0,
+        "safety": 100,
+        "overall": 67.8
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "doubao",
+      "prompt_chars": 34,
+      "output_chars": 709,
+      "duration_sec": 34.61,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 68.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "doubao",
+      "prompt_chars": 37,
+      "output_chars": 580,
+      "duration_sec": 36.76,
+      "score": {
+        "completeness": 96.66666666666667,
+        "consistency": 100,
+        "factuality": 0.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 59.333333333333336
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 505,
+      "duration_sec": 41.37,
+      "score": {
+        "completeness": 84.16666666666667,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 64.83333333333334
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "doubao",
+      "prompt_chars": 30,
+      "output_chars": 563,
+      "duration_sec": 41.42,
+      "score": {
+        "completeness": 93.83333333333333,
+        "consistency": 100,
+        "factuality": 33.33333333333333,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 65.43333333333332
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 646,
+      "duration_sec": 41.94,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 50.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 70.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "doubao",
+      "prompt_chars": 34,
+      "output_chars": 564,
+      "duration_sec": 44.57,
+      "score": {
+        "completeness": 94.0,
+        "consistency": 100,
+        "factuality": 60.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 70.8
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "doubao",
+      "prompt_chars": 37,
+      "output_chars": 954,
+      "duration_sec": 104.34,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 0.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 60.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 975,
+      "duration_sec": 103.28,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 60.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 72.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "doubao",
+      "prompt_chars": 30,
+      "output_chars": 989,
+      "duration_sec": 105.42,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 33.33333333333333,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 66.66666666666666
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 969,
+      "duration_sec": 98.53,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 50.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 70.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "doubao",
+      "prompt_chars": 34,
+      "output_chars": 956,
+      "duration_sec": 101.69,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 68.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "doubao",
+      "prompt_chars": 37,
+      "output_chars": 1007,
+      "duration_sec": 141.57,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 0.0,
+        "readability": 8.0,
+        "safety": 100,
+        "overall": 61.6
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 973,
+      "duration_sec": 138.5,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 68.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "doubao",
+      "prompt_chars": 30,
+      "output_chars": 1040,
+      "duration_sec": 143.57,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 0.0,
+        "readability": 65.25,
+        "safety": 100,
+        "overall": 63.05
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 1070,
+      "duration_sec": 158.82,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 50.0,
+        "readability": 58.8695652173913,
+        "safety": 100,
+        "overall": 81.77391304347826
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "doubao",
+      "prompt_chars": 34,
+      "output_chars": 1014,
+      "duration_sec": 140.5,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 60.0,
+        "readability": 39.22222222222223,
+        "safety": 100,
+        "overall": 79.84444444444445
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "doubao",
+      "prompt_chars": 37,
+      "output_chars": 918,
+      "duration_sec": 102.76,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 0.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 50.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 941,
+      "duration_sec": 125.83,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 68.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "doubao",
+      "prompt_chars": 30,
+      "output_chars": 972,
+      "duration_sec": 102.26,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 33.33333333333333,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 66.66666666666666
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "doubao",
+      "prompt_chars": 38,
+      "output_chars": 966,
+      "duration_sec": 121.11,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 50.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 70.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "doubao",
+      "prompt_chars": 34,
+      "output_chars": 962,
+      "duration_sec": 134.28,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 68.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "minimax",
+      "prompt_chars": 37,
+      "output_chars": 1305,
+      "duration_sec": 9.35,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 80.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 870,
+      "duration_sec": 6.82,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 80.0,
+        "readability": 43.125,
+        "safety": 100,
+        "overall": 84.625
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "minimax",
+      "prompt_chars": 30,
+      "output_chars": 832,
+      "duration_sec": 6.81,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 80.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 1107,
+      "duration_sec": 8.39,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 80.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "minimax",
+      "prompt_chars": 34,
+      "output_chars": 2240,
+      "duration_sec": 8.39,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 34.05263157894737,
+        "safety": 100,
+        "overall": 86.81052631578947
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "minimax",
+      "prompt_chars": 37,
+      "output_chars": 985,
+      "duration_sec": 10.48,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 0.0,
+        "readability": 76.15384615384616,
+        "safety": 100,
+        "overall": 65.23076923076924
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 1861,
+      "duration_sec": 9.96,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 100.0,
+        "readability": 23.724137931034477,
+        "safety": 100,
+        "overall": 74.7448275862069
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "minimax",
+      "prompt_chars": 30,
+      "output_chars": 329,
+      "duration_sec": 7.34,
+      "score": {
+        "completeness": 54.833333333333336,
+        "consistency": 50,
+        "factuality": 0.0,
+        "readability": 86.0,
+        "safety": 100,
+        "overall": 58.16666666666667
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 2246,
+      "duration_sec": 12.13,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 27.611111111111114,
+        "safety": 100,
+        "overall": 85.52222222222221
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "minimax",
+      "prompt_chars": 34,
+      "output_chars": 2019,
+      "duration_sec": 15.14,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 0,
+        "factuality": 100.0,
+        "readability": 12.68965517241378,
+        "safety": 100,
+        "overall": 62.53793103448275
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "minimax",
+      "prompt_chars": 37,
+      "output_chars": 794,
+      "duration_sec": 19.39,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 100.0,
+        "readability": 72.5,
+        "safety": 100,
+        "overall": 84.5
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 2267,
+      "duration_sec": 25.69,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 1.3333333333333428,
+        "safety": 100,
+        "overall": 80.26666666666668
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "minimax",
+      "prompt_chars": 30,
+      "output_chars": 1065,
+      "duration_sec": 17.86,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 0,
+        "factuality": 100.0,
+        "readability": 26.588235294117652,
+        "safety": 100,
+        "overall": 65.31764705882354
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 2088,
+      "duration_sec": 27.76,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 50.0,
+        "readability": 13.400000000000006,
+        "safety": 100,
+        "overall": 72.67999999999999
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "minimax",
+      "prompt_chars": 34,
+      "output_chars": 1703,
+      "duration_sec": 31.46,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 0,
+        "factuality": 60.0,
+        "readability": 77.91304347826087,
+        "safety": 100,
+        "overall": 67.58260869565217
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "minimax",
+      "prompt_chars": 37,
+      "output_chars": 443,
+      "duration_sec": 20.44,
+      "score": {
+        "completeness": 73.83333333333333,
+        "consistency": 0,
+        "factuality": 0.0,
+        "readability": 92.8,
+        "safety": 100,
+        "overall": 53.32666666666667
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 2450,
+      "duration_sec": 33.56,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 40.0,
+        "readability": 75.78125,
+        "safety": 100,
+        "overall": 83.15625
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "minimax",
+      "prompt_chars": 30,
+      "output_chars": 1148,
+      "duration_sec": 30.41,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 0.0,
+        "readability": 37.099999999999994,
+        "safety": 100,
+        "overall": 67.42
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 346,
+      "duration_sec": 17.3,
+      "score": {
+        "completeness": 57.666666666666664,
+        "consistency": 50,
+        "factuality": 100.0,
+        "readability": 88.9090909090909,
+        "safety": 100,
+        "overall": 79.31515151515151
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "minimax",
+      "prompt_chars": 34,
+      "output_chars": 2720,
+      "duration_sec": 29.38,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 0.0,
+        "readability": 34.21739130434783,
+        "safety": 100,
+        "overall": 56.84347826086956
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "minimax",
+      "prompt_chars": 37,
+      "output_chars": 2194,
+      "duration_sec": 20.44,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 100,
+        "factuality": 100.0,
+        "readability": 10.774193548387103,
+        "safety": 100,
+        "overall": 82.15483870967742
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 2512,
+      "duration_sec": 19.92,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 100.0,
+        "readability": 57.62264150943396,
+        "safety": 100,
+        "overall": 81.52452830188679
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "minimax",
+      "prompt_chars": 30,
+      "output_chars": 2545,
+      "duration_sec": 19.92,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 100.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 70.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "minimax",
+      "prompt_chars": 38,
+      "output_chars": 1325,
+      "duration_sec": 21.49,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 75.0,
+        "readability": 41.5,
+        "safety": 100,
+        "overall": 73.3
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "minimax",
+      "prompt_chars": 34,
+      "output_chars": 2678,
+      "duration_sec": 19.93,
+      "score": {
+        "completeness": 100.0,
+        "consistency": 50,
+        "factuality": 40.0,
+        "readability": 0.0,
+        "safety": 100,
+        "overall": 58.0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "deepseek",
+      "prompt_chars": 37,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "deepseek",
+      "prompt_chars": 30,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C1",
+      "config_name": "single_agent_baseline",
+      "provider": "deepseek",
+      "prompt_chars": 34,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "deepseek",
+      "prompt_chars": 37,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "deepseek",
+      "prompt_chars": 30,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C2",
+      "config_name": "orchestrator_worker",
+      "provider": "deepseek",
+      "prompt_chars": 34,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "deepseek",
+      "prompt_chars": 37,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "deepseek",
+      "prompt_chars": 30,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C3",
+      "config_name": "+builder_validator",
+      "provider": "deepseek",
+      "prompt_chars": 34,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "deepseek",
+      "prompt_chars": 37,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "deepseek",
+      "prompt_chars": 30,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C4",
+      "config_name": "+citation",
+      "provider": "deepseek",
+      "prompt_chars": 34,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T1",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "deepseek",
+      "prompt_chars": 37,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T2",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T3",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "deepseek",
+      "prompt_chars": 30,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T4",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "deepseek",
+      "prompt_chars": 38,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    },
+    {
+      "task_id": "T5",
+      "config_id": "C5",
+      "config_name": "+debate",
+      "provider": "deepseek",
+      "prompt_chars": 34,
+      "output_chars": 26,
+      "duration_sec": 0.0,
+      "score": {
+        "completeness": 0,
+        "consistency": 0,
+        "factuality": 0,
+        "readability": 0,
+        "safety": 0,
+        "overall": 0
+      },
+      "error": ""
+    }
+  ],
+  "aggregates": {
+    "single_agent_baseline": {
+      "avg_overall": 74.41,
+      "n": 10,
+      "total_calls": 15
+    },
+    "orchestrator_worker": {
+      "avg_overall": 67.66,
+      "n": 10,
+      "total_calls": 15
+    },
+    "+builder_validator": {
+      "avg_overall": 70.7,
+      "n": 10,
+      "total_calls": 15
+    },
+    "+citation": {
+      "avg_overall": 69.43,
+      "n": 10,
+      "total_calls": 15
+    },
+    "+debate": {
+      "avg_overall": 68.76,
+      "n": 10,
+      "total_calls": 15
+    }
+  }
+}
