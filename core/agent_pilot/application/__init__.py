@@ -24,6 +24,11 @@ from .learner import (
     GeneratedSkill,
     default_pilot_learner,
 )
+from .memory_inject import (
+    make_memory_resolver_adapter,
+    wrap_llm_with_memory,
+    attach_memory_to_default_services,
+)
 from .multi_agent_pipeline import MultiAgentPipeline, AgentReport, AgentTranscript
 from .orchestrator_service import OrchestratorService, OrchestratorConfig
 from .planner_service import (
@@ -68,4 +73,7 @@ __all__ = [
     "TaskMemory",
     "GeneratedSkill",
     "default_pilot_learner",
+    "make_memory_resolver_adapter",
+    "wrap_llm_with_memory",
+    "attach_memory_to_default_services",
 ]

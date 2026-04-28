@@ -174,6 +174,14 @@ def main():
     except Exception as e:
         logger.debug("PilotLearner attach failed (non-critical): %s", e)
 
+    # ── v7 Pilot: bind 6-tier memory resolver to ContextService ──
+    try:
+        from core.agent_pilot.application import attach_memory_to_default_services
+        attach_memory_to_default_services()
+        logger.info("6-tier flow_memory_md resolver attached to ContextService")
+    except Exception as e:
+        logger.debug("memory bind failed (non-critical): %s", e)
+
     _start_scheduler()
 
     # Register BOTH message events AND card action callbacks
