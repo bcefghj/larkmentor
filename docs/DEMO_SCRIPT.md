@@ -1,121 +1,127 @@
-# LarkMentor · Agent-Pilot v3 · 10 分钟 Demo 视频逐帧台本
+# Agent-Pilot v7 · 评委 5 分钟 Demo 脚本
 
-目标观众：评委（飞书 AI 校园挑战赛，Agent-Pilot 赛道）。
-录制分辨率：1920×1080，屏幕分屏布局见每段说明。
-建议时长：10:00（含 20 秒片头 + 40 秒片尾），场景 A–F 各 1:30，加分项 1:30。
+> 一镜到底，无切场。脚本时间精确到秒。
 
----
+## 立意 30 秒 (00:00 - 00:30)
 
-## 0:00 – 0:20 · 片头（20s）
+> **「Agent-Pilot 不是单次任务生成器，而是在公司里陪你长期工作的 AI 同事。」**
+>
+> 它**记得**你 3 个月前的方案，**懂得**何时该出手，**协作**多个 agent 互相验证，**陪伴**你长期沉淀。
+>
+> 这是飞书 AI 校园挑战赛课题二「Agent-Pilot · 从 IM 对话到演示稿的一键智能闭环」三线产品的现场演示。
 
-- **画面**：黑底 fade-in，居中 logo + 标题「LarkMentor · Agent-Pilot · 从 IM 对话到演示稿的一键智能闭环」。
-- **旁白**（可字幕）：
-  > 这是 LarkMentor v3，一个对标 Claude Code 工程架构、深度接入飞书 2026 官方栈、Flutter 四端真协同的 Agent-Pilot。接下来十分钟，您会看到全部 6 个必做场景 + 4 个加分项，没有仿真，没有剪辑跳步。
+## 群聊讨论模拟 30 秒 (00:30 - 01:00)
 
----
+3 人 IM 群聊：
 
-## 0:20 – 1:50 · 场景 A · IM 意图入口（1:30）
+```
+[u1: 张三] 下周校园活动复盘汇报，要给老板看
+[u2: 李四] 对，我有数据
+[u3: 王五] 我可以帮忙做 PPT，大概 8 页
+```
 
-- **布局**：左半屏飞书桌面客户端，右半屏 Flutter 移动端模拟器（或真机投屏）。
-- **操作序列**：
-  1. 飞书私聊 `LarkMentor Bot` 输入 `/help`，展示完整指令帮助卡（Card 2.0，元素可折叠）。
-  2. 发送：`/pilot 把本周"新人培训"群的讨论整理成产品方案 + 架构图 + 评审PPT`。
-  3. 立即切到 Flutter 移动端，按住底部麦克风按钮语音说："同时帮我预订周四下午 3 点的评审会议"。
-  4. Flutter 端本地 `record` 录音 → multipart 上传 → 后端 Doubao ASR 转写 → 自动补发到同一 Plan 的 `/pilot` 入口。
-- **口播重点**：Card 2.0 的 `element_id` 精准 patch、多端入口共用一个 `plan_id`。
+一句语音输入：「最好用季度数据」（飞书 STT 自动转文字）。
 
----
+**说明话术**：
+- 我没有发任何 `/pilot` 指令；
+- Agent 完全靠 IM 对话三闸门主动识别（PRD §5）。
 
-## 1:50 – 3:20 · 场景 B · 任务理解与规划（1:30）
+## 主动识别 + 任务卡片 30 秒 (01:00 - 01:30)
 
-- **布局**：全屏 Dashboard Pilot 驾驶舱（`/dashboard/pilot/{plan_id}`）。
-- **操作序列**：
-  1. 打开驾驶舱，展示 LangGraph 六节点状态机（gather / plan / dispatch / verify / reflect / replan）实时进度。
-  2. 展示 `/context` 指令结果：当前 token 使用、四层压缩触发线（40/60/78/92%）、已执行 hook 事件流。
-  3. 故意触发一次 `drive.delete`（敏感工具），展示 Permission Gate deny-first 弹出 `AskUserQuestion` 卡片。
-  4. 在卡片上点"允许本次"，plan 继续；另开一个 `/plan`（Plan Mode）展示"只规划不执行"模式下非 readonly 工具被 block。
-- **口播重点**：这是 Claude Code harness 的最小可用子集，评委看到的不是单纯 LLM 调用，而是带 verify / replan / permission / hook 的完整 agent loop。
+飞书弹出 Card 2.0 任务建议卡：
 
----
+- **🎯 任务识别**：校园活动复盘汇报
+- **来源**：群聊 g_xxx · **执行人**：张三（待确认）
+- **任务计划**：补充数据 → 生成大纲 → 生成 PPT → 演讲稿 → 归档分享
+- **上下文状态**：📦 已识别 11 条消息 · 💡 建议补充：历史复盘 / 预算表
+- **5 按钮**：[确认生成] [添加资料] [指派他人] [查看详情] [忽略]
 
-## 3:20 – 4:50 · 场景 C · 文档 + 白板真协同（1:30）
+**说明话术**：
+- 这是 PRD §5.4 完整任务卡片
+- 6 级 Memory 已自动注入：Enterprise（我司财年）+ Workspace（运营组模板）+ Group（"活动 = 校园推广"）+ User（喜欢简洁风格）
+- 三闸门：规则命中 ∧ LLM 判任务 ∧ 最小信息满足 → READY
 
-- **布局**：左半屏 Flutter 桌面端，右半屏 Flutter 移动端。
-- **操作序列**：
-  1. 两端同时打开 Plan 生成的文档（Tiptap + Yjs）和画布（tldraw + Yjs）。
-  2. 桌面端输入一段需求描述；移动端几乎同时看到字符流入（y-websocket awareness 光标可见）。
-  3. 移动端在画布插入一个圆形 + sticky note；桌面端同步出现。
-  4. 在 Plan 驾驶舱点击「插入架构图」，Agent 自动在画布里铺出 4 层方框 + 箭头（`/pilot 富媒体` 能力）。
-- **口播重点**：这不是"三个客户端看同一份 HTTP"，而是 CRDT 真协同，光标/选区/presence 全部可视化。
+## Owner 流转 + 上下文确认 30 秒 (01:30 - 02:00)
 
----
+张三点 [指派他人] → 群成员选择器卡 → 选择「李四」
 
-## 4:50 – 6:20 · 场景 D · 演示稿生成与排练（1:30）
+李四点 [接受任务] → 任务卡更新为「由李四执行中」
 
-- **布局**：全屏浏览器（生成的 Slidev PPT）。
-- **操作序列**：
-  1. 驾驶舱点击「生成 PPT」，Agent 根据文档 + 白板抽取要点 → Slidev Markdown → 静态 HTML。
-  2. 打开生成的 PPT，展示首页 + 架构图页 + 结尾页。
-  3. 在驾驶舱点「一键排练」，调用 Agent 的 `rehearse` 子工具：给每一页生成讲稿（带语气标记）。
-  4. 展示讲稿卡片回流到飞书 IM 原对话（Card 2.0 折叠容器展开）。
-- **口播重点**：PPT 不是截图，是可交互 HTML；讲稿是真实 LLM 生成，带 timeout/retry/token budget/prompt 防注入加固。
+李四点 [添加资料] → 弹出上下文确认卡：
+- 已用：IM 11 条 + 1 个上传文件
+- 缺失：无 — 信息已满足 ✓
+- 输出：PPT · 受众 = 老板 · 启用 Citation
 
----
+李四点 [✅ 确认生成]。
 
-## 6:20 – 7:50 · 场景 E · 多端一致性与离线合并（1:30）
+**说明话术**：
+- PRD §6 owner 锁定：现在李四是 owner，其他人不能重复触发
+- PRD §7.4 ContextPack 标准契约：7 字段全填（task_goal / source_messages / source_docs / user_added_materials / output_requirements / constraints / owner）
 
-- **布局**：左半屏桌面 Flutter，右半屏移动 Flutter。
-- **操作序列**：
-  1. 两端同时在 Tiptap 文档里敲字，确认实时同步；
-  2. **移动端开启飞行模式**，继续编辑 5 行文字 + 一张图片；
-  3. **桌面端**同时编辑同一段落；
-  4. **移动端关闭飞行模式**：2 秒内 y-indexeddb flush → y-websocket resync，两端自动无冲突合并；
-  5. 展示 `awareness` 光标重新出现在两端。
-- **口播重点**：CRDT 天然合并、y-indexeddb 离线持久化、hive 双层缓存；这是加分项 1 的完整兑现。
+## 多 Agent 协同生成 90 秒 (02:00 - 03:30)
 
----
+打开 Web Dashboard `/v7/pilot`：
 
-## 7:50 – 9:20 · 场景 F · 飞书全家桶串联交付（1:30）
+实时可视化 5 named agents 协同（多窗口分屏）：
+- `@pilot` 编排 → 拆 DAG（5 推理模式 = CoT，因为 must_validate=True 升级为 Reflection）
+- `@researcher` 召回 3 个月前的复盘文档（FlowMemory archival）
+- 工具执行：`doc.create` → `slide.generate` → cardkit.v1 流式打字机更新进度卡
+- `@validator` 独立审查（5 Quality Gates：Completeness 90 / Consistency 88 / Factuality 85 / Readability 92 / Safety 100）
+- `@citation` 标 12 个 claim source（数据来自飞书 Bitable + Wiki）
+- `@mentor` 风格审查（3 条修订要点，针对老板汇报场景）
+- `@shield` 安全审查（PII 脱敏 + 注入检测，pass）
 
-- **布局**：四分屏：飞书 IM / 飞书文档 / 多维表格 / 飞书日历。
-- **操作序列**（详见 `docs/DEMO_FEISHU_PLUS.md`）：
-  1. 一句话 `/pilot 启动项目Kickoff`：
-  2. **IM**：自动发确认卡到群（Card 2.0 + AppLink 回跳）；
-  3. **Doc**：自动建立会议纪要；
-  4. **Bitable AI Agent 节点**：改一行状态 → 回写 AI 字段；
-  5. **Calendar**：创建评审会议 + 邀请成员；
-  6. **Minutes**：会议中自动拉妙记逐字稿（带 speaker + timestamp）；
-  7. **Board**：生成看板；
-  8. **Drive**：归档 PPT 附件；
-  9. **Wiki**：沉淀到知识库。
-- **口播重点**：同时跑 8 个子应用，MCP 远程 + 本地 + CLI Skills 三源协同。
+**说明话术**：
+- Builder-Validator 严格分离 → 永不自审（Sub-agent transcript 隔离）
+- 5 Quality Gates 真实评分（不是 mock）
+- 全程通过 8 层安全栈（不绕过）
+- 这是 README 里 5 推理模式 + 4 multi-agent 的真实落地
 
----
+## 多端同步 + 归档 60 秒 (03:30 - 04:30)
 
-## 9:20 – 9:40 · 加分项集中展示（20s）
+三端实时同步（屏幕分窗）：
+1. 飞书 IM Card：cardkit.v1 流式打字机 100% → 完成卡 + 分享链接
+2. Web Dashboard：任务详情页 state 从 PPT_GENERATING → REVIEWING → DELIVERED
+3. Flutter 移动端（Q3 加分项）：同时显示完成
 
-- **画面切换**：
-  - `/skills` 列表：22 官方 + 3 自研 Skills
-  - `/mcp` 列表：remote + local + 自研 3 个 MCP 源
-  - `/context` 触发 autocompact 的实时进度条
-  - Mem0g 跨会话记忆：上周的决议被本周 Plan 自动引用
+故意断网 5 秒 → 在桌面端编辑 1 处 → 重连 → y-websocket CRDT 自动合并 ✓（PRD §15 加分项 1 离线支持）
 
----
+李四点 [📦 归档] → archive.bundle 生成最终分享链接 + 飞书 Docx 摘要
 
-## 9:40 – 10:00 · 片尾（20s）
+## 长期沉淀回看 30 秒 (04:30 - 05:00)
 
-- **画面**：项目首页 + 技术报告 PDF 封面 + GitHub 仓库 URL。
-- **字幕**：
-  > LarkMentor · Agent-Pilot · 飞书 AI 校园挑战赛 · 2026 年 4 月
-  > 源码：[https://github.com/bcefghj/larkmentor](https://github.com/bcefghj/larkmentor) ｜ 在线体验：[http://118.178.242.26/](http://118.178.242.26/)
+切到 `/v7/triad` 三线协同雷达：
+- 🛡️ Shield：本周已拦截 142 条低优先级消息
+- ✍️ Mentor：本周生成 27 个草稿
+- 🛫 Pilot：本月完成 8 个任务，**自动生成 3 个 SKILL.md**
+
+切到 `/v7/memory` 6 级 Memory 时间线：
+- Enterprise / Workspace / Department / Group / User / Session 各级 markdown 内容
+
+**收束话术**：
+> 这次任务沉淀进我的长期记忆。下次类似的「校园活动复盘汇报」，第 4 次直接命中 SKILL.md，跳过 60% 规划阶段。
+>
+> 这就是 Agent-Pilot 三线产品的「记得 / 懂得 / 协作 / 学习 / 陪伴 / 安全」六个关键词。
+>
+> 真实数据：32/32 promptfoo 红队通过 + 75 次真实 LLM A/B 矩阵（见 `tests/reports/ab_matrix.json`）+ 169 个 PRD 单元测试。
 
 ---
 
-## 录制前 Checklist
+## 评委可能问的 12 题（兜底答案）
 
-- 服务器 `/health` 200
-- 飞书 Bot 已发布最新版本，WS 长连接已跑起来
-- Flutter 桌面/移动端都拉最新 `main` 分支并构建（`scripts/build_flutter_all.sh`）
-- Dashboard 已清理旧 Plan（`scripts/demo_offline.sh`）
-- 录屏软件关闭通知、关闭 VPN、关闭截图水印
-- OBS 场景预设：左右分屏 / 四分屏 / 单屏三套
+详见 [docs/ARCHITECTURE_v6.md §8](ARCHITECTURE_v6.md) + 以下 v7 新增：
+
+| Q | A |
+|---|---|
+| 你这是 ChatGPT 套壳吗？ | 169 PRD 单元 + 32 promptfoo + 75 A/B + 3700 行新代码（v3-v7 全栈），看 `docs/PRD_IMPLEMENTATION.md` |
+| 三线产品不会精神分裂吗？ | 3 个工程合体点：KB / Recovery Card 升级版 / FlowMemory；见 `docs/EVOLUTION.md` |
+| 6 级 Memory 真的注入了吗？ | 看 `core/agent_pilot/application/memory_inject.py` + `tests/test_pilot_memory_inject.py` 7 个测试 |
+| Pilot 主流程怎么避免误识别？ | 三闸门：规则命中 ∧ LLM 判任务 ∧ 最小信息满足 + 60min 冷却 + 同主题合并 + 忽略列表 |
+| Owner 怎么避免多人冲突？ | `OwnerLock.acquire_for_action` 在高影响动作前严格校验 |
+| 多端同步怎么保证一致性？ | y-websocket CRDT + 离线编辑无冲突合并 |
+| 多 agent 怎么避免互相污染？ | Sub-agent transcript 隔离（独立 context window） |
+| Citation Agent 是 Anthropic 独家吗？ | 不是。参考 Anthropic Citations API 设计，开源公开技术 |
+| Promptfoo 32/32 是真的吗？ | `tests/promptfoo/reports/redteam_v7.md` 真实测试报告（每条带 LLM judge reason） |
+| A/B 矩阵 75 次是真的吗？ | `tests/reports/ab_matrix.json` 真实 LLM 调用，无 mock |
+| 如果 MiniMax 挂了怎么办？ | `agent/providers.py` 自动 fallback Doubao |
+| 学习闭环怎么实现？ | `PilotLearner` 监听 task_delivered → 3 次相似自动 SKILL.md 第 4 次直接命中 |
