@@ -50,6 +50,14 @@ try:
 except Exception as _e_obs:  # noqa: BLE001
     pass
 
+# P10/v7: Pilot 三视角驾驶舱（任务列表 / 6 级 Memory / 三线雷达）
+try:
+    from dashboard.api_v7 import install_v7_routes
+    install_v7_routes(app)
+except Exception as _e_v7:  # noqa: BLE001
+    import logging as _lg
+    _lg.getLogger("dashboard.server").debug("v7 routes not mounted: %s", _e_v7)
+
 # ----- runtime state -----
 DEMO_MODE = False
 WS_CLIENTS: List[WebSocket] = []
