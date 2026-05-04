@@ -543,6 +543,194 @@ TOOL_REGISTRY.update({
 })
 
 
+# ── v7 Agent-Pilot extended tools ──
+
+
+def tool_pilot_run_plan(
+    intent: str, user_open_id: str = "", execute: bool = True,
+) -> Dict[str, Any]:
+    """Execute a full pilot plan from intent text.
+
+    If *execute* is False the plan is only generated (dry-run) without
+    executing any steps.
+    """
+    try:
+        from core.agent_pilot.service import launch as _launch, execute_plan
+        plan = _launch(intent, user_open_id=user_open_id, async_run=False)
+        if execute:
+            execute_plan(plan.plan_id)
+        audit(actor=user_open_id, action="pilot.run_plan",
+              resource=plan.plan_id, outcome="allow", severity="INFO",
+              meta={"intent": intent, "execute": execute})
+        return {
+            "plan_id": plan.plan_id,
+            "status": "executed" if execute else "planned",
+            "total_steps": len(plan.steps),
+        }
+    except Exception as e:
+        logger.exception("pilot_run_plan error")
+        return {"error": str(e)}
+
+
+def tool_pilot_get_artifacts(plan_id: str) -> Dict[str, Any]:
+    """Get all artifacts (docs, slides, canvas) produced by a plan."""
+    try:
+        from core.agent_pilot.service import get_plan
+        plan = get_plan(plan_id)
+        if not plan:
+            return {"error": "plan_not_found", "plan_id": plan_id}
+        artifacts: List[Dict[str, Any]] = []
+        for step in plan.steps:
+            for art in getattr(step, "artifacts", []):
+                artifacts.append({
+                    "step_id": step.step_id,
+                    "type": getattr(art, "type", "unknown"),
+                    "path": getattr(art, "path", ""),
+                    "token": getattr(art, "token", ""),
+                    "url": getattr(art, "url", ""),
+                    "meta": getattr(art, "meta", {}),
+                })
+        return {"plan_id": plan_id, "count": len(artifacts), "artifacts": artifacts}
+    except Exception as e:
+        logger.exception("pilot_get_artifacts error")
+        return {"error": str(e), "plan_id": plan_id}
+
+
+def tool_pilot_memory_query(
+    query: str, user_id: str = "", tiers: Optional[List[str]] = None,
+) -> Dict[str, Any]:
+    """Query the 6-tier memory system with optional tier filtering."""
+    decision = default_manager().check(tool="memory.query", user_open_id=user_id)
+    if not decision.allowed:
+        return {"error": "permission_denied", "reason": decision.reason}
+    try:
+        from core.flow_memory.flow_memory_md import resolve_memory_md
+        valid_tiers = {"enterprise", "workspace", "department", "group", "user", "session"}
+        tiers = [t for t in (tiers or []) if t in valid_tiers] or list(valid_tiers)
+
+        text = resolve_memory_md(
+            enterprise_id="default",
+            workspace_id="default",
+            user_open_id=user_id,
+        )
+        q = (query or "").lower().strip()
+        if not q:
+            return {"query": query, "tiers": tiers, "merged_markdown": text[:2000]}
+        lines = text.splitlines()
+        matches = [ln for ln in lines if q in ln.lower()]
+        return {
+            "query": query,
+            "tiers": tiers,
+            "match_count": len(matches),
+            "matches": matches[:50],
+        }
+    except Exception as e:
+        logger.exception("pilot_memory_query error")
+        return {"error": str(e)}
+
+
+def tool_pilot_task_timeline(task_id: str) -> Dict[str, Any]:
+    """Get chronological timeline of a task's execution."""
+    try:
+        events = query_audit(resource=task_id, limit=200)
+        timeline = [
+            {
+                "ts": e.ts,
+                "action": e.action,
+                "actor": e.actor,
+                "outcome": e.outcome,
+                "severity": e.severity,
+                "meta": e.meta,
+            }
+            for e in events
+        ]
+        timeline.sort(key=lambda x: x["ts"])
+        return {"task_id": task_id, "event_count": len(timeline), "events": timeline}
+    except Exception as e:
+        logger.exception("pilot_task_timeline error")
+        return {"error": str(e), "task_id": task_id}
+
+
+def tool_pilot_skill_list() -> Dict[str, Any]:
+    """List all available skills (official + auto-generated)."""
+    try:
+        from core.runtime import default_loader
+        from core.mentor.skills_init import register_all
+        register_all()
+        skills = default_loader().list_skills()
+        return {
+            "count": len(skills),
+            "skills": [
+                {
+                    "name": s.name,
+                    "version": getattr(s, "version", ""),
+                    "description": getattr(s, "description", ""),
+                    "triggers": getattr(s, "triggers", []),
+                    "tools": getattr(s, "tools", []),
+                    "permission": getattr(s, "permission", ""),
+                    "auto_generated": getattr(s, "auto_generated", False),
+                }
+                for s in skills
+            ],
+        }
+    except Exception as e:
+        logger.exception("pilot_skill_list error")
+        return {"error": str(e)}
+
+
+def tool_pilot_feedback(
+    task_id: str, score: int, comment: str = "",
+) -> Dict[str, Any]:
+    """Submit quality feedback for a completed task."""
+    if not 1 <= score <= 5:
+        return {"error": "score must be between 1 and 5", "task_id": task_id}
+    try:
+        audit(actor="feedback", action="pilot.feedback",
+              resource=task_id, outcome="allow", severity="INFO",
+              meta={"score": score, "comment": comment})
+        wm = WorkingMemory.get_or_create(task_id)
+        wm.set("feedback_score", score)
+        wm.set("feedback_comment", comment)
+        wm.set("feedback_ts", int(time.time()))
+        return {"ok": True, "task_id": task_id, "score": score}
+    except Exception as e:
+        logger.exception("pilot_feedback error")
+        return {"error": str(e), "task_id": task_id}
+
+
+TOOL_REGISTRY.update({
+    "pilot_run_plan": (
+        tool_pilot_run_plan,
+        "v7 Agent-Pilot: Execute a full pilot plan from natural-language intent. "
+        "Args: intent (str, required), user_open_id? (str), execute? (bool, default true).",
+    ),
+    "pilot_get_artifacts": (
+        tool_pilot_get_artifacts,
+        "v7 Agent-Pilot: Get all artifacts (docs, slides, canvas) produced by a plan. "
+        "Args: plan_id (str, required).",
+    ),
+    "pilot_memory_query": (
+        tool_pilot_memory_query,
+        "v7 Agent-Pilot: Query the 6-tier memory system with optional tier filtering. "
+        "Args: query (str, required), user_id? (str), tiers? (list of str).",
+    ),
+    "pilot_task_timeline": (
+        tool_pilot_task_timeline,
+        "v7 Agent-Pilot: Get chronological event timeline for a task. "
+        "Args: task_id (str, required).",
+    ),
+    "pilot_skill_list": (
+        tool_pilot_skill_list,
+        "v7 Agent-Pilot: List all available skills (official + auto-generated) with metadata.",
+    ),
+    "pilot_feedback": (
+        tool_pilot_feedback,
+        "v7 Agent-Pilot: Submit quality feedback (1-5 score + comment) for a completed task. "
+        "Args: task_id (str, required), score (int 1-5, required), comment? (str).",
+    ),
+})
+
+
 def list_tools() -> List[Dict[str, str]]:
     return [{"name": k, "doc": v[1]} for k, v in TOOL_REGISTRY.items()]
 

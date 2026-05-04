@@ -29,9 +29,37 @@ import logging
 import threading
 import time
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
 from typing import Any, Callable, Deque, Dict, List, Optional, Set
 
 logger = logging.getLogger("pilot.sync")
+
+# ── Presence / heartbeat constants ──
+
+PRESENCE_STALE_SECONDS = 30
+HEARTBEAT_INTERVAL_SECONDS = 15
+HEARTBEAT_TIMEOUT_SECONDS = 45
+_HEARTBEAT_SWEEP_INTERVAL = 5  # how often the reaper thread runs
+
+
+@dataclass
+class PresenceInfo:
+    """Tracks a single client's presence in a room."""
+
+    client_id: str
+    user_id: str = ""
+    name: str = ""
+    cursor_position: Optional[Dict[str, Any]] = None
+    last_active_ts: float = 0.0
+    extra: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "name": self.name,
+            "last_active_ts": self.last_active_ts,
+            "cursor_position": self.cursor_position,
+        }
 
 try:  # Optional dependency – CRDT is a "good-to-have" that degrades gracefully
     import y_py  # type: ignore
@@ -65,12 +93,33 @@ class CrdtHub:
         self._ydocs: Dict[str, Any] = {}
         self._lock = threading.Lock()
 
+        # Presence: room -> client_id -> PresenceInfo
+        self._presence: Dict[str, Dict[str, PresenceInfo]] = defaultdict(dict)
+
+        # Heartbeat: client_id -> last_ping_ts
+        self._last_ping: Dict[str, float] = {}
+
+        # Pending CRDT updates per room per client (for conflict detection)
+        self._pending_updates: Dict[str, Dict[str, float]] = defaultdict(dict)
+
+        # Connection stats
+        self._start_ts: float = time.time()
+        self._msg_count: int = 0
+
+        # Heartbeat reaper daemon
+        self._reaper_stop = threading.Event()
+        self._reaper_thread = threading.Thread(
+            target=self._reaper_loop, daemon=True, name="crdt-heartbeat-reaper",
+        )
+        self._reaper_thread.start()
+
     # ── Subscriptions ──
 
     def subscribe(self, client_id: str, send_fn: Callable[[Dict[str, Any]], None]) -> Subscriber:
         with self._lock:
             sub = Subscriber(client_id, send_fn)
             self._subs[client_id] = sub
+            self._last_ping[client_id] = time.time()
         logger.info("sync subscribe client=%s total=%d", client_id, len(self._subs))
         return sub
 
@@ -81,6 +130,8 @@ class CrdtHub:
                 return
             for room in sub.rooms:
                 self._by_room[room].discard(client_id)
+                self._presence.get(room, {}).pop(client_id, None)
+            self._last_ping.pop(client_id, None)
 
     def join(self, client_id: str, room: str) -> List[Dict[str, Any]]:
         with self._lock:
@@ -113,6 +164,7 @@ class CrdtHub:
             client_ids = list(self._by_room.get(room, set()))
             subs = [self._subs[c] for c in client_ids if c in self._subs]
             self._history[room].append(payload)
+            self._msg_count += 1
         for s in subs:
             s.send(payload)
         return len(subs)
@@ -138,7 +190,40 @@ class CrdtHub:
             return self._ydocs[room]
 
     def apply_update(self, room: str, update_b64: str, sender_id: str = "") -> int:
-        """Apply a binary Yjs update and relay to everyone else in the room."""
+        """Apply a binary Yjs update and relay to everyone else in the room.
+
+        If another client has a pending (recently applied) update on the same
+        room, a ``conflict_detected`` event is emitted to all room members so
+        that the UI can visualize the concurrent edit.
+        """
+        now = time.time()
+
+        # ── Conflict detection ──
+        with self._lock:
+            pending = self._pending_updates[room]
+            conflicting_clients = [
+                cid for cid, ts in pending.items()
+                if cid != sender_id and (now - ts) < 2.0
+            ]
+            pending[sender_id] = now
+
+        if conflicting_clients:
+            conflict_payload = {
+                "kind": "event", "room": room,
+                "ts": int(now * 1000),
+                "event": {
+                    "type": "conflict_detected",
+                    "sender": sender_id,
+                    "conflicting_clients": conflicting_clients,
+                    "description": (
+                        f"Client {sender_id} applied an update that conflicts "
+                        f"with pending updates from: {', '.join(conflicting_clients)}"
+                    ),
+                },
+            }
+            self._fanout(room, conflict_payload)
+
+        # ── Apply CRDT merge ──
         if _Y_AVAILABLE:
             try:
                 update_bytes = base64.b64decode(update_b64)
@@ -147,10 +232,10 @@ class CrdtHub:
                     y_py.apply_update(ydoc, update_bytes)
             except Exception as e:
                 logger.warning("yjs apply_update failed: %s", e)
-        # Even without y-py we still relay the opaque bytes to peers
+
         payload = {
             "kind": "yupdate", "room": room, "sender": sender_id,
-            "update_b64": update_b64, "ts": int(time.time() * 1000),
+            "update_b64": update_b64, "ts": int(now * 1000),
         }
         return self._fanout(room, payload)
 
@@ -167,6 +252,122 @@ class CrdtHub:
         except Exception as e:
             logger.debug("snapshot failed: %s", e)
             return ""
+
+    # ── Presence awareness ──
+
+    def update_presence(
+        self, client_id: str, room: str, user_info: dict,
+    ) -> None:
+        """Update (or create) presence info for *client_id* in *room*.
+
+        ``user_info`` may contain ``user_id``, ``name``, ``cursor_position``,
+        plus arbitrary extra keys.  Called on join and on every activity ping.
+        """
+        now = time.time()
+        with self._lock:
+            info = self._presence[room].get(client_id)
+            if info is None:
+                info = PresenceInfo(client_id=client_id)
+                self._presence[room][client_id] = info
+            info.user_id = user_info.get("user_id", info.user_id)
+            info.name = user_info.get("name", info.name)
+            info.cursor_position = user_info.get("cursor_position", info.cursor_position)
+            info.last_active_ts = now
+            info.extra = {
+                k: v for k, v in user_info.items()
+                if k not in ("user_id", "name", "cursor_position")
+            }
+            # Also refresh heartbeat
+            self._last_ping[client_id] = now
+
+    def get_presence(self, room: str) -> List[Dict[str, Any]]:
+        """Return active presence list for *room*.
+
+        Entries older than ``PRESENCE_STALE_SECONDS`` are automatically purged.
+        """
+        now = time.time()
+        result: List[Dict[str, Any]] = []
+        stale_ids: List[str] = []
+        with self._lock:
+            room_presence = self._presence.get(room, {})
+            for cid, info in room_presence.items():
+                if now - info.last_active_ts > PRESENCE_STALE_SECONDS:
+                    stale_ids.append(cid)
+                else:
+                    result.append(info.to_dict())
+            for cid in stale_ids:
+                room_presence.pop(cid, None)
+        return result
+
+    # ── Heartbeat mechanism ──
+
+    def handle_ping(self, client_id: str) -> None:
+        """Record a heartbeat ping from *client_id*.
+
+        Clients are expected to ping every ``HEARTBEAT_INTERVAL_SECONDS`` (15 s).
+        If no ping is received for ``HEARTBEAT_TIMEOUT_SECONDS`` (45 s) the
+        client is considered disconnected and cleaned up automatically.
+        """
+        with self._lock:
+            if client_id in self._subs:
+                self._last_ping[client_id] = time.time()
+
+    def _reaper_loop(self) -> None:
+        """Background daemon that detects timed-out clients."""
+        while not self._reaper_stop.is_set():
+            self._reaper_stop.wait(_HEARTBEAT_SWEEP_INTERVAL)
+            if self._reaper_stop.is_set():
+                break
+            self._sweep_stale_clients()
+
+    def _sweep_stale_clients(self) -> None:
+        now = time.time()
+        timed_out: List[str] = []
+        with self._lock:
+            for cid, ts in list(self._last_ping.items()):
+                if now - ts > HEARTBEAT_TIMEOUT_SECONDS:
+                    timed_out.append(cid)
+
+        for cid in timed_out:
+            logger.info("heartbeat timeout client=%s – disconnecting", cid)
+            rooms_to_notify: List[str] = []
+            with self._lock:
+                sub = self._subs.get(cid)
+                if sub:
+                    rooms_to_notify = list(sub.rooms)
+            self.unsubscribe(cid)
+            for room in rooms_to_notify:
+                self._fanout(room, {
+                    "kind": "event", "room": room,
+                    "ts": int(now * 1000),
+                    "event": {
+                        "type": "client_disconnected",
+                        "client_id": cid,
+                    },
+                })
+
+    def shutdown(self) -> None:
+        """Stop the heartbeat reaper thread (for clean shutdown / tests)."""
+        self._reaper_stop.set()
+        self._reaper_thread.join(timeout=3)
+
+    # ── Connection stats ──
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Return live connection statistics.
+
+        Returns a dict with ``total_clients``, ``total_rooms``,
+        ``messages_per_sec``, and ``uptime_seconds``.
+        """
+        now = time.time()
+        uptime = max(now - self._start_ts, 0.001)
+        with self._lock:
+            return {
+                "total_clients": len(self._subs),
+                "total_rooms": len(self._by_room),
+                "messages_per_sec": round(self._msg_count / uptime, 2),
+                "uptime_seconds": round(uptime, 1),
+            }
 
 
 # ── Module singleton ──

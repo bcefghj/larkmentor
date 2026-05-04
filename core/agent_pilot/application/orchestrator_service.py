@@ -1,21 +1,22 @@
-"""OrchestratorService · 把 DomainPlan 跑起来 + 把状态机推下去.
+"""OrchestratorService · Task State Machine Adapter.
 
-职责：
-1. 接收 ``Task`` + ``DomainPlan``，把 plan steps 真正执行
-2. 每步成功 / 失败 → ``Task.log(...)`` 留痕 + 触发 ``EventBus``
-3. 高影响动作（``doc.create`` / ``slide.generate`` / ``archive.bundle``）
-   触发对应 ``TaskEvent`` 推动状态机
-4. 失败可降级：tool not registered → ``simulate_tool``（dev 模式）
-   或者把异常封装成 step.error 让下游 verify/replan 处理
+Bridges the domain Task lifecycle with the unified ConversationOrchestrator.
 
-设计要点：
-- **不直接 import 现有 ``orchestrator.PilotOrchestrator``** —— 避免双重路径，
-  本服务保留独立实现（sync, in-process）
-- **支持 tool 注入** —— 测试用 mock，生产用真实 ``..tools.registry``
-- **状态机推进**：
+Responsibilities:
+1. Advance the Task state machine based on plan execution progress
+2. Log every step result to ``Task.log(...)`` for audit trail
+3. Fire domain events via ``EventBus`` for downstream listeners
+4. Delegate actual tool execution to the harness ConversationOrchestrator
+   (or run inline when the harness is unavailable, e.g. in unit tests)
+
+Design:
+- This is NOT an independent execution engine. It wraps the harness orchestrator
+  and adds domain-level state machine transitions on top.
+- For unit tests, tools can be injected directly via the ``tools`` parameter.
+- State machine transitions:
   ``PLAN_DONE_DOC`` → DOC_GENERATING
   ``GENERATION_DONE`` → REVIEWING
-  ``USER_DELIVER`` → DELIVERED （由用户手动）
+  ``USER_DELIVER`` → DELIVERED (user-driven)
 """
 from __future__ import annotations
 

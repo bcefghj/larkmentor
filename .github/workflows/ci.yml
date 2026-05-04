@@ -6,9 +6,41 @@ on:
   pull_request:
     branches: [main, master]
 
+env:
+  FEISHU_APP_ID: test
+  FEISHU_APP_SECRET: test
+  PYTHONPATH: .
+
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install linters
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff mypy
+
+    - name: Lint with ruff (strict)
+      run: ruff check --select E,W,F,I --ignore E501 .
+
+    - name: Type check (basic)
+      run: |
+        pip install -r requirements.txt
+        mypy --ignore-missing-imports --no-strict-optional \
+          core/agent_pilot/domain/ core/agent_pilot/application/ \
+          core/agent_pilot/harness/orchestrator_v2.py \
+          agent/loop.py agent/providers.py
+
   test:
     runs-on: ubuntu-latest
+    needs: lint
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -25,24 +57,53 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install ruff
+        pip install pytest-cov pytest-timeout
 
-    - name: Lint with ruff
+    - name: Run tests with coverage
       run: |
-        ruff check --select E,W,F --ignore E501,W503 . || true
+        python -m pytest tests/ -v --tb=short -x \
+          --ignore=tests/e2e --ignore=tests/simulator \
+          --cov=core --cov=agent --cov=bot \
+          --cov-report=term-missing \
+          --cov-fail-under=60 \
+          --timeout=60
 
-    - name: Run tests
-      env:
-        FEISHU_APP_ID: test
-        FEISHU_APP_SECRET: test
+    - name: Upload coverage report
+      if: matrix.python-version == '3.12'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: .coverage
+
+  security:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Check for secrets in code
       run: |
-        python -m pytest tests/ -v --tb=short -x -q 2>&1 | head -200
+        pip install detect-secrets
+        detect-secrets scan --baseline .secrets.baseline || true
+        ! grep -rn "FEISHU_APP_SECRET\|ARK_API_KEY\|DEEPSEEK_API_KEY" \
+          --include="*.py" --include="*.yml" \
+          --exclude-dir=.git --exclude=".env*" . | grep -v "os\.\|getenv\|Config\.\|example\|test"
 
   docker:
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, security]
     steps:
     - uses: actions/checkout@v4
 
     - name: Build Docker image
       run: docker build -t agent-pilot:ci .
+
+    - name: Smoke test container
+      run: |
+        docker run --rm -e FEISHU_APP_ID=test -e FEISHU_APP_SECRET=test \
+          agent-pilot:ci python -c "from core.agent_pilot import get_orchestrator; print('OK')"

@@ -1,0 +1,43 @@
+[project]
+name = "agent-pilot"
+version = "7.1.0"
+description = "Agent-Pilot: AI-driven office automation from IM to presentations"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "戴尚好", email = "bcefghj@163.com"},
+    {name = "李洁盈", email = "JieyingLiii@outlook.com"},
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+select = ["E", "W", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.isort]
+known-first-party = ["core", "agent", "bot", "llm", "memory", "dashboard"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+no_strict_optional = true
+warn_unused_configs = true
+exclude = ["tests/", "mobile_desktop/", "sync_v4/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short --timeout=60"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests requiring external services",
+    "e2e: end-to-end tests",
+]
+
+[tool.coverage.run]
+source = ["core", "agent", "bot"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true

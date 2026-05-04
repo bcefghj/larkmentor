@@ -10,6 +10,7 @@ from . import canvas_tools   # noqa: F401
 from . import slides_tools   # noqa: F401
 from . import archive_tools  # noqa: F401
 from . import memory_tools   # noqa: F401
+from . import lark_cli_tools  # noqa: F401
 
 register_builtin_tools()
 

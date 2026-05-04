@@ -80,8 +80,9 @@ def test_planner_rejects_empty_intent():
 def test_orchestrator_runs_simulated_steps_in_topological_order():
     planner = PilotPlanner(chat_json_fn=lambda *a, **k: {})
     plan = planner.plan("起草需求并生成 PPT", user_open_id="ou_demo")
-    # No tools registered → orchestrator uses deterministic simulation
-    orch = PilotOrchestrator()
+    # Register mock tools for all plan steps
+    mock_tools = {s.tool: (lambda step, ctx: {"mock": True}) for s in plan.steps}
+    orch = PilotOrchestrator(tool_registry=mock_tools)
     captured = []
     orch.set_broadcaster(lambda ev: captured.append(ev))
     orch.run(plan)
@@ -89,7 +90,6 @@ def test_orchestrator_runs_simulated_steps_in_topological_order():
     assert all(s.status == "done" for s in plan.steps), [
         (s.step_id, s.status, s.error) for s in plan.steps
     ]
-    # depends_on strictly before
     done_ts = {s.step_id: s.finished_ts for s in plan.steps}
     for s in plan.steps:
         for dep in s.depends_on:
@@ -104,12 +104,12 @@ def test_orchestrator_runs_simulated_steps_in_topological_order():
 def test_orchestrator_broadcaster_receives_all_step_events():
     planner = PilotPlanner(chat_json_fn=lambda *a, **k: {})
     plan = planner.plan("写文档 + PPT")
-    orch = PilotOrchestrator()
+    mock_tools = {s.tool: (lambda step, ctx: {"mock": True}) for s in plan.steps}
+    orch = PilotOrchestrator(tool_registry=mock_tools)
     events = []
     orch.set_broadcaster(lambda ev: events.append(ev.to_dict()))
     orch.run(plan)
     step_events = [e for e in events if e["kind"] in ("step_started", "step_done")]
-    # at least 2 events per step
     assert len(step_events) >= 2 * len(plan.steps) - 2
 
 

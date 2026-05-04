@@ -1,9 +1,13 @@
 """High-level facade that the bot handler / dashboard / MCP server call.
 
-Keeps a process-wide singleton ``PilotOrchestrator`` with:
-    - the default tool registry wired in
-    - the CRDT hub attached as broadcaster
-    - per-plan persistence under ``data/pilot_plans/``
+Unified orchestration entry point. The ``ConversationOrchestrator`` (harness)
+is the single execution engine. The legacy ``PilotOrchestrator`` is retained
+only as a backwards-compatible adapter for tests that construct it directly.
+
+Responsibilities:
+    - Maintain a process-wide singleton orchestrator with CRDT hub attached
+    - Provide ``launch()`` / ``get_plan()`` / ``list_plans()`` for callers
+    - Persist plan state under ``data/pilot_plans/``
 """
 
 from __future__ import annotations
@@ -15,9 +19,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from .orchestrator import PilotOrchestrator
 from .planner import Plan, plan_from_intent
-from .tools import build_default_registry
 
 logger = logging.getLogger("pilot.service")
 
@@ -26,48 +28,34 @@ DATA_DIR = os.path.join(
     "data", "pilot_plans",
 )
 
-# Toggle: use new Claude Code-style harness ConversationOrchestrator (default=1)
-# or fall back to legacy PilotOrchestrator (set LARKMENTOR_USE_HARNESS=0 to
-# debug the legacy path).
-USE_HARNESS = os.getenv("LARKMENTOR_USE_HARNESS", "1") != "0"
-
 
 def _ensure_dir():
     os.makedirs(DATA_DIR, exist_ok=True)
 
 
-_singleton = None  # PilotOrchestrator or ConversationOrchestrator
+_singleton = None
 _singleton_lock = threading.Lock()
 _plan_cache: Dict[str, Plan] = {}
 
 
 def get_orchestrator():
-    """Returns the active orchestrator singleton.
+    """Returns the unified ConversationOrchestrator singleton.
 
-    New harness (``ConversationOrchestrator``) is the default. Legacy
-    ``PilotOrchestrator`` is kept for A/B debugging via env var.
+    The harness ConversationOrchestrator is the single execution path.
+    It integrates: tool registry, hooks, permissions, context management,
+    memory, skills, and streaming execution with verify/reflect/replan loop.
     """
     global _singleton
     with _singleton_lock:
         if _singleton is None:
-            if USE_HARNESS:
-                from .harness import ConversationOrchestrator
-                orch = ConversationOrchestrator()
-                try:
-                    from core.sync.crdt_hub import attach_orchestrator
-                    attach_orchestrator(orch)
-                except Exception as e:
-                    logger.debug("attach_orchestrator (harness) skipped: %s", e)
-                _singleton = orch
-            else:
-                registry = build_default_registry()
-                orch = PilotOrchestrator(tool_registry=registry)
-                try:
-                    from core.sync.crdt_hub import attach_orchestrator
-                    attach_orchestrator(orch)
-                except Exception as e:
-                    logger.debug("attach_orchestrator skipped: %s", e)
-                _singleton = orch
+            from .harness import ConversationOrchestrator
+            orch = ConversationOrchestrator()
+            try:
+                from core.sync.crdt_hub import attach_orchestrator
+                attach_orchestrator(orch)
+            except Exception as e:
+                logger.debug("attach_orchestrator skipped: %s", e)
+            _singleton = orch
         return _singleton
 
 
@@ -117,8 +105,6 @@ def launch(intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]
 def _run_and_persist(plan: Plan) -> None:
     try:
         orch = get_orchestrator()
-        # P1.2 fix: merge plan.meta into context so chat_id, project_root, etc.
-        # reach tool implementations. Previously meta was dropped here.
         ctx = {
             "plan_id": plan.plan_id,
             "user_open_id": plan.user_open_id,
@@ -126,7 +112,16 @@ def _run_and_persist(plan: Plan) -> None:
         ctx.update(plan.meta or {})
         orch.run(plan, context=ctx)
     except Exception as e:
-        logger.exception("pilot run failed: %s", e)
+        logger.exception("pilot run failed plan=%s: %s", plan.plan_id, e)
+        try:
+            from core.resilience import notify_user_error
+            notify_user_error(
+                plan.user_open_id,
+                e,
+                context=f"执行计划 {plan.plan_id[:8]}... 时出错",
+            )
+        except Exception:
+            pass
     finally:
         _persist(plan, phase="finished")
 

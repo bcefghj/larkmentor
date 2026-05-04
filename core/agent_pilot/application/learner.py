@@ -30,6 +30,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    import structlog  # type: ignore
+    logger = structlog.get_logger("pilot.application.learner")
+except Exception:  # pragma: no cover – structlog is optional
+    logger = logging.getLogger("pilot.application.learner")  # type: ignore[assignment]
+
 from ..domain import (
     EventBus,
     Task,
@@ -39,8 +45,6 @@ from ..domain.events import (
     EVT_TASK_DELIVERED,
     DomainEvent,
 )
-
-logger = logging.getLogger("pilot.application.learner")
 
 
 # ── 数据结构 ────────────────────────────────────────────────────────────────
@@ -61,6 +65,13 @@ class TaskMemory:
     delivered_ts: int = 0
     tokens: List[str] = field(default_factory=list)
     skill_id: str = ""
+    # Execution metrics (used by auto model selection)
+    tokens_used: int = 0
+    latency_ms: int = 0
+    model_used: str = ""
+    # Satisfaction feedback
+    feedback_score: int = 0
+    feedback_comment: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -73,6 +84,11 @@ class TaskMemory:
             "delivered_ts": self.delivered_ts,
             "tokens": self.tokens,
             "skill_id": self.skill_id,
+            "tokens_used": self.tokens_used,
+            "latency_ms": self.latency_ms,
+            "model_used": self.model_used,
+            "feedback_score": self.feedback_score,
+            "feedback_comment": self.feedback_comment,
         }
 
 
@@ -87,6 +103,16 @@ class GeneratedSkill:
     md_path: str = ""
     created_ts: int = 0
     hit_count: int = 0
+    # Aggregated quality metrics (updated by feedback loop)
+    total_score: int = 0
+    score_count: int = 0
+    flagged_for_review: bool = False
+    priority_boost: bool = False
+
+    @property
+    def avg_quality_score(self) -> float:
+        """Average satisfaction score across all feedback for this skill."""
+        return self.total_score / self.score_count if self.score_count else 0.0
 
 
 # ── tokenizer 简化 ──────────────────────────────────────────────────────────
@@ -219,12 +245,190 @@ class PilotLearner:
     def list_skills(self) -> List[GeneratedSkill]:
         return list(self._skills)
 
-    def stats(self) -> Dict[str, int]:
+    def stats(self) -> Dict[str, Any]:
         return {
             "memories": len(self._memories),
             "skills": len(self._skills),
             "skill_hit_count": sum(s.hit_count for s in self._skills),
+            "flagged_skills": sum(1 for s in self._skills if s.flagged_for_review),
+            "boosted_skills": sum(1 for s in self._skills if s.priority_boost),
         }
+
+    # ── Skill recommendation ─────────────────────────────────────────────
+
+    def recommend_skill(self, intent: str) -> Optional[Dict[str, Any]]:
+        """Recommend the best matching skill for *intent*.
+
+        Compares the intent against all known skills (existing + auto-generated).
+        Returns a recommendation dict if the best match's similarity exceeds 0.7,
+        otherwise ``None``.
+
+        The recommendation includes the skill's average quality score and hit count
+        so callers (e.g. ``IntentDetector``) can make informed decisions.
+        """
+        tk = tokenize(intent)
+        if not tk:
+            return None
+
+        best_skill: Optional[GeneratedSkill] = None
+        best_sim: float = 0.0
+
+        for sk in self._skills:
+            ptk = tokenize(sk.intent_pattern)
+            sim = jaccard(tk, ptk)
+            if sim > best_sim:
+                best_sim = sim
+                best_skill = sk
+
+        if best_skill is None or best_sim < 0.7:
+            return None
+
+        logger.info(
+            "skill_recommendation",
+            skill_id=best_skill.skill_id,
+            similarity=round(best_sim, 3),
+            intent=intent[:80],
+        )
+        return {
+            "skill_id": best_skill.skill_id,
+            "title": best_skill.title,
+            "similarity": round(best_sim, 3),
+            "avg_quality_score": round(best_skill.avg_quality_score, 2),
+            "hit_count": best_skill.hit_count,
+            "plan_template": best_skill.plan_template,
+            "flagged_for_review": best_skill.flagged_for_review,
+            "priority_boost": best_skill.priority_boost,
+        }
+
+    # ── Satisfaction feedback loop ────────────────────────────────────────
+
+    def record_feedback(
+        self, task_id: str, score: int, comment: str = "",
+    ) -> None:
+        """Record user satisfaction feedback for a completed task.
+
+        Args:
+            task_id: The task to annotate.
+            score: 1-5 satisfaction score.
+            comment: Optional free-text comment.
+
+        Side effects:
+            - The feedback is persisted alongside the task in the archival JSONL.
+            - If the task was associated with a skill, the skill's quality
+              metrics are updated. Skills averaging < 2.5 are flagged for review;
+              those averaging > 4.0 get a priority boost.
+        """
+        score = max(1, min(5, score))
+        mem = self._find_memory(task_id)
+        if mem is None:
+            logger.warning("record_feedback: task not found", task_id=task_id)
+            return
+
+        mem.feedback_score = score
+        mem.feedback_comment = comment
+        self._rewrite_archival()
+
+        if mem.skill_id:
+            self._update_skill_quality(mem.skill_id, score)
+
+        logger.info(
+            "feedback_recorded",
+            task_id=task_id, score=score, skill_id=mem.skill_id,
+        )
+
+    def _find_memory(self, task_id: str) -> Optional[TaskMemory]:
+        for m in self._memories:
+            if m.task_id == task_id:
+                return m
+        return None
+
+    def _update_skill_quality(self, skill_id: str, score: int) -> None:
+        for sk in self._skills:
+            if sk.skill_id == skill_id:
+                sk.total_score += score
+                sk.score_count += 1
+                avg = sk.avg_quality_score
+                sk.flagged_for_review = avg < 2.5 and sk.score_count >= 2
+                sk.priority_boost = avg > 4.0 and sk.score_count >= 2
+                break
+
+    def _rewrite_archival(self) -> None:
+        """Rewrite the full archival file (used after feedback updates)."""
+        try:
+            with self.archival_path.open("w", encoding="utf-8") as f:
+                for m in self._memories:
+                    f.write(json.dumps(m.to_dict(), ensure_ascii=False) + "\n")
+        except Exception as e:
+            logger.warning("archival rewrite failed", error=str(e))
+
+    # ── Auto model selection ──────────────────────────────────────────────
+
+    _MODEL_CHEAP = "doubao"
+    _MODEL_MID = "deepseek"
+    _MODEL_BEST = "minimax"
+
+    def suggest_model(self, intent: str, constraints: dict) -> str:
+        """Suggest the best model identifier based on historical execution data.
+
+        Heuristics:
+        - *Simple* tasks (short intent, low historical token usage) → cheapest
+          model (``doubao``).
+        - *Complex* tasks (long intent, high historical token usage or
+          multi-step plans) → best model (``minimax``).
+        - Everything else → mid-tier model (``deepseek``).
+
+        ``constraints`` may contain:
+        - ``max_latency_ms`` (int): reject models whose historical avg latency
+          exceeds this.
+        - ``force_model`` (str): override the suggestion entirely.
+        """
+        if constraints.get("force_model"):
+            return str(constraints["force_model"])
+
+        tk = tokenize(intent)
+        similars = self.find_similar(tk, threshold=0.3, top_k=10)
+
+        if not similars:
+            return self._classify_by_intent(intent, constraints)
+
+        avg_tokens = sum(
+            m.tokens_used for m, _ in similars if m.tokens_used
+        ) / max(1, sum(1 for m, _ in similars if m.tokens_used))
+        avg_steps = sum(
+            len(m.plan_outline) for m, _ in similars
+        ) / max(1, len(similars))
+        avg_latency = sum(
+            m.latency_ms for m, _ in similars if m.latency_ms
+        ) / max(1, sum(1 for m, _ in similars if m.latency_ms))
+
+        max_latency = constraints.get("max_latency_ms", float("inf"))
+
+        if avg_tokens > 2000 or avg_steps > 4:
+            model = self._MODEL_BEST
+        elif avg_tokens < 500 and avg_steps <= 2 and len(intent) < 50:
+            model = self._MODEL_CHEAP
+        else:
+            model = self._MODEL_MID
+
+        if avg_latency > max_latency and model == self._MODEL_BEST:
+            model = self._MODEL_MID
+
+        logger.info(
+            "model_suggestion",
+            model=model, avg_tokens=int(avg_tokens),
+            avg_steps=round(avg_steps, 1), intent=intent[:60],
+        )
+        return model
+
+    def _classify_by_intent(self, intent: str, constraints: dict) -> str:
+        """Fallback classification when no historical data is available."""
+        if len(intent) < 50:
+            return self._MODEL_CHEAP
+        if len(intent) > 200 or any(
+            kw in intent for kw in ("分析", "报告", "设计", "architecture", "refactor")
+        ):
+            return self._MODEL_BEST
+        return self._MODEL_MID
 
     # ── 生成 SKILL ────────────────────────────────────────────────────────
     def _generate_skill(self, mem: TaskMemory,

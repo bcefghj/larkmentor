@@ -254,6 +254,62 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
     def _r_memory(tenant: str = "default"):
         return JSONResponse(_memory_content(tenant))
 
+    @app.get("/api/v7/audit")
+    def _r_audit(limit: int = 100):
+        """Real-time audit log stream for security panel."""
+        try:
+            from core.event_store import EventStore
+            store = EventStore()
+            import time
+            events = store.replay_since(int(time.time()) - 86400)
+            return JSONResponse({"events": events[-limit:]})
+        except Exception:
+            return JSONResponse({"events": []})
+
+    @app.get("/api/v7/plans/{plan_id}/dag")
+    def _r_plan_dag(plan_id: str):
+        """Get plan steps with execution status for DAG visualization."""
+        try:
+            from core.agent_pilot.service import get_plan
+            plan = get_plan(plan_id)
+            if plan is None:
+                return JSONResponse({"error": "not_found"}, status_code=404)
+            return JSONResponse({
+                "plan_id": plan.plan_id,
+                "intent": plan.intent,
+                "steps": [
+                    {
+                        "step_id": s.step_id,
+                        "tool": s.tool,
+                        "description": s.description,
+                        "status": s.status,
+                        "depends_on": s.depends_on,
+                        "parallel_group": s.parallel_group,
+                        "started_ts": s.started_ts,
+                        "finished_ts": s.finished_ts,
+                        "error": s.error,
+                    }
+                    for s in plan.steps
+                ],
+            })
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/v7/metrics/summary")
+    def _r_metrics_summary():
+        """Summary metrics for dashboard header."""
+        try:
+            from core.observability import get_metrics_summary
+            return JSONResponse(get_metrics_summary())
+        except Exception:
+            return JSONResponse({
+                "total_plans": 0,
+                "active_plans": 0,
+                "total_tools_called": 0,
+                "avg_latency_ms": 0,
+                "error_rate": 0.0,
+            })
+
     @app.get("/v7/pilot", response_class=HTMLResponse)
     def _r_pilot_page():
         return FileResponse(static_dir / "pilot_v7.html")
@@ -353,15 +409,59 @@ async function showDetail(id) {
   const logs = (t.agent_logs || []).map(l =>
     `<div class="log log-${l.kind}"><span class=log-agent>${l.agent}</span> [${l.kind}] ${l.content}</div>`
   ).join('');
+  // DAG visualization
+  const dagHtml = renderDAG(t.plan_steps || []);
   document.getElementById('detail').innerHTML = `
     <h4>${t.title}</h4>
     <p>${t.intent}</p>
     <div><strong>Owner:</strong> ${(t.owner_lock||{}).owner_open_id || '-'}</div>
     <div><strong>State:</strong> <span class="state state-${t.state}">${t.state}</span></div>
+    ${dagHtml ? `<h5>执行 DAG</h5><div class="dag-container">${dagHtml}</div>` : ''}
     <h5>状态转移历史</h5>${trans || '<em>无</em>'}
     <h5>Agent 日志</h5>${logs || '<em>无</em>'}
     <h5>产出物</h5>${(t.artifacts||[]).map(a => `<div>📄 ${a.title} <a href='${a.feishu_url || a.local_path}'>打开</a></div>`).join('') || '<em>无</em>'}
   `;
+}
+function renderDAG(steps) {
+  if (!steps || !steps.length) return '';
+  const statusColors = {done:'#52c41a',failed:'#ff4d4f',running:'#1890ff',pending:'#d9d9d9'};
+  const nodeW = 140, nodeH = 44, gapX = 180, gapY = 60;
+  const cols = {};
+  steps.forEach((s, i) => {
+    const deps = s.depends_on || [];
+    const col = deps.length ? Math.max(...deps.map(d => (cols[d]||0))) + 1 : 0;
+    cols[s.step_id] = col;
+  });
+  const maxCol = Math.max(...Object.values(cols), 0);
+  const rowsPerCol = {};
+  steps.forEach(s => {
+    const c = cols[s.step_id];
+    rowsPerCol[c] = (rowsPerCol[c]||0);
+    s._x = c * gapX + 10;
+    s._y = rowsPerCol[c] * gapY + 10;
+    rowsPerCol[c]++;
+  });
+  const svgW = (maxCol+1)*gapX+40, svgH = Math.max(...Object.values(rowsPerCol))*gapY+40;
+  let svg = `<svg width="${svgW}" height="${svgH}" style="font-size:11px;font-family:monospace">`;
+  // edges
+  steps.forEach(s => {
+    (s.depends_on||[]).forEach(dep => {
+      const from = steps.find(x=>x.step_id===dep);
+      if(from) svg += `<line x1="${from._x+nodeW}" y1="${from._y+nodeH/2}" x2="${s._x}" y2="${s._y+nodeH/2}" stroke="#ccc" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    });
+  });
+  // arrow marker
+  svg += '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ccc"/></marker></defs>';
+  // nodes
+  steps.forEach(s => {
+    const color = statusColors[s.status]||'#d9d9d9';
+    svg += `<rect x="${s._x}" y="${s._y}" width="${nodeW}" height="${nodeH}" rx="6" fill="white" stroke="${color}" stroke-width="2"/>`;
+    svg += `<circle cx="${s._x+12}" cy="${s._y+nodeH/2}" r="5" fill="${color}"/>`;
+    svg += `<text x="${s._x+22}" y="${s._y+18}" fill="#333">${(s.tool||'').slice(0,16)}</text>`;
+    svg += `<text x="${s._x+22}" y="${s._y+33}" fill="#999">${(s.description||'').slice(0,14)}</text>`;
+  });
+  svg += '</svg>';
+  return svg;
 }
 loadTasks();
 setInterval(loadTasks, 5000);
