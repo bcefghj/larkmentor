@@ -62,7 +62,7 @@ flowchart TB
 |---------|-----------------|---------|
 | 完整性与价值 | 覆盖赛题 A-F 全部 6 场景；从意图识别到归档交付的完整闭环；Flutter 四端 + Web Dashboard 多端同步 | `core/agent_pilot/` · `core/sync/` · `mobile_desktop/` |
 | 创新性 | 三闸门主动任务发现（无需显式指令）；6 级 Memory 真实注入 system prompt；学习闭环 3 次相似任务自动生成 SKILL.md；cardkit.v1 流式打字机卡片 | `intent_detector.py` · `memory_inject.py` · `learner.py` · `cards_pilot.py` |
-| 技术实现性 | 5 命名 Agent 协同（Builder-Validator 严格分离）；DAG 并行编排引擎；8 层安全栈全链路必经；Promptfoo 红队 32/32 通过；480+ pytest 全通过 | `multi_agent_pipeline.py` · `orchestrator.py` · `core/security/` · `tests/` |
+| 技术实现性 | 5 命名 Agent 协同（Builder-Validator 严格分离）；DAG 并行编排引擎；8 层安全栈全链路必经；Promptfoo 红队 32/32 通过；560+ pytest 全通过 | `multi_agent_pipeline.py` · `orchestrator.py` · `core/security/` · `tests/` |
 
 四个评委 Wow 点：
 
@@ -128,6 +128,16 @@ bash run_services.sh
 # 私聊 Bot 发送：/pilot 把本周讨论整理成产品方案 + 评审PPT
 ```
 
+Flutter 四端客户端编译（首次需要生成平台目录）：
+
+```bash
+cd mobile_desktop
+bash setup_platforms.sh   # 生成 android/ios/macos/windows 平台目录
+flutter run -d macos      # macOS 桌面端
+flutter run -d chrome     # Web 端
+flutter build apk         # Android APK
+```
+
 Docker 一键启动：
 
 ```bash
@@ -179,7 +189,7 @@ Agent-Pilot/
 │   ├── patterns/               #   ReAct / Reflection / CoT / Debate / ToT
 │   └── validators/             #   critic / citation / quality_gates / risk
 │
-├── tests/                      # 480+ pytest 用例
+├── tests/                      # 560+ pytest 用例
 │   └── promptfoo/              #   红队测试 32/32 OWASP LLM Top 10
 └── deploy/                     # 一键部署 + 自动回滚脚本
 ```
@@ -226,7 +236,7 @@ Agent-Pilot/
 
 | 指标 | 数值 |
 |------|------|
-| pytest 用例 | 480+，全部通过 |
+| pytest 用例 | 560+，全部通过 |
 | Promptfoo 红队 | 32/32 通过（OWASP LLM Top 10） |
 | A/B 真实 LLM 调用 | 5 配置 × 3 模型 × 5 任务 = 75 次 |
 | 飞书 API 接入 | 7+（IM / Docx / Bitable / Calendar / Wiki / 妙记 / Reaction） |
@@ -236,14 +246,47 @@ Agent-Pilot/
 
 ---
 
+## 差异化亮点（vs 竞品）
+
+| 能力 | Notion AI | Microsoft Copilot | 飞书 aily | **Agent-Pilot** |
+|------|-----------|-------------------|----------|-----------------|
+| 任务发现 | 需手动触发 | 需 @Copilot | 需 @aily | **三闸门主动发现**（自然对话中识别） |
+| 推理模式 | 单一 | 单一 | 单一 | **5 模式自动选择**（ReAct/CoT/Reflection/Debate/ToT） |
+| 多 Agent | 无 | 无 | 无 | **5 命名 Agent** Builder-Validator 分离 |
+| 记忆系统 | 文档级 | 会话级 | 会话级 | **6 级 Memory**（Enterprise → Session） |
+| 学习闭环 | 无 | 无 | 无 | **自动 SKILL.md 生成**（3 次相似 → 跳过规划） |
+| 多端同步 | 数据库同步 | 云同步 | 云同步 | **Yjs CRDT 无冲突合并**（真离线支持） |
+| 安全栈 | 平台级 | 平台级 | 平台级 | **8 层自研安全栈** + Promptfoo 红队 32/32 |
+| 可视化 | 无 | 无 | 无 | **DAG 实时可视化** + 流式打字机卡片 |
+
+**独特技术贡献：**
+
+1. **三闸门主动任务发现** — 业界首个从自然群聊对话中主动识别工作意图并生成任务的 Agent 架构
+2. **Builder-Validator 辩论式质量保证** — 正方/反方/调停者三角辩论 + Judge 裁决，确保产出质量
+3. **6 级 FlowMemory 真实注入** — 从企业到会话的层级记忆自动合并到 system prompt，非模拟
+4. **Yjs CRDT 真实多端同步** — 基于 y-py 的无冲突复制数据类型，支持真正的离线编辑与合并
+
+---
+
+## 飞书生态集成
+
+- **WebSocket 长连接**：按飞书官方推荐，无需公网 IP
+- **飞书 CLI 24 Skills**：覆盖 IM / 文档 / 表格 / 日历 / 白板等 17+ 业务域
+- **MCP 协议**：标准化工具调用，兼容飞书 OpenAPI
+- **飞书 aily 理念对齐**：从对话理解任务 → 拆解执行 → 调用飞书能力 → 结果交付
+
+详见 [飞书生态集成文档](docs/FEISHU_ECOSYSTEM.md)
+
+---
+
 ## 比赛信息
 
 本项目为 **飞书 AI 校园挑战赛** 参赛作品，对齐课题二「基于 IM 的办公协同智能助手」。
 
 - 赛题核心要求：从一次 IM 对话开始，Agent 自动串联 IM + 文档 + 演示稿/画布，实现多端实时同步的全链路自动化
-- 在线体验：http://118.178.242.26/
-- Pilot 驾驶舱：http://118.178.242.26/v12/dashboard
-- 技术文档：[架构文档](docs/ARCHITECTURE_v8.md) · [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程](docs/EVOLUTION.md) · [Demo 脚本](docs/DEMO_SCRIPT.md)
+- 在线体验：部署后通过 `DASHBOARD_PUBLIC_URL` 环境变量配置
+- Pilot 驾驶舱：`http://<your-host>/v12/dashboard`
+- 技术文档：[架构文档](docs/ARCHITECTURE.md) · [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程](docs/EVOLUTION.md) · [Demo 脚本](docs/DEMO_SCRIPT.md) · [飞书生态](docs/FEISHU_ECOSYSTEM.md)
 
 | 成员 | 角色 | 联系 |
 |------|------|------|

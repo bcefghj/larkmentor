@@ -1,4 +1,4 @@
-// Agent-Pilot v7 · Flutter 4-in-1 entry (iOS/Android/macOS/Windows).
+// Agent-Pilot v12 · Flutter 4-in-1 entry (iOS/Android/macOS/Windows).
 
 import 'package:flutter/material.dart';
 import 'screens/app_shell.dart';
@@ -17,7 +17,7 @@ class AgentPilotApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = ThemeData.dark(useMaterial3: true);
     return MaterialApp(
-      title: 'Agent-Pilot v7',
+      title: 'Agent-Pilot v12',
       debugShowCheckedModeBanner: false,
       theme: base.copyWith(
         colorScheme: base.colorScheme.copyWith(

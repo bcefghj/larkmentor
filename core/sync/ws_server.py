@@ -53,6 +53,9 @@ except Exception:  # pragma: no cover
 router = APIRouter(prefix="/sync") if _FASTAPI else None
 
 
+_WS_OPEN_MODE_WARNED = False
+
+
 def _verify_ws_token(token: str) -> bool:
     """Verify WebSocket connection token.
 
@@ -61,9 +64,16 @@ def _verify_ws_token(token: str) -> bool:
     - 'demo' token in demo mode
     - Any token if no secret is configured (open mode for development)
     """
+    global _WS_OPEN_MODE_WARNED
     secret = os.getenv("AGENT_PILOT_SHARE_SECRET", "")
     if not secret or secret == "default-secret":
-        return True  # open mode
+        if not _WS_OPEN_MODE_WARNED:
+            logger.warning(
+                "AGENT_PILOT_SHARE_SECRET not configured — WebSocket sync accepts all connections. "
+                "Set this env var in production to restrict access."
+            )
+            _WS_OPEN_MODE_WARNED = True
+        return True
     if os.getenv("DASHBOARD_DEMO_MODE", "").lower() == "true" and token == "demo":
         return True
     return hmac.compare_digest(token, secret)

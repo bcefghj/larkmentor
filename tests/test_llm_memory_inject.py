@@ -60,8 +60,8 @@ def test_chat_injects_system_when_user_md_exists(fake_openai, tmp_path, monkeypa
     assert msgs[-1]["role"] == "user"
 
 
-def test_chat_skips_system_when_no_md_files(fake_openai, tmp_path, monkeypatch):
-    """When no md tiers exist and no caller-system, no system message is added."""
+def test_chat_skips_memory_when_no_md_files(fake_openai, tmp_path, monkeypatch):
+    """When no md tiers exist, system prompt has Tier1 role but no FlowMemory."""
     from core.flow_memory import flow_memory_md
     from llm.llm_client import chat
 
@@ -71,7 +71,10 @@ def test_chat_skips_system_when_no_md_files(fake_openai, tmp_path, monkeypatch):
     chat("hello", user_open_id="u_no_md")
 
     msgs = fake_openai["messages"]
-    assert all(m["role"] != "system" for m in msgs)
+    sys_msgs = [m for m in msgs if m["role"] == "system"]
+    assert len(sys_msgs) == 1, "Tier1 always produces a system message"
+    assert "组织默契知识" not in sys_msgs[0]["content"], "No FlowMemory should be injected"
+    assert "Agent-Pilot" in sys_msgs[0]["content"], "Tier1 role should be present"
 
 
 def test_chat_caller_system_takes_effect(fake_openai, tmp_path, monkeypatch):

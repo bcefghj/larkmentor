@@ -1,7 +1,7 @@
-# Agent-Pilot v11 · Multi-stage production container
+# Agent-Pilot v12 · Multi-stage production container
 
-# Stage 1: Python dependencies
-FROM python:3.12-slim AS python-deps
+# Stage 1: Python dependencies (3.11 for y-py CRDT compatibility)
+FROM python:3.11-slim AS python-deps
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
@@ -11,9 +11,9 @@ FROM node:20-slim AS node-deps
 RUN npm install -g @larksuite/cli 2>/dev/null || true
 
 # Stage 3: Production image
-FROM python:3.12-slim AS production
+FROM python:3.11-slim AS production
 LABEL maintainer="Agent-Pilot Team"
-LABEL version="11.0.0"
+LABEL version="12.0.0"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tini ca-certificates curl \

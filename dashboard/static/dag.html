@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent-Pilot · DAG 可视化</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:16px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:18px;font-weight:600;color:#f0f6fc}
+.header .plan-id{font-size:14px;color:#8b949e;font-family:monospace;background:#21262d;padding:4px 10px;border-radius:6px}
+.header .badge{font-size:12px;padding:3px 10px;border-radius:12px;font-weight:500}
+.badge-done{background:#238636;color:#fff}
+.badge-running{background:#1f6feb;color:#fff}
+.badge-pending{background:#30363d;color:#8b949e}
+.badge-failed{background:#da3633;color:#fff}
+.container{max-width:1200px;margin:24px auto;padding:0 24px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;text-align:center}
+.stat-card .value{font-size:28px;font-weight:700;color:#58a6ff}
+.stat-card .label{font-size:13px;color:#8b949e;margin-top:4px}
+.dag-graph{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;position:relative}
+.dag-graph h2{font-size:16px;margin-bottom:20px;color:#f0f6fc}
+.step-list{display:flex;flex-direction:column;gap:12px}
+.step{display:flex;align-items:stretch;gap:16px;background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 18px;transition:border-color .2s}
+.step:hover{border-color:#58a6ff}
+.step-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.step-icon.done{background:#238636;color:#fff}
+.step-icon.running{background:#1f6feb;color:#fff;animation:pulse 1.5s infinite}
+.step-icon.pending{background:#21262d;color:#8b949e}
+.step-icon.failed{background:#da3633;color:#fff}
+.step-body{flex:1;min-width:0}
+.step-title{font-weight:600;font-size:14px;color:#f0f6fc;display:flex;align-items:center;gap:8px}
+.step-title code{font-size:12px;color:#58a6ff;background:#21262d;padding:2px 6px;border-radius:4px}
+.step-desc{font-size:13px;color:#8b949e;margin-top:4px}
+.step-meta{font-size:12px;color:#484f58;margin-top:6px;display:flex;gap:12px}
+.step-deps{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.dep-tag{font-size:11px;background:#21262d;color:#8b949e;padding:1px 6px;border-radius:3px}
+.arrow{width:40px;display:flex;align-items:center;justify-content:center;color:#30363d;font-size:20px;margin-left:20px;flex-shrink:0}
+.error-msg{margin-top:24px;background:#da363322;border:1px solid #da3633;border-radius:8px;padding:16px;color:#f85149;font-size:14px}
+.loading{text-align:center;padding:60px;color:#8b949e;font-size:16px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.refresh-btn{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;transition:background .2s}
+.refresh-btn:hover{background:#30363d}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Agent-Pilot DAG</h1>
+  <span class="plan-id" id="planId">{{PLAN_ID}}</span>
+  <span class="badge badge-pending" id="statusBadge">加载中</span>
+  <div style="flex:1"></div>
+  <button class="refresh-btn" onclick="loadPlan()">刷新</button>
+</div>
+<div class="container">
+  <div class="stats" id="stats">
+    <div class="stat-card"><div class="value" id="totalSteps">-</div><div class="label">总步骤</div></div>
+    <div class="stat-card"><div class="value" id="doneSteps">-</div><div class="label">已完成</div></div>
+    <div class="stat-card"><div class="value" id="failedSteps">-</div><div class="label">失败</div></div>
+    <div class="stat-card"><div class="value" id="elapsed">-</div><div class="label">总耗时</div></div>
+  </div>
+  <div class="dag-graph">
+    <h2>执行 DAG</h2>
+    <div id="dagContent" class="loading">正在加载计划数据...</div>
+  </div>
+  <div id="errorArea"></div>
+</div>
+<script>
+const PLAN_ID = '{{PLAN_ID}}';
+const STATUS_ICON = {done:'✅',running:'⚙️',pending:'⏳',failed:'❌'};
+
+async function loadPlan(){
+  try{
+    const r = await fetch(`/api/pilot/status/${PLAN_ID}`);
+    if(!r.ok){
+      document.getElementById('dagContent').innerHTML=`<div class="loading">计划 ${PLAN_ID} 未找到 (${r.status})</div>`;
+      return;
+    }
+    const d = await r.json();
+    render(d);
+  }catch(e){
+    document.getElementById('dagContent').innerHTML=`<div class="loading">加载失败: ${e.message}</div>`;
+  }
+}
+
+function render(plan){
+  const steps = plan.steps || [];
+  const done = steps.filter(s=>s.status==='done').length;
+  const failed = steps.filter(s=>s.status==='failed').length;
+  const running = steps.filter(s=>s.status==='running').length;
+
+  document.getElementById('totalSteps').textContent = steps.length;
+  document.getElementById('doneSteps').textContent = done;
+  document.getElementById('failedSteps').textContent = failed;
+
+  const badge = document.getElementById('statusBadge');
+  if(failed>0){badge.textContent='部分失败';badge.className='badge badge-failed'}
+  else if(running>0){badge.textContent='执行中';badge.className='badge badge-running'}
+  else if(done===steps.length&&steps.length>0){badge.textContent='已完成';badge.className='badge badge-done'}
+  else{badge.textContent='待执行';badge.className='badge badge-pending'}
+
+  let totalMs = 0;
+  steps.forEach(s=>{if(s.duration_ms)totalMs+=s.duration_ms});
+  document.getElementById('elapsed').textContent = totalMs>0?`${(totalMs/1000).toFixed(1)}s`:'-';
+
+  let html = '<div class="step-list">';
+  steps.forEach((s,i)=>{
+    const icon = STATUS_ICON[s.status]||'⏳';
+    const depsHtml = (s.depends_on||[]).map(d=>`<span class="dep-tag">← ${d}</span>`).join('');
+    const durText = s.duration_ms?`${s.duration_ms}ms`:'';
+    html += `
+      <div class="step">
+        ${i>0?'<div class="arrow">↓</div>':'<div style="width:40px"></div>'}
+        <div class="step-icon ${s.status}">${icon}</div>
+        <div class="step-body">
+          <div class="step-title">${s.step_id} <code>${s.tool||'unknown'}</code></div>
+          <div class="step-desc">${s.description||''}</div>
+          <div class="step-meta">
+            ${durText?`<span>⏱ ${durText}</span>`:''}
+            ${s.error?`<span style="color:#f85149">❌ ${s.error.substring(0,80)}</span>`:''}
+          </div>
+          ${depsHtml?`<div class="step-deps">${depsHtml}</div>`:''}
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  document.getElementById('dagContent').innerHTML = html;
+}
+
+loadPlan();
+setInterval(loadPlan, 5000);
+</script>
+</body>
+</html>

@@ -282,10 +282,10 @@ class PilotLearner:
             return None
 
         logger.info(
-            "skill_recommendation",
-            skill_id=best_skill.skill_id,
-            similarity=round(best_sim, 3),
-            intent=intent[:80],
+            "skill_recommendation skill_id=%s similarity=%.3f intent=%s",
+            best_skill.skill_id,
+            best_sim,
+            intent[:80],
         )
         return {
             "skill_id": best_skill.skill_id,
@@ -322,7 +322,7 @@ class PilotLearner:
         score = max(1, min(5, score))
         mem = self._find_memory(task_id)
         if mem is None:
-            logger.warning("record_feedback: task not found", task_id=task_id)
+            logger.warning("record_feedback: task not found task_id=%s", task_id)
             return
 
         mem.feedback_score = score
@@ -333,10 +333,10 @@ class PilotLearner:
             self._update_skill_quality(mem.skill_id, score)
 
         logger.info(
-            "feedback_recorded",
-            task_id=task_id,
-            score=score,
-            skill_id=mem.skill_id,
+            "feedback_recorded task_id=%s score=%d skill_id=%s",
+            task_id,
+            score,
+            mem.skill_id,
         )
 
     def _find_memory(self, task_id: str) -> Optional[TaskMemory]:
@@ -362,7 +362,7 @@ class PilotLearner:
                 for m in self._memories:
                     f.write(json.dumps(m.to_dict(), ensure_ascii=False) + "\n")
         except Exception as e:
-            logger.warning("archival rewrite failed", error=str(e))
+            logger.warning("archival rewrite failed: %s", e)
 
     # ── Auto model selection ──────────────────────────────────────────────
 
@@ -415,11 +415,11 @@ class PilotLearner:
             model = self._MODEL_MID
 
         logger.info(
-            "model_suggestion",
-            model=model,
-            avg_tokens=int(avg_tokens),
-            avg_steps=round(avg_steps, 1),
-            intent=intent[:60],
+            "model_suggestion model=%s avg_tokens=%d avg_steps=%.1f intent=%s",
+            model,
+            int(avg_tokens),
+            avg_steps,
+            intent[:60],
         )
         return model
 

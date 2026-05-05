@@ -5,8 +5,14 @@ import time as _time
 
 from bot.handlers._common import wm_append
 from bot.message_sender import reply_text, send_card, send_text
+from config import Config
 
 logger = logging.getLogger("agent_pilot.handler.pilot")
+
+
+def _dashboard_url(path: str = "") -> str:
+    base = Config.DASHBOARD_PUBLIC_URL or f"http://localhost:{Config.DASHBOARD_PORT}"
+    return f"{base}{path}"
 
 # All pilot-related command names
 PILOT_COMMANDS = frozenset(
@@ -46,7 +52,7 @@ def pilot_help_text() -> str:
         "  • `/mcp` - 查看已连接的 MCP 服务器\n"
         "  • `状态` - 查看当前执行状态\n\n"
         "**在线Dashboard**：\n"
-        "  http://118.178.242.26/dashboard/pilot\n\n"
+        f"  {_dashboard_url('/dashboard/pilot')}\n\n"
         "**详细文档**：\n"
         "  https://github.com/bcefghj/agent-pilot\n\n"
         "💡 提示：需求描述越具体，生成效果越好！"
@@ -79,7 +85,7 @@ def handle_group_pilot(sender_open_id: str, message_id: str, intent: str, chat_n
         reply_text(
             message_id,
             f"🛫 Agent-Pilot 已启动 `{plan.plan_id}`（共 {len(plan.steps)} 步）。"
-            f"完成后将在此群回帖汇总。\n实时进度：http://118.178.242.26/dashboard/pilot?plan_id={plan.plan_id}",
+            f"完成后将在此群回帖汇总。\n实时进度：{_dashboard_url()}/dashboard/pilot?plan_id={plan.plan_id}",
         )
     except Exception as e:
         logger.exception("group pilot_run error: %s", e)
@@ -114,7 +120,7 @@ def _cmd_pilot_run(args, open_id, user, text):
         f"Plan: `{plan.plan_id}`\n"
         f"意图：{intent[:80]}\n\n"
         f"📋 计划（共 {len(plan.steps)} 步）：\n{step_preview}\n\n"
-        f"实时进度：http://118.178.242.26/dashboard/pilot?plan_id={plan.plan_id}\n"
+        f"实时进度：{_dashboard_url()}/dashboard/pilot?plan_id={plan.plan_id}\n"
         f"Flutter/Web 客户端会自动刷新。完成后我会再发一条汇总。",
     )
     _schedule_completion_notify(open_id, plan)
@@ -137,7 +143,7 @@ def _cmd_pilot_list(args, open_id, user, text):
     for r in rows:
         ts = _t.strftime("%m-%d %H:%M", _t.localtime(r.get("created_ts", 0)))
         lines.append(f"- [{ts}] `{r['plan_id']}` {r['done_steps']}/{r['total_steps']} 完成 · {r['intent']}")
-    lines.append("\n详情请访问 Dashboard：http://118.178.242.26/dashboard/pilot")
+    lines.append(f"\n详情请访问 Dashboard：{_dashboard_url('/dashboard/pilot')}")
     send_text(open_id, "\n".join(lines))
 
 
@@ -179,7 +185,7 @@ def _cmd_pilot_context(args, open_id, user, text):
         lines.append(f"权限模式：`{orch.permissions.mode.value}`")
         lines.append(f"最近 Hook：{len(orch.hooks.history())} 条")
         lines.append(f"最近事件：{len(orch.events())} 条")
-        lines.append("\n详情：http://118.178.242.26/api/pilot/context")
+        lines.append(f"\n详情：{_dashboard_url('/api/pilot/context')}")
         send_text(open_id, "\n".join(lines))
     except Exception as _e:
         send_text(open_id, f"context 查询失败：{_e}")
@@ -250,7 +256,7 @@ def _schedule_completion_notify(open_id: str, plan):
                         "📦 产物：",
                     ]
                     summary += urls[:8] or ["（本次运行产物已保存到服务器 data/pilot_artifacts/）"]
-                    summary.append(f"\n汇总链接：http://118.178.242.26/pilot/{plan.plan_id}")
+                    summary.append(f"\n汇总链接：{_dashboard_url()}/pilot/{plan.plan_id}")
                     try:
                         send_text(open_id, "\n".join(summary))
                     except Exception as e:

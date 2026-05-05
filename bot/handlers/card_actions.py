@@ -46,7 +46,7 @@ def on_card_action(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
 
         t = threading.Thread(
             target=_handle_card_action_async,
-            args=(open_id, action),
+            args=(open_id, action, action_value),
             daemon=True,
         )
         t.start()
@@ -58,6 +58,14 @@ def on_card_action(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
             "daily_report": "正在生成报告...",
             "demo_workspace": "正在创建工作台...",
             "help": "正在加载帮助...",
+            "pilot.task.confirm": "Agent-Pilot 任务已确认...",
+            "pilot.task.ignore": "已忽略该任务",
+            "pilot.task.add_context": "正在补充上下文...",
+            "pilot.task.assign": "正在分配任务...",
+            "pilot.ctx.confirm": "上下文已确认，开始执行...",
+            "pilot.task.pause": "任务已暂停",
+            "pilot.task.archive": "正在归档...",
+            "pilot.task.request_ppt": "正在生成 PPT...",
         }
         toast_text = toast_map.get(action, "处理中...")
         return P2CardActionTriggerResponse({"toast": {"type": "info", "content": toast_text}})
@@ -66,7 +74,7 @@ def on_card_action(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
         return P2CardActionTriggerResponse({"toast": {"type": "error", "content": "处理失败，请重试"}})
 
 
-def _handle_card_action_async(open_id: str, action: str):
+def _handle_card_action_async(open_id: str, action: str, action_value: dict = None):
     """Process card action in background thread."""
     try:
         user = get_user(open_id)
@@ -166,6 +174,21 @@ def _handle_card_action_async(open_id: str, action: str):
         elif action == "mentor_proactive_on":
             v4_proactive.set_enabled(user, True)
             send_text(open_id, "✅ 已开启 Mentor 主动建议。")
+
+        elif action.startswith("pilot."):
+            try:
+                from bot.pilot_router import default_pilot_router
+
+                router = default_pilot_router()
+                result = router.handle_card_action(
+                    actor_open_id=open_id,
+                    action=action,
+                    value=action_value or {},
+                )
+                if not result.handled:
+                    logger.warning("Pilot card action unhandled: %s error=%s", action, result.error)
+            except Exception as e:
+                logger.exception("Pilot card action error: %s %s", action, e)
 
         else:
             logger.warning("Unknown card action: %s", action)

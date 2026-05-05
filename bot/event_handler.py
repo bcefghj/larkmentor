@@ -117,6 +117,7 @@ def _do_handle(data):
     # ── Group messages ──
     if chat_type != "p2p":
         chat_name = message.chat_id or "unknown_group"
+        chat_id = message.chat_id or ""
 
         # Check for /pilot command in group (doesn't require focus mode)
         _pilot_cmd = parse_command(text)
@@ -128,6 +129,22 @@ def _do_handle(data):
                 chat_name,
             )
             return
+
+        # PilotRouter: detect task intent from natural group conversation
+        try:
+            from bot.pilot_router import default_pilot_router
+
+            router = default_pilot_router()
+            result = router.handle_chat_message(
+                sender_open_id=sender_open_id,
+                text=text,
+                chat_id=chat_id,
+                msg_id=message_id,
+            )
+            if result.handled and result.verdict in ("ready", "clarify"):
+                return
+        except Exception as e:
+            logger.debug("PilotRouter group routing skipped: %s", e)
 
         # Otherwise, broadcast to all focusing users via Smart Shield
         handle_group_message(sender_open_id, sender_name, message_id, text, chat_name)
@@ -165,8 +182,22 @@ def _do_handle(data):
         )
         return
 
-    # Route: Not focusing → welcome card
+    # Route: Not focusing → try PilotRouter for natural intent detection
     if not user.is_focusing():
+        try:
+            from bot.pilot_router import default_pilot_router
+
+            router = default_pilot_router()
+            result = router.handle_chat_message(
+                sender_open_id=open_id,
+                text=text,
+                chat_id=open_id,
+                msg_id=message_id,
+            )
+            if result.handled and result.verdict in ("ready", "clarify", "explicit_ready"):
+                return
+        except Exception as e:
+            logger.debug("PilotRouter DM routing skipped: %s", e)
         send_card(open_id, first_time_welcome_card())
         return
 

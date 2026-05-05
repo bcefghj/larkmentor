@@ -102,7 +102,7 @@ class PilotRouter:
         self.task_service = task_service or default_task_service()
         self.intent_detector = intent_detector or IntentDetector()
         self.context_service = context_service or default_context_service()
-        self.planner_service = planner_service or PlannerService(planner_factory=False)
+        self.planner_service = planner_service or PlannerService(planner_factory=None)
         self.card_sender = card_sender or _default_card_sender
         self.orchestrator_service = orchestrator_service
         if orchestrator_service is None:

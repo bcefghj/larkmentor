@@ -3,6 +3,7 @@
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from unittest.mock import patch
 
 import pytest
 
@@ -10,6 +11,11 @@ os.environ.setdefault("FEISHU_APP_ID", "test")
 os.environ.setdefault("FEISHU_APP_SECRET", "test")
 
 pytestmark = pytest.mark.slow
+
+
+def _mock_chat_json(prompt, *args, **kwargs):
+    """Mock LLM response to avoid real API calls in performance tests."""
+    return {}
 
 
 class TestConcurrentPilotLaunch:
@@ -35,12 +41,13 @@ class TestConcurrentPilotLaunch:
                 return None
 
         start = time.time()
-        with ThreadPoolExecutor(max_workers=10) as pool:
-            futures = [pool.submit(_launch, i) for i in range(10)]
-            for f in as_completed(futures):
-                result = f.result()
-                if result:
-                    results.append(result)
+        with patch("llm.llm_client.chat_json", _mock_chat_json):
+            with ThreadPoolExecutor(max_workers=10) as pool:
+                futures = [pool.submit(_launch, i) for i in range(10)]
+                for f in as_completed(futures):
+                    result = f.result()
+                    if result:
+                        results.append(result)
         elapsed = time.time() - start
 
         assert len(errors) == 0, f"Errors during concurrent launch: {errors}"
@@ -59,11 +66,12 @@ class TestConcurrentPilotLaunch:
         ]
 
         latencies = []
-        for intent in intents:
-            start = time.time()
-            plan = plan_from_intent(intent, user_open_id="u_latency_test")
-            latencies.append(time.time() - start)
-            assert plan is not None
+        with patch("llm.llm_client.chat_json", _mock_chat_json):
+            for intent in intents:
+                start = time.time()
+                plan = plan_from_intent(intent, user_open_id="u_latency_test")
+                latencies.append(time.time() - start)
+                assert plan is not None
 
         avg_latency = sum(latencies) / len(latencies)
         max_latency = max(latencies)
