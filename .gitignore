@@ -1,15 +1,38 @@
+# Python
 __pycache__/
 *.py[cod]
 *.so
+*.egg-info/
+dist/
+build/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Environment
 .venv/
 venv/
 .env
+.env.*
+
+# Data & logs
 data/
 *.log
 logs/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Archives
 *.tar.gz
+*.zip
+
+# IDE
+.idea/
+.vscode/
 
 # Flutter
 mobile_desktop/.dart_tool/
@@ -28,3 +51,9 @@ mobile_desktop/android/app/build/
 mobile_desktop/macos/Pods/
 mobile_desktop/windows/build/
 mobile_desktop/pubspec.lock
+
+# Runtime
+.agent-pilot/auto_memory/
+.agent-pilot/state/
+*.sqlite3
+*.db
