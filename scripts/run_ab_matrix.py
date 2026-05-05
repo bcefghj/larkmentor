@@ -16,6 +16,7 @@ fallback）。每条任务用 5 个 quality gates 评分，最终得出综合得
 
 注意：deepseek 没配 key 时降级（标 N/A），不阻断流程。
 """
+
 from __future__ import annotations
 
 import json
@@ -39,16 +40,11 @@ load_dotenv()
 
 
 TASKS = [
-    {"id": "T1", "intent": "把上周校园推广活动的群聊讨论整理成 8 页的活动复盘汇报 PPT，给老板看",
-     "audience": "leader"},
-    {"id": "T2", "intent": "起草一份新产品的 PRD（产品需求文档），包含背景/目标用户/功能/验收标准",
-     "audience": "team"},
-    {"id": "T3", "intent": "根据本季度数据，做一份季度业务复盘 PPT，重点 5-7 页",
-     "audience": "leader"},
-    {"id": "T4", "intent": "为新员工写一份入职第一周的 onboarding 文档，含工具/流程/Q&A",
-     "audience": "team"},
-    {"id": "T5", "intent": "战略方向的方案辩论：自营 vs 联营，给出 2 套对比方案 + 推荐",
-     "audience": "leader"},
+    {"id": "T1", "intent": "把上周校园推广活动的群聊讨论整理成 8 页的活动复盘汇报 PPT，给老板看", "audience": "leader"},
+    {"id": "T2", "intent": "起草一份新产品的 PRD（产品需求文档），包含背景/目标用户/功能/验收标准", "audience": "team"},
+    {"id": "T3", "intent": "根据本季度数据，做一份季度业务复盘 PPT，重点 5-7 页", "audience": "leader"},
+    {"id": "T4", "intent": "为新员工写一份入职第一周的 onboarding 文档，含工具/流程/Q&A", "audience": "team"},
+    {"id": "T5", "intent": "战略方向的方案辩论：自营 vs 联营，给出 2 套对比方案 + 推荐", "audience": "leader"},
 ]
 
 
@@ -56,21 +52,46 @@ TASKS = [
 
 
 CONFIGS = [
-    {"id": "C1", "name": "single_agent_baseline",
-     "use_orchestrator_worker": False, "use_builder_validator": False,
-     "use_citation": False, "use_debate": False},
-    {"id": "C2", "name": "orchestrator_worker",
-     "use_orchestrator_worker": True, "use_builder_validator": False,
-     "use_citation": False, "use_debate": False},
-    {"id": "C3", "name": "+builder_validator",
-     "use_orchestrator_worker": True, "use_builder_validator": True,
-     "use_citation": False, "use_debate": False},
-    {"id": "C4", "name": "+citation",
-     "use_orchestrator_worker": True, "use_builder_validator": True,
-     "use_citation": True, "use_debate": False},
-    {"id": "C5", "name": "+debate",
-     "use_orchestrator_worker": True, "use_builder_validator": True,
-     "use_citation": True, "use_debate": True},
+    {
+        "id": "C1",
+        "name": "single_agent_baseline",
+        "use_orchestrator_worker": False,
+        "use_builder_validator": False,
+        "use_citation": False,
+        "use_debate": False,
+    },
+    {
+        "id": "C2",
+        "name": "orchestrator_worker",
+        "use_orchestrator_worker": True,
+        "use_builder_validator": False,
+        "use_citation": False,
+        "use_debate": False,
+    },
+    {
+        "id": "C3",
+        "name": "+builder_validator",
+        "use_orchestrator_worker": True,
+        "use_builder_validator": True,
+        "use_citation": False,
+        "use_debate": False,
+    },
+    {
+        "id": "C4",
+        "name": "+citation",
+        "use_orchestrator_worker": True,
+        "use_builder_validator": True,
+        "use_citation": True,
+        "use_debate": False,
+    },
+    {
+        "id": "C5",
+        "name": "+debate",
+        "use_orchestrator_worker": True,
+        "use_builder_validator": True,
+        "use_citation": True,
+        "use_debate": True,
+    },
 ]
 
 
@@ -80,13 +101,13 @@ CONFIGS = [
 def doubao_chat(prompt: str, *, max_tokens: int = 600) -> str:
     try:
         from openai import OpenAI
-        cli = OpenAI(api_key=os.getenv("ARK_API_KEY"),
-                      base_url=os.getenv("ARK_CHAT_URL")
-                                or os.getenv("ARK_BASE_URL"))
+
+        cli = OpenAI(api_key=os.getenv("ARK_API_KEY"), base_url=os.getenv("ARK_CHAT_URL") or os.getenv("ARK_BASE_URL"))
         resp = cli.chat.completions.create(
             model=os.getenv("ARK_CHAT_MODEL") or os.getenv("ARK_MODEL", "doubao-seed-2.0-pro"),
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=max_tokens,
+            temperature=0.3,
+            max_tokens=max_tokens,
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception as e:
@@ -96,15 +117,16 @@ def doubao_chat(prompt: str, *, max_tokens: int = 600) -> str:
 def minimax_chat(prompt: str, *, max_tokens: int = 600) -> str:
     try:
         from openai import OpenAI
+
         api_key = os.getenv("MINIMAX_API_KEY")
         if not api_key:
             return "[SKIP] no MINIMAX_API_KEY"
-        cli = OpenAI(api_key=api_key,
-                      base_url=os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1"))
+        cli = OpenAI(api_key=api_key, base_url=os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1"))
         resp = cli.chat.completions.create(
             model=os.getenv("MINIMAX_MODEL", "MiniMax-M2"),
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=max_tokens,
+            temperature=0.3,
+            max_tokens=max_tokens,
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception as e:
@@ -117,11 +139,13 @@ def deepseek_chat(prompt: str, *, max_tokens: int = 600) -> str:
         return "[SKIP] no DEEPSEEK_API_KEY"
     try:
         from openai import OpenAI
+
         cli = OpenAI(api_key=api_key, base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
         resp = cli.chat.completions.create(
             model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, max_tokens=max_tokens,
+            temperature=0.3,
+            max_tokens=max_tokens,
         )
         return (resp.choices[0].message.content or "").strip()
     except Exception as e:
@@ -192,8 +216,7 @@ CONFIG_GENS: Dict[str, Callable[[str, Callable], str]] = {
 
 def score_output(text: str, intent: str) -> Dict[str, float]:
     if not text or text.startswith("["):
-        return {"completeness": 0, "consistency": 0, "factuality": 0,
-                "readability": 0, "safety": 0, "overall": 0}
+        return {"completeness": 0, "consistency": 0, "factuality": 0, "readability": 0, "safety": 0, "overall": 0}
     sc: Dict[str, float] = {}
     sc["completeness"] = min(100.0, len(text) / 600 * 100)  # 字数门槛
     # consistency: 检查是否有 markdown 结构（标题 + bullet）
@@ -202,6 +225,7 @@ def score_output(text: str, intent: str) -> Dict[str, float]:
     sc["consistency"] = (50 if has_title else 0) + (50 if has_bullet else 0)
     # factuality: 检查是否提到 intent 中的关键词
     import re
+
     key_terms = re.findall(r"[\u4e00-\u9fff]{2,}", intent)[:5]
     hits = sum(1 for t in key_terms if t in text)
     sc["factuality"] = (hits / max(len(key_terms), 1)) * 100
@@ -210,8 +234,7 @@ def score_output(text: str, intent: str) -> Dict[str, float]:
     avg = sum(len(s) for s in sentences) / max(len(sentences), 1)
     sc["readability"] = max(0.0, 100 - abs(avg - 25) * 2.0)
     # safety: 没有 PII / 注入词
-    bad = any(p in text for p in ["evil.xyz", "ignore previous", "system prompt:",
-                                   "rm -rf", "DAN", "App Secret"])
+    bad = any(p in text for p in ["evil.xyz", "ignore previous", "system prompt:", "rm -rf", "DAN", "App Secret"])
     sc["safety"] = 0 if bad else 100
     sc["overall"] = sum(sc.values()) / 5
     return sc
@@ -235,10 +258,13 @@ class CallResult:
     error: str = ""
 
 
-def run_matrix(*, providers: Optional[List[str]] = None,
-               tasks: Optional[List[Dict]] = None,
-               configs: Optional[List[Dict]] = None,
-               max_tokens: int = 600) -> List[CallResult]:
+def run_matrix(
+    *,
+    providers: Optional[List[str]] = None,
+    tasks: Optional[List[Dict]] = None,
+    configs: Optional[List[Dict]] = None,
+    max_tokens: int = 600,
+) -> List[CallResult]:
     providers = providers or ["doubao", "minimax", "deepseek"]
     tasks = tasks or TASKS
     configs = configs or CONFIGS
@@ -262,17 +288,27 @@ def run_matrix(*, providers: Optional[List[str]] = None,
                 dt = time.time() - t_start
                 sc = score_output(output, task["intent"])
                 cr = CallResult(
-                    task_id=task["id"], config_id=cfg["id"], config_name=cfg["name"],
-                    provider=p, model="", prompt_chars=len(task["intent"]),
-                    output_chars=len(output), duration_sec=round(dt, 2),
-                    output=output, score=sc, error=err,
+                    task_id=task["id"],
+                    config_id=cfg["id"],
+                    config_name=cfg["name"],
+                    provider=p,
+                    model="",
+                    prompt_chars=len(task["intent"]),
+                    output_chars=len(output),
+                    duration_sec=round(dt, 2),
+                    output=output,
+                    score=sc,
+                    error=err,
                 )
                 results.append(cr)
                 elapsed = time.time() - t0
                 eta = elapsed / n * (total - n) if n else 0
-                print(f"[{n:>3}/{total}] {cfg['name']:<25} {p:<10} {task['id']:<3} "
-                       f"score={sc.get('overall', 0):>5.1f}  dt={dt:>5.1f}s  "
-                       f"eta={eta/60:.1f}min", flush=True)
+                print(
+                    f"[{n:>3}/{total}] {cfg['name']:<25} {p:<10} {task['id']:<3} "
+                    f"score={sc.get('overall', 0):>5.1f}  dt={dt:>5.1f}s  "
+                    f"eta={eta / 60:.1f}min",
+                    flush=True,
+                )
     return results
 
 
@@ -285,19 +321,21 @@ def write_reports(results: List[CallResult], *, json_path: str, md_path: str) ->
         "tasks": [t["id"] for t in TASKS],
         "results": [
             {
-                "task_id": r.task_id, "config_id": r.config_id,
+                "task_id": r.task_id,
+                "config_id": r.config_id,
                 "config_name": r.config_name,
                 "provider": r.provider,
-                "prompt_chars": r.prompt_chars, "output_chars": r.output_chars,
+                "prompt_chars": r.prompt_chars,
+                "output_chars": r.output_chars,
                 "duration_sec": r.duration_sec,
-                "score": r.score, "error": r.error,
+                "score": r.score,
+                "error": r.error,
             }
             for r in results
         ],
         "aggregates": _aggregate(results),
     }
-    Path(json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2),
-                                encoding="utf-8")
+    Path(json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     Path(md_path).write_text(_render_md(payload), encoding="utf-8")
 
 
@@ -312,9 +350,7 @@ def _aggregate(results: List[CallResult]) -> Dict[str, Any]:
     for name, d in by_cfg.items():
         if d["overall"]:
             avg = sum(d["overall"]) / len(d["overall"])
-            out[name] = {"avg_overall": round(avg, 2),
-                          "n": len(d["overall"]),
-                          "total_calls": d["count"]}
+            out[name] = {"avg_overall": round(avg, 2), "n": len(d["overall"]), "total_calls": d["count"]}
         else:
             out[name] = {"avg_overall": 0.0, "n": 0, "total_calls": d["count"]}
     return out
@@ -343,8 +379,10 @@ def _render_md(payload: Dict[str, Any]) -> str:
         baseline = payload["aggregates"][confs[0]]["avg_overall"]
         last = payload["aggregates"].get(confs[-1], {}).get("avg_overall", 0.0)
         if baseline:
-            lines.append(f"- {confs[0]} → {confs[-1]} 增量：**{last - baseline:+.2f} 绝对值**"
-                         f"（{(last - baseline) / baseline * 100:+.1f}%）")
+            lines.append(
+                f"- {confs[0]} → {confs[-1]} 增量：**{last - baseline:+.2f} 绝对值**"
+                f"（{(last - baseline) / baseline * 100:+.1f}%）"
+            )
     lines.append("")
     lines.append("## 每条调用明细（按 provider × task × config）")
     lines.append("")

@@ -18,6 +18,7 @@ def add_reaction(message_id: str, emoji_type: str = "EYES") -> Dict:
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = (
             CreateMessageReactionRequest.builder()
@@ -41,6 +42,7 @@ def list_reactions(message_id: str) -> List[Dict]:
         from lark_oapi.api.im.v1 import ListMessageReactionRequest  # type: ignore
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = ListMessageReactionRequest.builder().message_id(message_id).build()
         resp = client.im.v1.message_reaction.list(req)

@@ -1,4 +1,5 @@
 """P7 · Pilot 卡片家族测试 (PRD §5.4 / §6.3 / §7.2 + cardkit.v1)."""
+
 from __future__ import annotations
 
 import json
@@ -57,14 +58,15 @@ def test_task_suggested_card_has_5_buttons():
     _validate_v2_card(card)
     eids = _all_element_ids(card)
     # PRD §5.4 5 按钮全部存在
-    expected_btns = {"pilot.btn.confirm", "pilot.btn.add_ctx",
-                     "pilot.btn.assign", "pilot.btn.ignore"}
+    expected_btns = {"pilot.btn.confirm", "pilot.btn.add_ctx", "pilot.btn.assign", "pilot.btn.ignore"}
     assert expected_btns.issubset(set(eids))
 
 
 def test_task_suggested_card_with_detail_url():
     card = task_suggested_card(
-        task_id="t1", title="x", intent="x",
+        task_id="t1",
+        title="x",
+        intent="x",
         detail_url="http://localhost:8001/tasks/t1",
     )
     eids = _all_element_ids(card)
@@ -73,7 +75,9 @@ def test_task_suggested_card_with_detail_url():
 
 def test_task_suggested_card_renders_plan_outline():
     card = task_suggested_card(
-        task_id="t1", title="x", intent="x",
+        task_id="t1",
+        title="x",
+        intent="x",
         plan_outline=["补充资料", "生成文档", "生成 PPT", "演讲稿"],
     )
     s = json.dumps(card, ensure_ascii=False)
@@ -83,7 +87,9 @@ def test_task_suggested_card_renders_plan_outline():
 
 def test_task_suggested_card_context_state():
     card = task_suggested_card(
-        task_id="t1", title="x", intent="x",
+        task_id="t1",
+        title="x",
+        intent="x",
         context_state={
             "used": 12,
             "missing": ["历史复盘", "预算表"],
@@ -166,11 +172,14 @@ def test_context_confirm_card_ready_state():
 def test_context_confirm_card_warning_state():
     summary = {
         "task_goal": "x",
-        "msg_count": 0, "doc_count": 0, "user_material_count": 0,
+        "msg_count": 0,
+        "doc_count": 0,
+        "user_material_count": 0,
         "missing": ["any_material", "task_goal"],
         "has_min_info": False,
         "total_chars": 0,
-        "output_primary": "doc", "output_audience": "",
+        "output_primary": "doc",
+        "output_audience": "",
         "must_cite": False,
     }
     card = context_confirm_card(task_id="t1", summary=summary)
@@ -213,7 +222,8 @@ def test_multi_agent_card_full_run():
 
 def test_multi_agent_card_safety_blocked():
     card = multi_agent_card(
-        task_id="t1", pipeline_id="x",
+        task_id="t1",
+        pipeline_id="x",
         transcripts=[{"agent": "@shield", "ok": True, "summary": "BLOCKED: phone"}],
         safety_blocked=True,
     )
@@ -224,7 +234,8 @@ def test_multi_agent_card_safety_blocked():
 
 def test_multi_agent_card_failed_agent_marked():
     card = multi_agent_card(
-        task_id="t1", pipeline_id="x",
+        task_id="t1",
+        pipeline_id="x",
         transcripts=[{"agent": "@validator", "ok": False, "summary": "crashed"}],
     )
     s = json.dumps(card, ensure_ascii=False)

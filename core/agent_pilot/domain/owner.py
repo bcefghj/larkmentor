@@ -11,6 +11,7 @@ PRD §6.4 「阶段 owner」: 文档/PPT/归档可有不同 owner（本实现支
 2. ``OwnerAssignment`` 持有可选 ``stage`` 字段实现阶段 owner
 3. assign / claim / accept / reject 通过 application 层调度，本模块只描述模型
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,12 +24,12 @@ from .errors import OwnerLockedError
 class OwnerAssignment:
     """单条指派记录（保留历史）."""
 
-    actor_open_id: str          # 被指派人 open_id
-    by_open_id: str             # 指派人 open_id（"" if claim by self）
-    accepted: bool = False      # True 表示被指派人已接受
+    actor_open_id: str  # 被指派人 open_id
+    by_open_id: str  # 指派人 open_id（"" if claim by self）
+    accepted: bool = False  # True 表示被指派人已接受
     rejected: bool = False
     stage: Optional[str] = None  # None = 全任务 owner; 否则 "doc"/"ppt"/"canvas"/"archive"
-    ts: int = 0                 # epoch seconds
+    ts: int = 0  # epoch seconds
 
 
 @dataclass
@@ -37,7 +38,7 @@ class OwnerLock:
 
     task_id: str
     owner_open_id: str
-    locked_action: str = ""     # 当前锁定的高影响动作，如 "doc.create" / "slide.generate"
+    locked_action: str = ""  # 当前锁定的高影响动作，如 "doc.create" / "slide.generate"
     locked: bool = False
     history: List[OwnerAssignment] = field(default_factory=list)
 
@@ -62,12 +63,14 @@ class OwnerLock:
 
     def transfer_to(self, new_owner_open_id: str, by_open_id: str, *, ts: int) -> None:
         """转交 owner（PRD §6.3 指派流程）。需 application 层在 transfer 前完成 accept 流程."""
-        self.history.append(OwnerAssignment(
-            actor_open_id=new_owner_open_id,
-            by_open_id=by_open_id,
-            accepted=True,
-            ts=ts,
-        ))
+        self.history.append(
+            OwnerAssignment(
+                actor_open_id=new_owner_open_id,
+                by_open_id=by_open_id,
+                accepted=True,
+                ts=ts,
+            )
+        )
         self.owner_open_id = new_owner_open_id
         # 转交时解锁，让新 owner 自行重新 acquire
         self.unlock()

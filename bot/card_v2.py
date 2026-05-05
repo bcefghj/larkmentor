@@ -40,33 +40,42 @@ def _text(content: str, *, eid: str = "", tag: str = "markdown") -> Dict[str, An
     return block
 
 
-def _button(label: str, *, action: str = "", url: str = "",
-            form_action: str = "",
-            value: Optional[Dict[str, Any]] = None,
-            style: str = "default",
-            eid: str = "") -> Dict[str, Any]:
+def _button(
+    label: str,
+    *,
+    action: str = "",
+    url: str = "",
+    form_action: str = "",
+    value: Optional[Dict[str, Any]] = None,
+    style: str = "default",
+    eid: str = "",
+) -> Dict[str, Any]:
     """v2 button with behaviors[] — supports simultaneous open_url + callback."""
     behaviors: List[Dict[str, Any]] = []
     if url:
-        behaviors.append({
-            "type": "open_url",
-            "default_url": url,
-            "pc_url": url, "ios_url": url, "android_url": url,
-        })
+        behaviors.append(
+            {
+                "type": "open_url",
+                "default_url": url,
+                "pc_url": url,
+                "ios_url": url,
+                "android_url": url,
+            }
+        )
     if action:
-        behaviors.append({
-            "type": "callback",
-            "value": {"action": action, **(value or {})},
-        })
+        behaviors.append(
+            {
+                "type": "callback",
+                "value": {"action": action, **(value or {})},
+            }
+        )
     if form_action:
         behaviors.append({"type": form_action})
     btn: Dict[str, Any] = {
         "tag": "button",
         "text": {"tag": "plain_text", "content": label},
         "type": style,
-        "behaviors": behaviors or [{"type": "callback",
-                                    "value": {"action": action or "noop",
-                                              **(value or {})}}],
+        "behaviors": behaviors or [{"type": "callback", "value": {"action": action or "noop", **(value or {})}}],
     }
     if eid:
         btn["element_id"] = eid
@@ -95,9 +104,7 @@ def _column(*elements: Dict[str, Any], weight: int = 1) -> Dict[str, Any]:
     }
 
 
-def _collapsible(label: str, *elements: Dict[str, Any],
-                 expanded: bool = False,
-                 eid: str = "") -> Dict[str, Any]:
+def _collapsible(label: str, *elements: Dict[str, Any], expanded: bool = False, eid: str = "") -> Dict[str, Any]:
     panel: Dict[str, Any] = {
         "tag": "collapsible_panel",
         "expanded": expanded,
@@ -113,8 +120,7 @@ def _collapsible(label: str, *elements: Dict[str, Any],
     return panel
 
 
-def _envelope(header: Dict[str, Any],
-              elements: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _envelope(header: Dict[str, Any], elements: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Wrap header + elements in the schema=2.0 top-level structure."""
     return {
         "schema": "2.0",
@@ -178,19 +184,19 @@ def pilot_progress_card(
 
     body: List[Dict[str, Any]] = [
         _text(f"**意图**：{intent[:200]}", eid="pilot.intent"),
-        _text(f"**状态**：{_STATUS_BADGE.get(status, status)}  ·  进度 {int(progress*100)}%",
-              eid="pilot.progress"),
+        _text(f"**状态**：{_STATUS_BADGE.get(status, status)}  ·  进度 {int(progress * 100)}%", eid="pilot.progress"),
         _text(f"`{bar}`", eid="pilot.bar"),
         _divider(),
-        _collapsible("执行步骤（点击展开）",
-                     _text("\n".join(step_lines) or "（待规划）", eid="pilot.steps"),
-                     expanded=status == "running"),
+        _collapsible(
+            "执行步骤（点击展开）",
+            _text("\n".join(step_lines) or "（待规划）", eid="pilot.steps"),
+            expanded=status == "running",
+        ),
     ]
 
     if deliverables:
         deliv_md = "\n".join(
-            f"- [{d.get('label','产物')}]({d.get('url','')})"
-            + (f" · {d.get('note','')}" if d.get("note") else "")
+            f"- [{d.get('label', '产物')}]({d.get('url', '')})" + (f" · {d.get('note', '')}" if d.get("note") else "")
             for d in deliverables
         )
         body.append(_divider())
@@ -200,19 +206,16 @@ def pilot_progress_card(
     if dashboard_url:
         btns.append(_button("实时进度", url=dashboard_url, style="primary"))
     if share_url:
-        btns.append(_button("分享链接", url=share_url, action="pilot_copy_share",
-                            value={"plan_id": plan_id}))
-    btns.append(_button("重新规划", action="pilot_replan", value={"plan_id": plan_id},
-                        style="default"))
-    btns.append(_button("取消", action="pilot_cancel", value={"plan_id": plan_id},
-                        style="danger"))
+        btns.append(_button("分享链接", url=share_url, action="pilot_copy_share", value={"plan_id": plan_id}))
+    btns.append(_button("重新规划", action="pilot_replan", value={"plan_id": plan_id}, style="default"))
+    btns.append(_button("取消", action="pilot_cancel", value={"plan_id": plan_id}, style="danger"))
 
     body.append(_divider())
     body.append({"tag": "action", "actions": btns, "element_id": "pilot.actions"})
 
-    color = {"running": "blue", "success": "green",
-             "failed": "red", "pending": "grey",
-             "skipped": "orange"}.get(status, "blue")
+    color = {"running": "blue", "success": "green", "failed": "red", "pending": "grey", "skipped": "orange"}.get(
+        status, "blue"
+    )
     header = _header(
         "Agent-Pilot 执行中" if status == "running" else f"Agent-Pilot {_STATUS_BADGE.get(status, status)}",
         subtitle=f"plan_id: {plan_id}",
@@ -237,15 +240,14 @@ def pilot_patch_progress(
     bar = "█" * bar_fill + "░" * (20 - bar_fill)
     patches: Dict[str, Dict[str, Any]] = {
         "pilot.progress": _text(
-            f"**状态**：{_STATUS_BADGE.get(status, status)}  ·  进度 {int(progress*100)}%",
-            eid="pilot.progress"),
+            f"**状态**：{_STATUS_BADGE.get(status, status)}  ·  进度 {int(progress * 100)}%", eid="pilot.progress"
+        ),
         "pilot.bar": _text(f"`{bar}`", eid="pilot.bar"),
     }
     if step_summary:
         patches["pilot.steps"] = _text(step_summary, eid="pilot.steps")
     if deliverables_md:
-        patches["pilot.delivs"] = _text("**交付物**\n" + deliverables_md,
-                                        eid="pilot.delivs")
+        patches["pilot.delivs"] = _text("**交付物**\n" + deliverables_md, eid="pilot.delivs")
     return patches
 
 
@@ -260,7 +262,7 @@ def skills_list_card(skills: List[Dict[str, Any]]) -> Dict[str, Any]:
     for src, bucket in sorted(by_source.items()):
         lines.append(f"\n**{src}**  ·  {len(bucket)} 个")
         for s in sorted(bucket, key=lambda x: x.get("name", "")):
-            lines.append(f"- `{s.get('name','?')}` — {(s.get('description','') or '')[:70]}")
+            lines.append(f"- `{s.get('name', '?')}` — {(s.get('description', '') or '')[:70]}")
     body = [
         _text(f"共挂载 **{len(skills)}** 个 Skills（三层渐进披露）", eid="skills.total"),
         _divider(),
@@ -278,30 +280,31 @@ def context_card(snapshot: Dict[str, Any]) -> Dict[str, Any]:
     layer = snapshot.get("layer", "L0")
     events = snapshot.get("recent_events") or []
     body = [
-        _text(f"**Token 预算**：{tokens} / {budget}  ·  {int(pct*100)}%",
-              eid="ctx.tokens"),
+        _text(f"**Token 预算**：{tokens} / {budget}  ·  {int(pct * 100)}%", eid="ctx.tokens"),
         _text(f"`{bar}`", eid="ctx.bar"),
         _text(f"**当前压缩层级**：{layer}", eid="ctx.layer"),
         _divider(),
-        _collapsible("最近 20 条事件",
-                     _text("\n".join(f"- {e}" for e in events[-20:]) or "（无）",
-                           eid="ctx.events"),
-                     expanded=False),
+        _collapsible(
+            "最近 20 条事件",
+            _text("\n".join(f"- {e}" for e in events[-20:]) or "（无）", eid="ctx.events"),
+            expanded=False,
+        ),
     ]
     return _envelope(_header("Context 快照", template="turquoise"), body)
 
 
-def clarify_card(question: str, options: List[str],
-                 *, clarify_id: str = "") -> Dict[str, Any]:
+def clarify_card(question: str, options: List[str], *, clarify_id: str = "") -> Dict[str, Any]:
     """AskUserQuestion card used when ambiguity is too high to proceed."""
     buttons = [
-        _button(opt, action="pilot_clarify",
-                value={"option": opt, "clarify_id": clarify_id},
-                style="primary" if i == 0 else "default")
+        _button(
+            opt,
+            action="pilot_clarify",
+            value={"option": opt, "clarify_id": clarify_id},
+            style="primary" if i == 0 else "default",
+        )
         for i, opt in enumerate(options[:4])
     ]
-    buttons.append(_button("输入其它", action="pilot_clarify_custom",
-                           value={"clarify_id": clarify_id}))
+    buttons.append(_button("输入其它", action="pilot_clarify_custom", value={"clarify_id": clarify_id}))
     body = [
         _text(f"**Pilot 需要你澄清一下**\n\n{question}", eid="clarify.q"),
         _divider(),

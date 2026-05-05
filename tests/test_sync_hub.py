@@ -7,6 +7,7 @@ from core.sync.crdt_hub import CrdtHub, broadcast_event, broadcast_state, defaul
 
 # ─────────────────────────── Basic pub/sub ───────────────────────
 
+
 def test_subscribe_and_fanout_to_single_client():
     hub = CrdtHub()
     received = []
@@ -58,6 +59,7 @@ def test_unsubscribe_removes_from_all_rooms():
 
 # ─────────────────────────── Broadcaster helpers ───────────────
 
+
 def test_broadcast_state_uses_default_hub():
     recv = []
     default_hub().subscribe("mod_test", recv.append)
@@ -70,6 +72,7 @@ def test_broadcast_state_uses_default_hub():
 
 
 # ─────────────────────────── Offline merge log ───────────────
+
 
 def test_offline_merge_logs_updates(tmp_path, monkeypatch):
     monkeypatch.setattr(offline_merge, "DATA_DIR", str(tmp_path))

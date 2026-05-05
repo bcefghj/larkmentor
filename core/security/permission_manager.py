@@ -91,23 +91,32 @@ class PermissionManager:
         # Unknown tools must declare their level explicitly → fail-closed.
         if tool not in TOOL_MIN_LEVEL:
             decision = PermissionDecision(
-                allowed=False, tool=tool, user=user_open_id,
+                allowed=False,
+                tool=tool,
+                user=user_open_id,
                 user_level=self.get_user_level(user_open_id),
-                required=required, reason="unknown_tool_fail_closed",
+                required=required,
+                reason="unknown_tool_fail_closed",
             )
             logger.warning("permission deny: unknown tool %s", tool)
             return decision
         actual = self.get_user_level(user_open_id)
         ok = actual >= required
         decision = PermissionDecision(
-            allowed=ok, tool=tool, user=user_open_id,
-            user_level=actual, required=required,
+            allowed=ok,
+            tool=tool,
+            user=user_open_id,
+            user_level=actual,
+            required=required,
             reason="ok" if ok else "user_level_below_required",
         )
         if not ok:
             logger.info(
                 "permission deny: tool=%s user=%s actual=%s required=%s",
-                tool, user_open_id[-8:], actual.name, required.name,
+                tool,
+                user_open_id[-8:],
+                actual.name,
+                required.name,
             )
         return decision
 

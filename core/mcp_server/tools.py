@@ -25,6 +25,7 @@ logger = logging.getLogger("agent_pilot.mcp.tools")
 # Structured error / result helpers
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ToolError:
     code: str
@@ -51,8 +52,7 @@ def _ok(data: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _err(code: str, message: str, **details: Any) -> Dict[str, Any]:
-    return ToolError(code=code, message=message,
-                     details=details if details else None).to_dict()
+    return ToolError(code=code, message=message, details=details if details else None).to_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,6 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.get_task_status": {
         "name": "agent_pilot.get_task_status",
         "description": (
@@ -148,7 +147,6 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.generate_document": {
         "name": "agent_pilot.generate_document",
         "description": (
@@ -191,7 +189,6 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.generate_slides": {
         "name": "agent_pilot.generate_slides",
         "description": (
@@ -247,12 +244,10 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.list_plans": {
         "name": "agent_pilot.list_plans",
         "description": (
-            "List all active and completed plans/tasks. "
-            "Supports filtering by user and pagination via limit."
+            "List all active and completed plans/tasks. Supports filtering by user and pagination via limit."
         ),
         "inputSchema": {
             "type": "object",
@@ -294,7 +289,6 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.sync_state": {
         "name": "agent_pilot.sync_state",
         "description": (
@@ -335,7 +329,6 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
-
     "agent_pilot.send_im_message": {
         "name": "agent_pilot.send_im_message",
         "description": (
@@ -385,6 +378,7 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
 # Tool implementations
 # ---------------------------------------------------------------------------
 
+
 def tool_create_task(
     intent: str,
     user_open_id: str = "",
@@ -396,6 +390,7 @@ def tool_create_task(
         return _err("invalid_input", "intent is required and must be non-empty")
     try:
         from core.agent_pilot.service import launch as _launch
+
         plan = _launch(
             intent,
             user_open_id=user_open_id,
@@ -405,27 +400,28 @@ def tool_create_task(
         status = "planned"
         if execute:
             status = "executing" if async_run else "executed"
-        return _ok({
-            "plan_id": plan.plan_id,
-            "intent": plan.intent,
-            "status": status,
-            "total_steps": len(plan.steps),
-            "steps": [
-                {
-                    "step_id": s.step_id,
-                    "tool": s.tool,
-                    "description": s.description,
-                    "depends_on": s.depends_on,
-                }
-                for s in plan.steps
-            ],
-        })
+        return _ok(
+            {
+                "plan_id": plan.plan_id,
+                "intent": plan.intent,
+                "status": status,
+                "total_steps": len(plan.steps),
+                "steps": [
+                    {
+                        "step_id": s.step_id,
+                        "tool": s.tool,
+                        "description": s.description,
+                        "depends_on": s.depends_on,
+                    }
+                    for s in plan.steps
+                ],
+            }
+        )
     except RuntimeError as e:
         return _err("rate_limited", str(e))
     except Exception as e:
         logger.exception("create_task error")
-        return _err("internal_error", str(e),
-                     traceback=traceback.format_exc().splitlines()[-3:])
+        return _err("internal_error", str(e), traceback=traceback.format_exc().splitlines()[-3:])
 
 
 def tool_get_task_status(plan_id: str) -> Dict[str, Any]:
@@ -434,41 +430,45 @@ def tool_get_task_status(plan_id: str) -> Dict[str, Any]:
         return _err("invalid_input", "plan_id is required")
     try:
         from core.agent_pilot.service import get_plan
+
         plan = get_plan(plan_id)
         if not plan:
             return _err("not_found", f"Plan {plan_id} not found")
         plan_dict = plan.to_dict()
-        done = sum(1 for s in plan.steps
-                   if getattr(s, "status", None) == "done")
+        done = sum(1 for s in plan.steps if getattr(s, "status", None) == "done")
         artifacts: List[Dict[str, Any]] = []
         for step in plan.steps:
             for art in getattr(step, "artifacts", []):
-                artifacts.append({
-                    "step_id": step.step_id,
-                    "type": getattr(art, "type", "unknown"),
-                    "path": getattr(art, "path", ""),
-                    "token": getattr(art, "token", ""),
-                    "url": getattr(art, "url", ""),
-                })
-        return _ok({
-            "plan_id": plan.plan_id,
-            "intent": plan.intent,
-            "phase": plan_dict.get("phase", "unknown"),
-            "total_steps": len(plan.steps),
-            "done_steps": done,
-            "steps": [
-                {
-                    "step_id": s.step_id,
-                    "tool": s.tool,
-                    "description": s.description,
-                    "status": getattr(s, "status", "pending"),
-                    "result_summary": str(getattr(s, "result", ""))[:200],
-                }
-                for s in plan.steps
-            ],
-            "artifacts": artifacts,
-            "created_ts": plan.created_ts,
-        })
+                artifacts.append(
+                    {
+                        "step_id": step.step_id,
+                        "type": getattr(art, "type", "unknown"),
+                        "path": getattr(art, "path", ""),
+                        "token": getattr(art, "token", ""),
+                        "url": getattr(art, "url", ""),
+                    }
+                )
+        return _ok(
+            {
+                "plan_id": plan.plan_id,
+                "intent": plan.intent,
+                "phase": plan_dict.get("phase", "unknown"),
+                "total_steps": len(plan.steps),
+                "done_steps": done,
+                "steps": [
+                    {
+                        "step_id": s.step_id,
+                        "tool": s.tool,
+                        "description": s.description,
+                        "status": getattr(s, "status", "pending"),
+                        "result_summary": str(getattr(s, "result", ""))[:200],
+                    }
+                    for s in plan.steps
+                ],
+                "artifacts": artifacts,
+                "created_ts": plan.created_ts,
+            }
+        )
     except Exception as e:
         logger.exception("get_task_status error")
         return _err("internal_error", str(e))
@@ -487,10 +487,12 @@ def tool_generate_document(
         return _err("invalid_input", "markdown content is required")
     try:
         from agent.tools.doc_tools import create_doc
+
         result = create_doc(title=title, markdown=markdown, folder_token=folder_token)
         if result.get("ok"):
             try:
                 from core.security.audit_log import audit
+
                 audit(
                     actor=user_open_id or "mcp",
                     action="mcp.generate_document",
@@ -501,13 +503,15 @@ def tool_generate_document(
                 )
             except Exception:
                 pass
-        return _ok({
-            "doc_token": result.get("doc_token", ""),
-            "url": result.get("url", ""),
-            "title": title,
-            "local_path": result.get("local_path", ""),
-            "note": result.get("note", ""),
-        })
+        return _ok(
+            {
+                "doc_token": result.get("doc_token", ""),
+                "url": result.get("url", ""),
+                "title": title,
+                "local_path": result.get("local_path", ""),
+                "note": result.get("note", ""),
+            }
+        )
     except Exception as e:
         logger.exception("generate_document error")
         return _err("internal_error", str(e))
@@ -527,6 +531,7 @@ def tool_generate_slides(
         return _err("invalid_input", "Either outline or slides must be provided")
     try:
         from agent.tools.slides_tools import create_slides
+
         slide_data: List[Dict[str, str]] = []
         if slides:
             slide_data = slides
@@ -538,16 +543,20 @@ def tool_generate_slides(
                     continue
                 if i == 0 and not section.startswith("## "):
                     lines = section.split("\n", 1)
-                    slide_data.append({
-                        "title": lines[0].lstrip("# ").strip(),
-                        "body": lines[1].strip() if len(lines) > 1 else "",
-                    })
+                    slide_data.append(
+                        {
+                            "title": lines[0].lstrip("# ").strip(),
+                            "body": lines[1].strip() if len(lines) > 1 else "",
+                        }
+                    )
                 else:
                     lines = section.split("\n", 1)
-                    slide_data.append({
-                        "title": lines[0].strip(),
-                        "body": lines[1].strip() if len(lines) > 1 else "",
-                    })
+                    slide_data.append(
+                        {
+                            "title": lines[0].strip(),
+                            "body": lines[1].strip() if len(lines) > 1 else "",
+                        }
+                    )
 
         result = create_slides(
             title=title,
@@ -556,6 +565,7 @@ def tool_generate_slides(
         )
         try:
             from core.security.audit_log import audit
+
             audit(
                 actor=user_open_id or "mcp",
                 action="mcp.generate_slides",
@@ -566,14 +576,16 @@ def tool_generate_slides(
             )
         except Exception:
             pass
-        return _ok({
-            "slide_token": result.get("slide_token", ""),
-            "url": result.get("url", ""),
-            "local_path": result.get("local_path", ""),
-            "slide_count": len(slide_data),
-            "title": title,
-            "note": result.get("note", ""),
-        })
+        return _ok(
+            {
+                "slide_token": result.get("slide_token", ""),
+                "url": result.get("url", ""),
+                "local_path": result.get("local_path", ""),
+                "slide_count": len(slide_data),
+                "title": title,
+                "note": result.get("note", ""),
+            }
+        )
     except Exception as e:
         logger.exception("generate_slides error")
         return _err("internal_error", str(e))
@@ -587,11 +599,14 @@ def tool_list_plans(
     limit = max(1, min(limit, 100))
     try:
         from core.agent_pilot.service import list_plans
+
         plans = list_plans(user_open_id=user_open_id, limit=limit)
-        return _ok({
-            "count": len(plans),
-            "plans": plans,
-        })
+        return _ok(
+            {
+                "count": len(plans),
+                "plans": plans,
+            }
+        )
     except Exception as e:
         logger.exception("list_plans error")
         return _err("internal_error", str(e))
@@ -607,6 +622,7 @@ def tool_sync_state(
         return _err("invalid_input", "room is required")
     try:
         from core.sync.crdt_hub import default_hub
+
         hub = default_hub()
 
         client_count = 0
@@ -620,10 +636,7 @@ def tool_sync_state(
 
             if hasattr(room_obj, "presence"):
                 for client_id, pinfo in room_obj.presence.items():
-                    presence.append(
-                        pinfo.to_dict() if hasattr(pinfo, "to_dict")
-                        else {"client_id": client_id}
-                    )
+                    presence.append(pinfo.to_dict() if hasattr(pinfo, "to_dict") else {"client_id": client_id})
 
             if include_history and hasattr(room_obj, "history"):
                 hist_items = list(room_obj.history)
@@ -642,14 +655,16 @@ def tool_sync_state(
                 raw_presence = hub.get_presence(room)
                 presence = raw_presence if isinstance(raw_presence, list) else []
 
-        return _ok({
-            "room": room,
-            "client_count": client_count,
-            "presence": presence,
-            "history": history if include_history else [],
-            "history_count": len(history),
-            "has_ydoc": has_ydoc,
-        })
+        return _ok(
+            {
+                "room": room,
+                "client_count": client_count,
+                "presence": presence,
+                "history": history if include_history else [],
+                "history_count": len(history),
+                "has_ydoc": has_ydoc,
+            }
+        )
     except Exception as e:
         logger.exception("sync_state error")
         return _err("internal_error", str(e))
@@ -672,20 +687,26 @@ def tool_send_im_message(
 
         if msg_type == "card" and card:
             from agent.tools.im_tools import send_card
+
             result = send_card(chat_id=target, card=card)
-            return _ok({
-                "message_id": result.get("message_id", ""),
-                "target": target,
-                "msg_type": "card",
-            })
+            return _ok(
+                {
+                    "message_id": result.get("message_id", ""),
+                    "target": target,
+                    "msg_type": "card",
+                }
+            )
         else:
             from agent.tools.im_tools import send_text
+
             result = send_text(chat_id=target, text=text)
-            return _ok({
-                "message_id": result.get("message_id", ""),
-                "target": target,
-                "msg_type": "text",
-            })
+            return _ok(
+                {
+                    "message_id": result.get("message_id", ""),
+                    "target": target,
+                    "msg_type": "text",
+                }
+            )
     except Exception as e:
         logger.exception("send_im_message error")
         return _err("internal_error", str(e))
@@ -738,12 +759,15 @@ TOOL_REGISTRY: Dict[str, tuple] = {
 # Legacy v3 tool aliases for backward compatibility
 # ---------------------------------------------------------------------------
 
-def tool_classify_readonly(user_open_id: str = "", sender_name: str = "",
-                           sender_id: str = "", content: str = "", **kwargs) -> Dict[str, Any]:
+
+def tool_classify_readonly(
+    user_open_id: str = "", sender_name: str = "", sender_id: str = "", content: str = "", **kwargs
+) -> Dict[str, Any]:
     """MCP v2 tool: classify a message in readonly mode (no state mutation)."""
     try:
         from core.smart_shield import classify_message
         from memory.user_state import get_user
+
         user = get_user(user_open_id)
         result = classify_message(user, sender_name, sender_id, content, "")
         return {
@@ -758,8 +782,13 @@ def tool_classify_readonly(user_open_id: str = "", sender_name: str = "",
             },
         }
     except Exception:
-        return {"readonly": True, "level": "P2", "reason": "fallback", "score": 0.3,
-                "dimensions": {"urgency": 0.3, "sender_trust": 0.5, "context_relevance": 0.5}}
+        return {
+            "readonly": True,
+            "level": "P2",
+            "reason": "fallback",
+            "score": 0.3,
+            "dimensions": {"urgency": 0.3, "sender_trust": 0.5, "context_relevance": 0.5},
+        }
 
 
 def tool_skill_invoke(skill_name: str = "", args: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
@@ -767,6 +796,7 @@ def tool_skill_invoke(skill_name: str = "", args: Optional[Dict[str, Any]] = Non
     args = args or {}
     try:
         from agent.skills import default_skills_loader
+
         loader = default_skills_loader()
         result = loader.invoke(skill_name, args)
         return {"ok": True, "skill": skill_name, "result": result}
@@ -774,9 +804,15 @@ def tool_skill_invoke(skill_name: str = "", args: Optional[Dict[str, Any]] = Non
         return {"ok": False, "skill": skill_name, "error": str(e)}
 
 
-def tool_memory_resolve(user_id: str = "", user_open_id: str = "",
-                        query: str = "", department_id: str = "",
-                        group_id: str = "", session_id: str = "", **kwargs) -> Dict[str, Any]:
+def tool_memory_resolve(
+    user_id: str = "",
+    user_open_id: str = "",
+    query: str = "",
+    department_id: str = "",
+    group_id: str = "",
+    session_id: str = "",
+    **kwargs,
+) -> Dict[str, Any]:
     """MCP v2 tool: resolve relevant memories across all 6 tiers.
 
     Returns merged markdown content and tier metadata.
@@ -791,6 +827,7 @@ def tool_memory_resolve(user_id: str = "", user_open_id: str = "",
 
     try:
         from core.flow_memory.archival import query_archival
+
         entries = query_archival(uid, limit=5)
         for e in entries:
             parts.append(f"- [{e.kind}] {e.summary_md}")
@@ -817,6 +854,7 @@ def tool_list_skills(**kwargs) -> Dict[str, Any]:
     ]
     try:
         from agent.skills import default_skills_loader
+
         loader = default_skills_loader()
         names = loader.list_skills()
         skills = [{"name": n, "description": ""} for n in names]
@@ -830,16 +868,20 @@ def tool_list_skills(**kwargs) -> Dict[str, Any]:
 def _legacy_query_memory(**kwargs) -> Dict[str, Any]:
     return tool_query_memory(**kwargs)
 
+
 def _legacy_classify(**kwargs) -> Dict[str, Any]:
     try:
         from core.smart_shield import classify_message
+
         text = kwargs.get("text", "")
         return classify_message(None, "", "", text, "")
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
+
 def _legacy_noop(**kwargs) -> Dict[str, Any]:
     return {"ok": True, "message": "legacy stub"}
+
 
 # Register v2 tools
 _V2_SCHEMA = {"description": "MCP v2 tool", "inputSchema": {"type": "object", "properties": {}}}
@@ -850,23 +892,35 @@ TOOL_REGISTRY["list_skills"] = (tool_list_skills, "List available skills", _V2_S
 
 _LEGACY_SCHEMA = {"description": "Legacy compatibility tool", "inputSchema": {"type": "object", "properties": {}}}
 _LEGACY_TOOL_NAMES = (
-    "query_memory", "classify_message", "get_focus_status",
-    "add_whitelist", "rollback_decision", "get_recent_digest",
-    "mentor_review_message", "mentor_clarify_task",
-    "mentor_search_org_kb", "mentor_draft_weekly",
-    "coach_review_message", "coach_clarify_task",
-    "coach_search_org_kb", "coach_draft_weekly",
+    "query_memory",
+    "classify_message",
+    "get_focus_status",
+    "add_whitelist",
+    "rollback_decision",
+    "get_recent_digest",
+    "mentor_review_message",
+    "mentor_clarify_task",
+    "mentor_search_org_kb",
+    "mentor_draft_weekly",
+    "coach_review_message",
+    "coach_clarify_task",
+    "coach_search_org_kb",
+    "coach_draft_weekly",
 )
 for _name in _LEGACY_TOOL_NAMES:
     if _name not in TOOL_REGISTRY:
-        _fn = _legacy_query_memory if _name == "query_memory" else (
-              _legacy_classify if _name == "classify_message" else _legacy_noop)
+        _fn = (
+            _legacy_query_memory
+            if _name == "query_memory"
+            else (_legacy_classify if _name == "classify_message" else _legacy_noop)
+        )
         TOOL_REGISTRY[_name] = (_fn, f"Legacy {_name}", _LEGACY_SCHEMA)
 
 
 # ---------------------------------------------------------------------------
 # Public API (used by server.py)
 # ---------------------------------------------------------------------------
+
 
 def list_tools() -> List[Dict[str, Any]]:
     """Return tool descriptors for MCP registration."""
@@ -884,18 +938,16 @@ def list_tools() -> List[Dict[str, Any]]:
 def call_tool(name: str, arguments: Dict[str, Any]) -> Any:
     """Dispatch a tool call by name with structured error handling."""
     if name not in TOOL_REGISTRY:
-        return _err("unknown_tool", f"Tool '{name}' not found",
-                     available=[n for n in TOOL_REGISTRY])
+        return _err("unknown_tool", f"Tool '{name}' not found", available=[n for n in TOOL_REGISTRY])
     fn = TOOL_REGISTRY[name][0]
     try:
         return fn(**arguments)
     except TypeError as e:
-        return _err("bad_arguments", f"Invalid arguments for {name}: {e}",
-                     expected=list(
-                         TOOL_SCHEMAS.get(name, {})
-                         .get("inputSchema", {})
-                         .get("properties", {}).keys()
-                     ))
+        return _err(
+            "bad_arguments",
+            f"Invalid arguments for {name}: {e}",
+            expected=list(TOOL_SCHEMAS.get(name, {}).get("inputSchema", {}).get("properties", {}).keys()),
+        )
     except Exception as e:
         logger.exception("tool %s error", name)
         return _err("internal_error", str(e))
@@ -915,6 +967,7 @@ def to_json(value: Any) -> str:
 # Backward-compatible aliases for legacy test imports
 # ---------------------------------------------------------------------------
 
+
 def tool_query_memory(user_id: str = "", query: str = "", *, limit: int = 10, **kwargs) -> list:
     """Legacy alias: query long-term memory (archival summaries).
 
@@ -922,6 +975,7 @@ def tool_query_memory(user_id: str = "", query: str = "", *, limit: int = 10, **
     """
     try:
         from core.flow_memory.archival import query_archival
+
         entries = query_archival(user_id, limit=limit)
         results = [{"summary_md": e.summary_md, "kind": e.kind, "ts": e.ts} for e in entries]
         if query:
@@ -931,6 +985,7 @@ def tool_query_memory(user_id: str = "", query: str = "", *, limit: int = 10, **
         pass
     try:
         from agent.memory import default_memory
+
         mem = default_memory()
         raw = mem.recent(tenant_id="default", limit=limit)
         return [{"summary_md": r.content, "kind": r.kind} for r in raw]

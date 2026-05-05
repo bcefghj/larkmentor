@@ -52,6 +52,7 @@ MCP_SERVER_VERSION = "2.0.0"
 # Authentication
 # ---------------------------------------------------------------------------
 
+
 def _get_secret() -> Optional[str]:
     return os.getenv("AGENT_PILOT_MCP_SECRET")
 
@@ -79,6 +80,7 @@ def _extract_bearer(auth_header: Optional[str]) -> Optional[str]:
 # MCP proper (official SDK)
 # ---------------------------------------------------------------------------
 
+
 def _start_mcp_proper(transport: str, port: int, host: str) -> bool:
     """Start server via the official ``mcp`` SDK. Returns False if unavailable."""
     try:
@@ -94,6 +96,7 @@ def _start_mcp_proper(transport: str, port: int, host: str) -> bool:
 
     def _make_wrapper(name: str, fn, schema: Dict[str, Any]):
         """Create an async wrapper with correct signature for FastMCP."""
+
         async def wrapper(**kwargs: Any) -> Any:
             if _get_secret():
                 auth_token = kwargs.pop("_auth_token", None)
@@ -112,8 +115,7 @@ def _start_mcp_proper(transport: str, port: int, host: str) -> bool:
             description=doc,
         )(wrapper)
 
-    logger.info("Starting MCP server (%s transport) name=%s version=%s",
-                transport, MCP_SERVER_NAME, MCP_SERVER_VERSION)
+    logger.info("Starting MCP server (%s transport) name=%s version=%s", transport, MCP_SERVER_NAME, MCP_SERVER_VERSION)
 
     if transport == "stdio":
         server.run("stdio")
@@ -125,6 +127,7 @@ def _start_mcp_proper(transport: str, port: int, host: str) -> bool:
 # ---------------------------------------------------------------------------
 # Visual HTML page
 # ---------------------------------------------------------------------------
+
 
 def _render_visual_html() -> str:
     """Self-contained HTML that lists every MCP tool with try-it-live UI."""
@@ -212,6 +215,7 @@ def _render_visual_html() -> str:
 # Fallback HTTP server
 # ---------------------------------------------------------------------------
 
+
 class _MCPHandler(BaseHTTPRequestHandler):
     """JSON HTTP adapter — works without the ``mcp`` SDK."""
 
@@ -252,28 +256,34 @@ class _MCPHandler(BaseHTTPRequestHandler):
             return
 
         if path in ("/health", "/mcp/health"):
-            self._json(200, {
-                "status": "ok",
-                "server": MCP_SERVER_NAME,
-                "version": MCP_SERVER_VERSION,
-                "tools_count": len(TOOL_REGISTRY),
-                "auth_required": bool(_get_secret()),
-                "ts": int(time.time()),
-            })
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "server": MCP_SERVER_NAME,
+                    "version": MCP_SERVER_VERSION,
+                    "tools_count": len(TOOL_REGISTRY),
+                    "auth_required": bool(_get_secret()),
+                    "ts": int(time.time()),
+                },
+            )
             return
 
         if path in ("/tools", "/mcp/tools", "/list_tools", "/mcp/tools.json"):
             if not self._check_auth():
                 return
-            self._json(200, {
-                "server": MCP_SERVER_NAME,
-                "version": MCP_SERVER_VERSION,
-                "tools": list_tools(),
-            })
+            self._json(
+                200,
+                {
+                    "server": MCP_SERVER_NAME,
+                    "version": MCP_SERVER_VERSION,
+                    "tools": list_tools(),
+                },
+            )
             return
 
         if path.startswith("/mcp/schema/"):
-            tool_name = path[len("/mcp/schema/"):]
+            tool_name = path[len("/mcp/schema/") :]
             schema = get_tool_schema(tool_name)
             if schema:
                 self._json(200, schema)
@@ -303,8 +313,7 @@ class _MCPHandler(BaseHTTPRequestHandler):
             tool_name = body.get("tool") or body.get("name", "")
             args = body.get("arguments", {}) or body.get("params", {}) or {}
             if not tool_name:
-                self._json(400, _err("missing_tool",
-                                     "Request body must include 'tool' field"))
+                self._json(400, _err("missing_tool", "Request body must include 'tool' field"))
                 return
             result = call_tool(tool_name, args)
             self._json(200, result)
@@ -318,10 +327,13 @@ class _MCPHandler(BaseHTTPRequestHandler):
                 self._json(400, _err("missing_tool", "'name' field required"))
                 return
             result = call_tool(tool_name, args)
-            self._json(200, {
-                "content": [{"type": "text", "text": to_json(result)}],
-                "isError": bool(isinstance(result, dict) and result.get("error")),
-            })
+            self._json(
+                200,
+                {
+                    "content": [{"type": "text", "text": to_json(result)}],
+                    "isError": bool(isinstance(result, dict) and result.get("error")),
+                },
+            )
             return
 
         self._json(404, _err("not_found", f"Unknown path: {self.path}"))
@@ -332,8 +344,7 @@ class _MCPHandler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers",
-                         "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -346,10 +357,12 @@ def _start_http_server(host: str, port: int) -> None:
     auth_msg = " (auth ENABLED)" if _get_secret() else " (auth DISABLED)"
     logger.info(
         "%s MCP HTTP server listening on http://%s:%s%s",
-        MCP_SERVER_NAME, host, port, auth_msg,
+        MCP_SERVER_NAME,
+        host,
+        port,
+        auth_msg,
     )
-    print(f"✓ {MCP_SERVER_NAME} MCP server running at http://{host}:{port}{auth_msg}",
-          file=sys.stderr)
+    print(f"✓ {MCP_SERVER_NAME} MCP server running at http://{host}:{port}{auth_msg}", file=sys.stderr)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -360,6 +373,7 @@ def _start_http_server(host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # CLI entry point
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -382,8 +396,11 @@ def main(argv: list[str] | None = None) -> int:
 
     logger.info(
         "Starting %s v%s transport=%s host=%s port=%s tools=%d",
-        MCP_SERVER_NAME, MCP_SERVER_VERSION,
-        args.transport, args.host, args.port,
+        MCP_SERVER_NAME,
+        MCP_SERVER_VERSION,
+        args.transport,
+        args.host,
+        args.port,
         len(TOOL_REGISTRY),
     )
 

@@ -24,7 +24,11 @@ class PIIReport:
 
 _PATTERNS: List[tuple[str, re.Pattern[str], str]] = [
     ("phone_cn", re.compile(r"\b1[3-9]\d{9}\b"), "[PHONE]"),
-    ("idcard_cn", re.compile(r"\b[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"), "[IDCARD]"),
+    (
+        "idcard_cn",
+        re.compile(r"\b[1-9]\d{5}(?:18|19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b"),
+        "[IDCARD]",
+    ),
     ("email", re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"), "[EMAIL]"),
     ("bankcard", re.compile(r"\b(?:\d[ -]*?){13,19}\b"), "[BANKCARD]"),
     ("open_id", re.compile(r"\bou_[A-Za-z0-9]{20,}\b"), "[OPEN_ID]"),

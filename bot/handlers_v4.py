@@ -33,7 +33,7 @@ def classify_intent(text: str) -> Dict[str, Any]:
         return {"kind": "command", "command": cmd, "args": args}
 
     # @-addressed named agent
-    m = re.match(r'^@(\w+)\s+(.+)$', text_stripped, re.DOTALL)
+    m = re.match(r"^@(\w+)\s+(.+)$", text_stripped, re.DOTALL)
     if m:
         return {"kind": "named_agent", "agent": m.group(1), "task": m.group(2)}
 
@@ -41,8 +41,7 @@ def classify_intent(text: str) -> Dict[str, Any]:
     text_lower = text_stripped.lower()
 
     # Pilot indicators
-    pilot_kws = ["pilot", "方案", "文档", "ppt", "演示", "整理", "做个", "做一份",
-                 "生成", "规划", "闭环", "汇报"]
+    pilot_kws = ["pilot", "方案", "文档", "ppt", "演示", "整理", "做个", "做一份", "生成", "规划", "闭环", "汇报"]
     if any(kw in text_lower for kw in pilot_kws):
         return {"kind": "pilot", "team": "pilot", "task": text_stripped}
 
@@ -59,9 +58,13 @@ def classify_intent(text: str) -> Dict[str, Any]:
 
 
 def handle_message(
-    *, text: str, user_open_id: str = "",
-    chat_id: str = "", chat_type: str = "p2p",
-    sender_name: str = "", sender_id: str = "",
+    *,
+    text: str,
+    user_open_id: str = "",
+    chat_id: str = "",
+    chat_type: str = "p2p",
+    sender_name: str = "",
+    sender_id: str = "",
     tenant_id: str = "default",
 ) -> Dict[str, Any]:
     """Main entry: unified message handler v4."""
@@ -131,12 +134,17 @@ def _cmd_help() -> Dict[str, Any]:
 
 def _cmd_context() -> Dict[str, Any]:
     from agent import default_context_manager, default_memory, default_permission_gate
+
     snap = {
         "context_compression": default_context_manager().snapshot(),
         "memory": default_memory().snapshot(),
         "permissions": default_permission_gate().snapshot(),
     }
-    return {"ok": True, "reply": "```json\n" + json.dumps(snap, ensure_ascii=False, indent=2)[:3000] + "\n```", "data": snap}
+    return {
+        "ok": True,
+        "reply": "```json\n" + json.dumps(snap, ensure_ascii=False, indent=2)[:3000] + "\n```",
+        "data": snap,
+    }
 
 
 def _cmd_plan(intent_text: str, *, user_open_id: str, tenant_id: str) -> Dict[str, Any]:
@@ -144,9 +152,10 @@ def _cmd_plan(intent_text: str, *, user_open_id: str, tenant_id: str) -> Dict[st
     if not intent_text:
         return {"ok": True, "reply": "用法: /plan <描述你的意图>"}
     from agent.router import default_router
+
     dec = default_router().route(intent_text)
     # Just run lead plan, don't spawn workers
-    providers = __import__('agent.providers', fromlist=['default_providers']).default_providers()
+    providers = __import__("agent.providers", fromlist=["default_providers"]).default_providers()
     prompt = (
         f"规划模式（不执行）：请把下面的意图分解成 JSON 步骤，不真调工具。\n\n"
         f"意图：{intent_text}\n\n"
@@ -161,6 +170,7 @@ def _cmd_plan(intent_text: str, *, user_open_id: str, tenant_id: str) -> Dict[st
 def _cmd_skills() -> Dict[str, Any]:
     from agent import default_skills_loader
     from agent.tools import get_registry
+
     loader = default_skills_loader()
     tools = get_registry()
     summary = {
@@ -181,6 +191,7 @@ def _cmd_skills() -> Dict[str, Any]:
 
 def _cmd_mcp() -> Dict[str, Any]:
     from agent import default_mcp_manager
+
     mgr = default_mcp_manager()
     if not mgr._started:
         mgr.start()
@@ -194,12 +205,20 @@ def _cmd_swarm(topic: str, *, user_open_id: str, tenant_id: str) -> Dict[str, An
         return {"ok": True, "reply": "用法: /swarm <话题>"}
     from agent.patterns.debate import debate_round
     from agent.providers import default_providers
+
     providers = default_providers()
 
-    def _doubao(p): return providers.chat([{"role": "user", "content": p}], task_kind="chinese_chat", max_tokens=800)
-    def _minimax(p): return providers.chat([{"role": "user", "content": p}], task_kind="reasoning", max_tokens=800)
-    def _deepseek(p): return providers.chat([{"role": "user", "content": p}], task_kind="summary", max_tokens=800)
-    def _judge(p): return providers.chat([{"role": "user", "content": p}], task_kind="validation", max_tokens=600)
+    def _doubao(p):
+        return providers.chat([{"role": "user", "content": p}], task_kind="chinese_chat", max_tokens=800)
+
+    def _minimax(p):
+        return providers.chat([{"role": "user", "content": p}], task_kind="reasoning", max_tokens=800)
+
+    def _deepseek(p):
+        return providers.chat([{"role": "user", "content": p}], task_kind="summary", max_tokens=800)
+
+    def _judge(p):
+        return providers.chat([{"role": "user", "content": p}], task_kind="validation", max_tokens=600)
 
     result = debate_round(topic, llm_doubao=_doubao, llm_minimax=_minimax, llm_deepseek=_deepseek, llm_judge=_judge)
     return {"ok": True, "reply": f"[{result['rounds']} 轮辩论收敛]\n\n{result['answer']}", "data": result}
@@ -207,13 +226,18 @@ def _cmd_swarm(topic: str, *, user_open_id: str, tenant_id: str) -> Dict[str, An
 
 def _cmd_quality(plan_id: str) -> Dict[str, Any]:
     from agent.validators import default_quality_gates
+
     runner = default_quality_gates()
     # Get last plan output from data
     try:
         from pathlib import Path
+
         plans_dir = Path("data/pilot_plans")
-        candidates = sorted(plans_dir.glob(f"*{plan_id}*.json") if plan_id else plans_dir.glob("*.json"),
-                            key=lambda p: p.stat().st_mtime, reverse=True)[:1]
+        candidates = sorted(
+            plans_dir.glob(f"*{plan_id}*.json") if plan_id else plans_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )[:1]
         if not candidates:
             return {"ok": True, "reply": "未找到 plan，先跑 /pilot <任务>"}
         content = candidates[0].read_text()
@@ -225,6 +249,7 @@ def _cmd_quality(plan_id: str) -> Dict[str, Any]:
 
 def _cmd_model(model: str) -> Dict[str, Any]:
     from agent.providers import default_providers
+
     providers = default_providers()
     if not model:
         return {"ok": True, "reply": json.dumps(providers.snapshot()["providers"], ensure_ascii=False, indent=2)}
@@ -242,12 +267,19 @@ def _cmd_model(model: str) -> Dict[str, Any]:
 def _run_pilot(task: str, *, user_open_id: str, chat_id: str, tenant_id: str) -> Dict[str, Any]:
     """场景 A→B→C→D→F 组合编排 via Orchestrator-Worker."""
     from agent.orchestrator_worker import default_orchestrator_worker
+
     ow = default_orchestrator_worker()
-    providers = __import__('agent.providers', fromlist=['default_providers']).default_providers()
+    providers = __import__("agent.providers", fromlist=["default_providers"]).default_providers()
     providers.reset_plan_budget()
-    result = ow.sync_run(task, team="pilot", extra_context={
-        "user_open_id": user_open_id, "chat_id": chat_id, "tenant_id": tenant_id,
-    })
+    result = ow.sync_run(
+        task,
+        team="pilot",
+        extra_context={
+            "user_open_id": user_open_id,
+            "chat_id": chat_id,
+            "tenant_id": tenant_id,
+        },
+    )
     return {
         "ok": result.ok,
         "reply": result.final_synthesis or "（编排完成，查看 /dashboard）",
@@ -261,11 +293,13 @@ def _run_pilot(task: str, *, user_open_id: str, chat_id: str, tenant_id: str) ->
 
 def _run_named_agent(agent_name: str, task: str, *, user_open_id: str, tenant_id: str) -> Dict[str, Any]:
     from agent.named_agents import default_named_agents
+
     registry = default_named_agents()
     agent = registry.get(agent_name)
     if not agent:
         return {"ok": False, "reply": f"未找到 agent: @{agent_name}。可选: {registry.list_names()}"}
     from agent.providers import default_providers
+
     out = default_providers().chat(
         messages=[
             {"role": "system", "content": agent.instruction},
@@ -283,6 +317,7 @@ def _run_mentor(task: str, *, user_open_id: str, tenant_id: str) -> Dict[str, An
 
 def _run_chat(text: str, *, user_open_id: str, tenant_id: str) -> Dict[str, Any]:
     from agent.providers import default_providers
+
     out = default_providers().chat(
         messages=[
             {"role": "system", "content": "你是 LarkMentor，一个对标 Claude Code 的办公协同 AI。"},

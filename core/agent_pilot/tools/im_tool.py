@@ -34,8 +34,7 @@ def im_fetch_thread(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     cp_messages: List[Dict[str, Any]] = []
     if cp and hasattr(cp, "source_messages") and cp.source_messages:
         cp_messages = [
-            {"sender": m.sender_open_id, "ts": m.ts, "text": m.text,
-             "message_id": getattr(m, "msg_id", "")}
+            {"sender": m.sender_open_id, "ts": m.ts, "text": m.text, "message_id": getattr(m, "msg_id", "")}
             for m in cp.source_messages
         ]
 
@@ -73,17 +72,14 @@ def im_send_message(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
         import lark_oapi.api.im.v1 as im_api
 
         from bot.feishu_client import get_client
+
         client = get_client()
         content = json.dumps({"text": text})
         req = (
             im_api.CreateMessageRequest.builder()
             .receive_id_type("chat_id")
             .request_body(
-                im_api.CreateMessageRequestBody.builder()
-                .receive_id(chat_id)
-                .msg_type("text")
-                .content(content)
-                .build()
+                im_api.CreateMessageRequestBody.builder().receive_id(chat_id).msg_type("text").content(content).build()
             )
             .build()
         )
@@ -120,6 +116,7 @@ def _try_fetch_real(chat_id: str, limit: int) -> List[Dict[str, Any]]:
         import lark_oapi.api.im.v1 as im_api
 
         from bot.feishu_client import get_client
+
         client = get_client()
 
         all_messages: List[Dict[str, Any]] = []
@@ -150,13 +147,15 @@ def _try_fetch_real(chat_id: str, limit: int) -> List[Dict[str, Any]]:
                 text = _extract_text(m)
                 if not text:
                     continue
-                all_messages.append({
-                    "sender": getattr(getattr(m, "sender", None), "id", "") or "unknown",
-                    "ts": int(getattr(m, "create_time", 0) or 0) // 1000,
-                    "text": text[:500],
-                    "message_id": getattr(m, "message_id", ""),
-                    "msg_type": msg_type,
-                })
+                all_messages.append(
+                    {
+                        "sender": getattr(getattr(m, "sender", None), "id", "") or "unknown",
+                        "ts": int(getattr(m, "create_time", 0) or 0) // 1000,
+                        "text": text[:500],
+                        "message_id": getattr(m, "message_id", ""),
+                        "msg_type": msg_type,
+                    }
+                )
 
             remaining -= len(resp.data.items)
             page_token = getattr(resp.data, "page_token", None)
@@ -202,21 +201,27 @@ def _try_fetch_via_cli(chat_id: str, limit: int) -> List[Dict[str, Any]]:
     try:
         import shutil
         import subprocess
+
         cli = shutil.which("lark-cli") or shutil.which("lark")
         if not cli:
             return []
         result = subprocess.run(
-            [cli, "messenger", "read", "--chat-id", chat_id,
-             "--limit", str(min(limit, 50)), "--output", "json"],
-            capture_output=True, text=True, timeout=15,
+            [cli, "messenger", "read", "--chat-id", chat_id, "--limit", str(min(limit, 50)), "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
         if result.returncode != 0:
             return []
         data = json.loads(result.stdout)
         messages = data if isinstance(data, list) else data.get("messages", [])
         return [
-            {"sender": m.get("sender", "unknown"), "ts": m.get("ts", 0),
-             "text": m.get("text", "")[:500], "message_id": m.get("message_id", "")}
+            {
+                "sender": m.get("sender", "unknown"),
+                "ts": m.get("ts", 0),
+                "text": m.get("text", "")[:500],
+                "message_id": m.get("message_id", ""),
+            }
             for m in messages[:limit]
         ]
     except Exception as e:
@@ -239,8 +244,11 @@ def _synthetic(limit: int) -> List[Dict[str, Any]]:
         "李洁盈：三线产品的合体点也很重要，Shield+Mentor+Pilot 要真正联动",
     ][: max(2, min(limit, 10))]
     return [
-        {"sender": line.split("：", 1)[0], "ts": base + i * 300,
-         "text": line.split("：", 1)[1] if "：" in line else line,
-         "message_id": f"syn_msg_{i}"}
+        {
+            "sender": line.split("：", 1)[0],
+            "ts": base + i * 300,
+            "text": line.split("：", 1)[1] if "：" in line else line,
+            "message_id": f"syn_msg_{i}",
+        }
         for i, line in enumerate(convo)
     ]

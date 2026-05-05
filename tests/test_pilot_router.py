@@ -3,6 +3,7 @@
 模拟从 IM 文本消息 → 三闸门 → 任务卡 → 按钮回调 → 状态机推进的完整链路,
 不联通飞书。
 """
+
 from __future__ import annotations
 
 import json
@@ -21,17 +22,26 @@ from core.agent_pilot.domain import TaskState
 
 
 def _mock_llm_yes(text: str) -> str:
-    return json.dumps({
-        "is_task": True, "task_type": "ppt",
-        "goal": "活动复盘汇报", "resources": ["数据"],
-        "next_step": "确认", "confidence": 0.88,
-    })
+    return json.dumps(
+        {
+            "is_task": True,
+            "task_type": "ppt",
+            "goal": "活动复盘汇报",
+            "resources": ["数据"],
+            "next_step": "确认",
+            "confidence": 0.88,
+        }
+    )
 
 
 def _mock_llm_no(text: str) -> str:
-    return json.dumps({
-        "is_task": False, "goal": "", "confidence": 0.1,
-    })
+    return json.dumps(
+        {
+            "is_task": False,
+            "goal": "",
+            "confidence": 0.1,
+        }
+    )
 
 
 @pytest.fixture
@@ -78,7 +88,9 @@ def test_router_silent_on_not_intent(router):
     """无关键词 → 直接 silent."""
     router.intent_detector.llm_caller = _mock_llm_no
     res = router.handle_chat_message(
-        sender_open_id="u1", text="今天天气不错", chat_id="g1",
+        sender_open_id="u1",
+        text="今天天气不错",
+        chat_id="g1",
     )
     assert res.handled
     assert res.verdict == "not_intent"
@@ -88,8 +100,10 @@ def test_router_silent_on_not_intent(router):
 
 def test_router_skips_when_in_focus_mode(router):
     res = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报",
-        chat_id="g1", in_focus_mode=True,
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
+        in_focus_mode=True,
     )
     assert not res.handled
     assert res.verdict == "focus_mode_bypass"
@@ -108,11 +122,15 @@ def test_router_handles_explicit_pilot_command(router):
 
 def test_router_cooldown_blocks_repeat(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     assert res1.verdict == "ready"
     res2 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     assert res2.verdict == "cooldown"
     assert len(router._sent_cards) == 1  # 第二次不弹卡
@@ -120,6 +138,7 @@ def test_router_cooldown_blocks_repeat(router):
 
 def test_router_clarify_when_lowconf(tmp_path):
     """低置信度 → 弹 clarify card."""
+
     def lowconf(text):
         return json.dumps({"is_task": True, "goal": "x", "confidence": 0.30})
 
@@ -133,7 +152,9 @@ def test_router_clarify_when_lowconf(tmp_path):
         card_sender=lambda t, c, *, scope: sent.append((t, c, scope)) or "ok",
     )
     res = r.handle_chat_message(
-        sender_open_id="u1", text="下周做汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做汇报",
+        chat_id="g1",
     )
     assert res.verdict == "clarify"
     # clarify card 包含至少 1 个 PRD §5 模板澄清问题
@@ -146,7 +167,9 @@ def test_router_clarify_when_lowconf(tmp_path):
 
 def test_router_action_confirm_advances_state(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     task_id = res1.task_id
 
@@ -163,7 +186,9 @@ def test_router_action_confirm_advances_state(router):
 
 def test_router_action_ignore_marks_cooldown(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     res2 = router.handle_card_action(
         actor_open_id="u1",
@@ -177,7 +202,9 @@ def test_router_action_ignore_marks_cooldown(router):
 
 def test_router_action_assign_to_changes_owner(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     res = router.handle_card_action(
         actor_open_id="u1",
@@ -200,7 +227,9 @@ def test_router_action_claim_self_no_owner_initially(tmp_path):
         card_sender=lambda *a, **k: sent.append(a) or "ok",
     )
     res1 = r.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     res2 = r.handle_card_action(
         actor_open_id="u3",
@@ -214,30 +243,41 @@ def test_router_action_claim_self_no_owner_initially(tmp_path):
 
 def test_router_action_confirm_context_runs_planner(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报给老板", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报给老板",
+        chat_id="g1",
     )
     router.handle_card_action(
-        actor_open_id="u1", action="pilot.task.confirm",
+        actor_open_id="u1",
+        action="pilot.task.confirm",
         value={"task_id": res1.task_id},
     )
     res = router.handle_card_action(
-        actor_open_id="u1", action="pilot.ctx.confirm",
+        actor_open_id="u1",
+        action="pilot.ctx.confirm",
         value={"task_id": res1.task_id},
     )
     assert res.verdict == "ctx_confirmed"
     task = router.task_service.get(res1.task_id)
     assert task.plan is not None
     # orchestrator runs in background thread and may advance state past PLANNING
-    import time; time.sleep(0.1)
+    import time
+
+    time.sleep(0.1)
     task = router.task_service.get(res1.task_id)
-    assert task.state in (TaskState.PLANNING, TaskState.DOC_GENERATING,
-                          TaskState.PPT_GENERATING, TaskState.CANVAS_GENERATING,
-                          TaskState.REVIEWING)
+    assert task.state in (
+        TaskState.PLANNING,
+        TaskState.DOC_GENERATING,
+        TaskState.PPT_GENERATING,
+        TaskState.CANVAS_GENERATING,
+        TaskState.REVIEWING,
+    )
 
 
 def test_router_unknown_action_returns_error(router):
     res = router.handle_card_action(
-        actor_open_id="u1", action="pilot.task.unknown",
+        actor_open_id="u1",
+        action="pilot.task.unknown",
         value={"task_id": "x"},
     )
     assert not res.handled
@@ -246,14 +286,18 @@ def test_router_unknown_action_returns_error(router):
 
 def test_router_pause_action(router):
     res1 = router.handle_chat_message(
-        sender_open_id="u1", text="下周做活动复盘汇报", chat_id="g1",
+        sender_open_id="u1",
+        text="下周做活动复盘汇报",
+        chat_id="g1",
     )
     router.handle_card_action(
-        actor_open_id="u1", action="pilot.task.confirm",
+        actor_open_id="u1",
+        action="pilot.task.confirm",
         value={"task_id": res1.task_id},
     )
     res = router.handle_card_action(
-        actor_open_id="u1", action="pilot.task.pause",
+        actor_open_id="u1",
+        action="pilot.task.pause",
         value={"task_id": res1.task_id},
     )
     assert res.verdict == "paused"

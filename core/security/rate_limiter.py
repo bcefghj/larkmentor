@@ -103,7 +103,9 @@ class RateLimiter:
         return RateDecision(
             allowed=True,
             key=f"user={user_open_id[-6:] if user_open_id else '-'} tool={tool or '-'}",
-            used=0, cap=self._default_qpm, reason="ok",
+            used=0,
+            cap=self._default_qpm,
+            reason="ok",
         )
 
     # ── Internal ─────────────────────────────────────────────
@@ -112,7 +114,10 @@ class RateLimiter:
         cap = self.cap_for(key_type, key)
         if cap <= 0:
             return RateDecision(
-                allowed=False, key=f"{key_type}:{key}", used=0, cap=0,
+                allowed=False,
+                key=f"{key_type}:{key}",
+                used=0,
+                cap=0,
                 reason=f"{key_type}_disabled",
             )
         with self._lock:
@@ -126,14 +131,17 @@ class RateLimiter:
                 return RateDecision(
                     allowed=False,
                     key=f"{key_type}:{key}",
-                    used=used, cap=cap,
+                    used=used,
+                    cap=cap,
                     reset_in_sec=reset_in,
                     reason=f"{key_type}_qpm_exceeded",
                 )
         return RateDecision(
             allowed=True,
             key=f"{key_type}:{key}",
-            used=used, cap=cap, reason="ok",
+            used=used,
+            cap=cap,
+            reason="ok",
         )
 
     def _record(self, now: float, key_type: str, key: str) -> None:

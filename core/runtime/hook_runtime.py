@@ -26,40 +26,49 @@ class HookRuntime:
 
     def __init__(self) -> None:
         from core.security.hook_system import default_hooks
+
         self._hs = default_hooks()
 
     # ── Lifecycle events used by ToolRegistry / Domain code ──
 
     def fire_pre_classify(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.PRE_CLASSIFY, payload)
 
     def fire_post_classify(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.POST_CLASSIFY, payload)
 
     def fire_pre_reply(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.PRE_REPLY, payload)
 
     def fire_post_reply(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.POST_REPLY, payload)
 
     def fire_pre_tool_call(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.PRE_TOOL_CALL, payload)
 
     def fire_post_tool_call(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.POST_TOOL_CALL, payload)
 
     def fire_pre_llm_call(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.PRE_LLM_CALL, payload)
 
     def fire_post_llm_call(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         from core.security.hook_system import HookEvent
+
         return self._hs.fire(HookEvent.POST_LLM_CALL, payload)
 
     # ── Registration ─────────────────────────────────────────
@@ -67,6 +76,7 @@ class HookRuntime:
     def register(self, event_name: str, fn: Callable) -> None:
         """Register a hook by event name (one of HookEvent members)."""
         from core.security.hook_system import HookEvent
+
         try:
             ev = HookEvent(event_name)
         except ValueError:
@@ -76,6 +86,7 @@ class HookRuntime:
 
     def load_from_file(self, path: str) -> int:
         from pathlib import Path
+
         return self._hs.load_from_file(Path(path))
 
 

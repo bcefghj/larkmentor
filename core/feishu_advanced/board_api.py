@@ -21,6 +21,7 @@ API_BASE = "https://open.feishu.cn/open-apis"
 def _post(path: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     try:
         from bot.feishu_client import get_tenant_access_token  # type: ignore
+
         tat = get_tenant_access_token()
         if not tat:
             return None
@@ -59,14 +60,28 @@ def create_board(*, title: str) -> str:
     return f"https://www.feishu.cn/board/{wid}"
 
 
-def add_node(*, whiteboard_id: str, shape_type: str, text: str = "",
-             x: float = 100, y: float = 100, w: float = 200, h: float = 80) -> str:
+def add_node(
+    *,
+    whiteboard_id: str,
+    shape_type: str,
+    text: str = "",
+    x: float = 100,
+    y: float = 100,
+    w: float = 200,
+    h: float = 80,
+) -> str:
     """Insert a simple node into the whiteboard. Returns node_id or ''."""
-    body = _post(f"/board/v1/whiteboards/{whiteboard_id}/nodes", {
-        "type": shape_type or "rectangle",
-        "text": text,
-        "x": x, "y": y, "width": w, "height": h,
-    })
+    body = _post(
+        f"/board/v1/whiteboards/{whiteboard_id}/nodes",
+        {
+            "type": shape_type or "rectangle",
+            "text": text,
+            "x": x,
+            "y": y,
+            "width": w,
+            "height": h,
+        },
+    )
     if not body or body.get("code", -1) != 0:
         return ""
     return ((body.get("data") or {}).get("node") or {}).get("node_id", "")

@@ -33,18 +33,18 @@ logger = logging.getLogger("pilot.planner")
 # ── Tool identifiers the planner may emit ──
 # Keep these in sync with agent_pilot/tools/__init__.TOOL_REGISTRY.
 KNOWN_TOOLS = {
-    "im.fetch_thread",          # Scenario A: pull prior IM context
-    "doc.create",               # Scenario C: create a Feishu Docx
-    "doc.append",               # Scenario C: append markdown blocks
-    "canvas.create",            # Scenario C: create tldraw + Feishu board
-    "canvas.add_shape",         # Scenario C: insert shape/image/table
-    "slide.generate",           # Scenario D: Slidev markdown → pptx
-    "slide.rehearse",           # Scenario D: generate speaker notes
-    "voice.transcribe",         # Scenario A: STT for voice commands
-    "archive.bundle",           # Scenario F: bundle + share link
-    "sync.broadcast",           # Scenario E: push to all connected clients
-    "mentor.clarify",           # Advanced: proactively ask user for clarification
-    "mentor.summarize",         # Advanced: summarise IM discussion
+    "im.fetch_thread",  # Scenario A: pull prior IM context
+    "doc.create",  # Scenario C: create a Feishu Docx
+    "doc.append",  # Scenario C: append markdown blocks
+    "canvas.create",  # Scenario C: create tldraw + Feishu board
+    "canvas.add_shape",  # Scenario C: insert shape/image/table
+    "slide.generate",  # Scenario D: Slidev markdown → pptx
+    "slide.rehearse",  # Scenario D: generate speaker notes
+    "voice.transcribe",  # Scenario A: STT for voice commands
+    "archive.bundle",  # Scenario F: bundle + share link
+    "sync.broadcast",  # Scenario E: push to all connected clients
+    "mentor.clarify",  # Advanced: proactively ask user for clarification
+    "mentor.summarize",  # Advanced: summarise IM discussion
 }
 
 
@@ -59,7 +59,7 @@ class PlanStep:
     depends_on: List[str] = field(default_factory=list)
     parallel_group: Optional[str] = None
     # Populated during execution
-    status: str = "pending"       # pending / running / done / failed
+    status: str = "pending"  # pending / running / done / failed
     started_ts: int = 0
     finished_ts: int = 0
     result: Dict[str, Any] = field(default_factory=dict)
@@ -148,8 +148,9 @@ class PilotPlanner:
         # Allow dependency injection for tests.
         self._chat_json = chat_json_fn
 
-    def plan(self, intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]] = None,
-             allow_clarify: bool = True) -> Plan:
+    def plan(
+        self, intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]] = None, allow_clarify: bool = True
+    ) -> Plan:
         intent = (intent or "").strip()
         if not intent:
             raise ValueError("intent must not be empty")
@@ -162,6 +163,7 @@ class PilotPlanner:
         if allow_clarify:
             try:
                 from .advanced import diagnose_intent
+
                 decision = diagnose_intent(intent)
                 if decision.should_clarify:
                     clarify_step = PlanStep(
@@ -192,12 +194,14 @@ class PilotPlanner:
         # Final sanity: guarantee archive.bundle as last step
         if not any(s.tool == "archive.bundle" for s in steps):
             last_ids = [s.step_id for s in steps]
-            steps.append(PlanStep(
-                step_id=f"s{len(steps)+1}",
-                tool="archive.bundle",
-                description="汇总产出并生成分享链接",
-                depends_on=last_ids[-2:] if len(last_ids) >= 2 else last_ids,
-            ))
+            steps.append(
+                PlanStep(
+                    step_id=f"s{len(steps) + 1}",
+                    tool="archive.bundle",
+                    description="汇总产出并生成分享链接",
+                    depends_on=last_ids[-2:] if len(last_ids) >= 2 else last_ids,
+                )
+            )
 
         plan = Plan(
             plan_id=plan_id,
@@ -231,14 +235,16 @@ class PilotPlanner:
             if tool not in KNOWN_TOOLS:
                 logger.warning("planner produced unknown tool=%s, skipping", tool)
                 continue
-            steps.append(PlanStep(
-                step_id=s.get("step_id") or f"s{i}",
-                tool=tool,
-                description=s.get("description", ""),
-                args=s.get("args", {}) or {},
-                depends_on=s.get("depends_on", []) or [],
-                parallel_group=s.get("parallel_group"),
-            ))
+            steps.append(
+                PlanStep(
+                    step_id=s.get("step_id") or f"s{i}",
+                    tool=tool,
+                    description=s.get("description", ""),
+                    args=s.get("args", {}) or {},
+                    depends_on=s.get("depends_on", []) or [],
+                    parallel_group=s.get("parallel_group"),
+                )
+            )
         return steps
 
     # ── Heuristic fallback (also used in offline tests) ──
@@ -258,83 +264,107 @@ class PilotPlanner:
         last_id = None
 
         if want_fetch:
-            sid = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid, tool="im.fetch_thread",
-                description="拉取最近群聊/对话作为上下文",
-                args={"limit": 50},
-            ))
+            sid = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid,
+                    tool="im.fetch_thread",
+                    description="拉取最近群聊/对话作为上下文",
+                    args={"limit": 50},
+                )
+            )
             last_id = sid
 
         parallel_ids: List[str] = []
         if want_doc:
-            sid = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid, tool="doc.create",
-                description="创建飞书 Docx 文档",
-                args={"title": _title_from_intent(intent, "方案")},
-                depends_on=[last_id] if last_id else [],
-                parallel_group="artifact_build",
-            ))
+            sid = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid,
+                    tool="doc.create",
+                    description="创建飞书 Docx 文档",
+                    args={"title": _title_from_intent(intent, "方案")},
+                    depends_on=[last_id] if last_id else [],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid)
-            sid2 = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid2, tool="doc.append",
-                description="根据意图生成 markdown 大纲并写入文档",
-                args={"doc_token": f"${{{sid}.doc_token}}"},
-                depends_on=[sid],
-                parallel_group="artifact_build",
-            ))
+            sid2 = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid2,
+                    tool="doc.append",
+                    description="根据意图生成 markdown 大纲并写入文档",
+                    args={"doc_token": f"${{{sid}.doc_token}}"},
+                    depends_on=[sid],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid2)
 
         if want_canvas:
-            sid = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid, tool="canvas.create",
-                description="创建画布（tldraw + 飞书画板）",
-                args={"title": _title_from_intent(intent, "画布")},
-                depends_on=[last_id] if last_id else [],
-                parallel_group="artifact_build",
-            ))
+            sid = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid,
+                    tool="canvas.create",
+                    description="创建画布（tldraw + 飞书画板）",
+                    args={"title": _title_from_intent(intent, "画布")},
+                    depends_on=[last_id] if last_id else [],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid)
-            sid2 = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid2, tool="canvas.add_shape",
-                description="在画布上绘制初始框架（节点+箭头）",
-                args={"canvas_id": f"${{{sid}.canvas_id}}", "shape_type": "frame"},
-                depends_on=[sid],
-                parallel_group="artifact_build",
-            ))
+            sid2 = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid2,
+                    tool="canvas.add_shape",
+                    description="在画布上绘制初始框架（节点+箭头）",
+                    args={"canvas_id": f"${{{sid}.canvas_id}}", "shape_type": "frame"},
+                    depends_on=[sid],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid2)
 
         if want_slide:
-            sid = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid, tool="slide.generate",
-                description="生成 Slidev PPT（导出 pptx + pdf）",
-                args={"title": _title_from_intent(intent, "演示稿")},
-                depends_on=[last_id] if last_id else [],
-                parallel_group="artifact_build",
-            ))
+            sid = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid,
+                    tool="slide.generate",
+                    description="生成 Slidev PPT（导出 pptx + pdf）",
+                    args={"title": _title_from_intent(intent, "演示稿")},
+                    depends_on=[last_id] if last_id else [],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid)
-            sid2 = f"s{len(steps)+1}"
-            steps.append(PlanStep(
-                step_id=sid2, tool="slide.rehearse",
-                description="为 PPT 生成演讲稿",
-                args={"slide_id": f"${{{sid}.slide_id}}"},
-                depends_on=[sid],
-                parallel_group="artifact_build",
-            ))
+            sid2 = f"s{len(steps) + 1}"
+            steps.append(
+                PlanStep(
+                    step_id=sid2,
+                    tool="slide.rehearse",
+                    description="为 PPT 生成演讲稿",
+                    args={"slide_id": f"${{{sid}.slide_id}}"},
+                    depends_on=[sid],
+                    parallel_group="artifact_build",
+                )
+            )
             parallel_ids.append(sid2)
 
         # Final bundle
-        sid = f"s{len(steps)+1}"
-        steps.append(PlanStep(
-            step_id=sid, tool="archive.bundle",
-            description="汇总产物，生成飞书分享链接",
-            args={},
-            depends_on=parallel_ids or ([last_id] if last_id else []),
-        ))
+        sid = f"s{len(steps) + 1}"
+        steps.append(
+            PlanStep(
+                step_id=sid,
+                tool="archive.bundle",
+                description="汇总产物，生成飞书分享链接",
+                args={},
+                depends_on=parallel_ids or ([last_id] if last_id else []),
+            )
+        )
         return steps
 
 

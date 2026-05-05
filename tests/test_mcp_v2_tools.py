@@ -5,9 +5,11 @@ from __future__ import annotations
 
 def test_classify_readonly_creates_user_on_demand():
     from core.mcp_server.tools import tool_classify_readonly
+
     out = tool_classify_readonly(
         user_open_id="never_existed_user_99",
-        sender_name="x", sender_id="y",
+        sender_name="x",
+        sender_id="y",
         content="hi",
     )
     assert out.get("readonly") is True
@@ -23,7 +25,8 @@ def test_classify_readonly_returns_pure_classification(monkeypatch):
 
     out = tool_classify_readonly(
         user_open_id="u_classify_test",
-        sender_name="老板", sender_id="u_boss",
+        sender_name="老板",
+        sender_id="u_boss",
         content="紧急：方案需要立刻确认",
     )
     assert out.get("readonly") is True
@@ -34,18 +37,21 @@ def test_classify_readonly_returns_pure_classification(monkeypatch):
 
 def test_skill_invoke_unknown_skill():
     from core.mcp_server.tools import tool_skill_invoke
+
     out = tool_skill_invoke(skill_name="nope.nope", args={}, user_open_id="u1")
     assert out.get("ok") is False
 
 
 def test_skill_invoke_missing_name():
     from core.mcp_server.tools import tool_skill_invoke
+
     out = tool_skill_invoke(skill_name="", args={}, user_open_id="u1")
     assert "error" in out
 
 
 def test_memory_resolve_empty_returns_empty_string():
     from core.mcp_server.tools import tool_memory_resolve
+
     out = tool_memory_resolve(user_open_id="u_no_memory_test")
     assert "merged_markdown" in out
     assert "char_count" in out
@@ -54,6 +60,7 @@ def test_memory_resolve_empty_returns_empty_string():
 
 def test_memory_resolve_all_tiers_listed():
     from core.mcp_server.tools import tool_memory_resolve
+
     out = tool_memory_resolve(
         user_open_id="u_full",
         department_id="dept_a",
@@ -70,6 +77,7 @@ def test_memory_resolve_all_tiers_listed():
 
 def test_list_skills_returns_4():
     from core.mcp_server.tools import tool_list_skills
+
     out = tool_list_skills()
     assert "count" in out
     assert out["count"] >= 4
@@ -79,6 +87,7 @@ def test_list_skills_returns_4():
 
 def test_v2_tools_registered_in_TOOL_REGISTRY():
     from core.mcp_server.tools import TOOL_REGISTRY
+
     for k in ("classify_readonly", "skill_invoke", "memory_resolve", "list_skills"):
         assert k in TOOL_REGISTRY
 

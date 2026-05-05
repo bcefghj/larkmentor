@@ -67,6 +67,7 @@ class Channel(ABC):
 
 # ─── Feishu (handled by existing message_sender) ──
 
+
 class FeishuChannel(Channel):
     name = "feishu"
 
@@ -88,14 +89,12 @@ class FeishuChannel(Channel):
 
 # ─── Email (real SMTP) ───────────────────────────────────────────
 
+
 class EmailChannel(Channel):
     name = "email"
 
     def is_available(self) -> bool:
-        return bool(
-            Config.SMTP_HOST and Config.SMTP_USER and
-            Config.SMTP_PASS and Config.NOTIFY_EMAIL
-        )
+        return bool(Config.SMTP_HOST and Config.SMTP_USER and Config.SMTP_PASS and Config.NOTIFY_EMAIL)
 
     def send(self, payload: NotificationPayload) -> DispatchResult:
         if not self.is_available():
@@ -104,17 +103,13 @@ class EmailChannel(Channel):
             msg = MIMEMultipart()
             msg["From"] = Header(f"LarkMentor <{Config.SMTP_USER}>", "utf-8")
             msg["To"] = Config.NOTIFY_EMAIL
-            msg["Subject"] = Header(
-                f"[LarkMentor {payload.level}] {payload.title}", "utf-8"
-            )
+            msg["Subject"] = Header(f"[LarkMentor {payload.level}] {payload.title}", "utf-8")
 
             html = self._build_html(payload)
             msg.attach(MIMEText(html, "html", "utf-8"))
 
             ctx = ssl.create_default_context()
-            with smtplib.SMTP_SSL(
-                Config.SMTP_HOST, Config.SMTP_PORT, context=ctx, timeout=10
-            ) as s:
+            with smtplib.SMTP_SSL(Config.SMTP_HOST, Config.SMTP_PORT, context=ctx, timeout=10) as s:
                 s.login(Config.SMTP_USER, Config.SMTP_PASS)
                 s.sendmail(Config.SMTP_USER, [Config.NOTIFY_EMAIL], msg.as_string())
             logger.info("Email sent to %s [%s]", Config.NOTIFY_EMAIL, payload.level)
@@ -134,12 +129,12 @@ class EmailChannel(Channel):
           </div>
           <div style="padding:20px;color:#0F172A;line-height:1.6;">
             <p style="margin:0 0 8px 0;font-size:14px;color:#64748B;">
-              来自 <strong>{p.sender or '未知'}</strong> · 在 {p.chat or '私聊'}
+              来自 <strong>{p.sender or "未知"}</strong> · 在 {p.chat or "私聊"}
             </p>
             <h2 style="margin:8px 0 12px 0;font-size:18px;">{p.title}</h2>
             <div style="background:#F8FAFC;padding:12px 14px;border-radius:8px;
                         white-space:pre-wrap;font-size:14px;">{p.body}</div>
-            {f'<p style="margin-top:16px;"><a href="{p.extra_url}" style="color:#3370FF;text-decoration:none;">在飞书中查看 →</a></p>' if p.extra_url else ''}
+            {f'<p style="margin-top:16px;"><a href="{p.extra_url}" style="color:#3370FF;text-decoration:none;">在飞书中查看 →</a></p>' if p.extra_url else ""}
           </div>
           <div style="padding:12px 20px;background:#F8FAFC;color:#94A3B8;
                       font-size:12px;text-align:center;border-top:1px solid #E5E7EB;">
@@ -150,6 +145,7 @@ class EmailChannel(Channel):
 
 
 # ─── Bark (iOS push) ───────────────────────────────────────────
+
 
 class BarkChannel(Channel):
     name = "bark"
@@ -171,6 +167,7 @@ class BarkChannel(Channel):
 
 # ─── Server酱 (WeChat push) ──────────────────────────────────
 
+
 class ServerChanChannel(Channel):
     name = "serverchan"
 
@@ -182,14 +179,16 @@ class ServerChanChannel(Channel):
             return DispatchResult(self.name, False, "serverchan not configured")
         try:
             url = f"https://sctapi.ftqq.com/{Config.WEBHOOK_SERVERCHAN_KEY}.send"
-            r = requests.post(url, data={"title": f"[LarkMentor {payload.level}] {payload.title}",
-                                          "desp": payload.body}, timeout=5)
+            r = requests.post(
+                url, data={"title": f"[LarkMentor {payload.level}] {payload.title}", "desp": payload.body}, timeout=5
+            )
             return DispatchResult(self.name, r.ok, f"http {r.status_code}")
         except Exception as e:
             return DispatchResult(self.name, False, str(e))
 
 
 # ─── DingTalk Webhook ──────────────────────────────────────────
+
 
 class DingTalkChannel(Channel):
     name = "dingtalk"
@@ -201,10 +200,13 @@ class DingTalkChannel(Channel):
         if not self.is_available():
             return DispatchResult(self.name, False, "dingtalk not configured")
         try:
-            data = {"msgtype": "markdown", "markdown": {
-                "title": f"LarkMentor {payload.level}: {payload.title}",
-                "text": f"### [{payload.level}] {payload.title}\n来自：{payload.sender}\n\n{payload.body}",
-            }}
+            data = {
+                "msgtype": "markdown",
+                "markdown": {
+                    "title": f"LarkMentor {payload.level}: {payload.title}",
+                    "text": f"### [{payload.level}] {payload.title}\n来自：{payload.sender}\n\n{payload.body}",
+                },
+            }
             r = requests.post(Config.WEBHOOK_DINGTALK_URL, json=data, timeout=5)
             return DispatchResult(self.name, r.ok, f"http {r.status_code}")
         except Exception as e:
@@ -212,6 +214,7 @@ class DingTalkChannel(Channel):
 
 
 # ─── Desktop (narrative reserve) ───────────────────────────────
+
 
 class DesktopChannel(Channel):
     name = "desktop"
@@ -224,6 +227,7 @@ class DesktopChannel(Channel):
 
 
 # ─── Dispatcher ─────────────────────────────────────────────────
+
 
 class Dispatcher:
     """Selects channels by level and dispatches the payload."""
@@ -255,14 +259,16 @@ _dispatcher: Optional[Dispatcher] = None
 
 def init_dispatcher(feishu_sender_callable=None) -> Dispatcher:
     global _dispatcher
-    _dispatcher = Dispatcher([
-        FeishuChannel(sender_callable=feishu_sender_callable),
-        EmailChannel(),
-        BarkChannel(),
-        ServerChanChannel(),
-        DingTalkChannel(),
-        DesktopChannel(),
-    ])
+    _dispatcher = Dispatcher(
+        [
+            FeishuChannel(sender_callable=feishu_sender_callable),
+            EmailChannel(),
+            BarkChannel(),
+            ServerChanChannel(),
+            DingTalkChannel(),
+            DesktopChannel(),
+        ]
+    )
     available = [c.name for c in _dispatcher.channels if c.is_available()]
     logger.info("Notification channels available: %s", available)
     return _dispatcher

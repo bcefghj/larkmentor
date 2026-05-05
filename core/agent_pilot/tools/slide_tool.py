@@ -23,7 +23,8 @@ logger = logging.getLogger("pilot.tool.slide")
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "data", "pilot_artifacts",
+    "data",
+    "pilot_artifacts",
 )
 
 
@@ -54,9 +55,20 @@ def slide_generate(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     if shutil.which("npx"):
         try:
             subprocess.run(
-                ["npx", "--yes", "slidev@latest", "export", md_path,
-                 "--format", "pptx", "--output", os.path.join(DATA_DIR, f"{slide_id}.pptx")],
-                check=False, capture_output=True, timeout=180,
+                [
+                    "npx",
+                    "--yes",
+                    "slidev@latest",
+                    "export",
+                    md_path,
+                    "--format",
+                    "pptx",
+                    "--output",
+                    os.path.join(DATA_DIR, f"{slide_id}.pptx"),
+                ],
+                check=False,
+                capture_output=True,
+                timeout=180,
             )
             if os.path.exists(os.path.join(DATA_DIR, f"{slide_id}.pptx")):
                 pptx_url = f"/artifacts/{slide_id}.pptx"
@@ -87,12 +99,14 @@ def slide_rehearse(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
     notes: List[Dict[str, Any]] = []
     for i, page in enumerate(outline or [], start=1):
-        notes.append({
-            "page": i,
-            "title": page.get("title", ""),
-            "speaker_note": _speaker_note_for_page(page),
-            "duration_sec": 45,
-        })
+        notes.append(
+            {
+                "page": i,
+                "title": page.get("title", ""),
+                "speaker_note": _speaker_note_for_page(page),
+                "duration_sec": 45,
+            }
+        )
 
     return {
         "slide_id": slide_id,
@@ -102,6 +116,7 @@ def slide_rehearse(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # ── Helpers ──
+
 
 def _default_outline_from_ctx(ctx: Dict[str, Any], title: str) -> List[Dict[str, Any]]:
     """Build a default 6-page outline using prior doc/canvas step results if available."""
@@ -117,31 +132,46 @@ def _default_outline_from_ctx(ctx: Dict[str, Any], title: str) -> List[Dict[str,
 
     return [
         {"title": title, "bullets": [f"Plan `{plan_id}`", "LarkMentor · Agent-Pilot"]},
-        {"title": "背景与目标", "bullets": [
-            "知识工作者被 IM 打断 → 创意流失",
-            "IM → Doc → PPT 全链路需要自动化",
-            "本 demo 展示完整闭环",
-        ]},
-        {"title": "Agent 驱动", "bullets": [
-            "Planner 把自然语言拆成 DAG",
-            "工具层并行驱动 Doc / Canvas / PPT",
-            "所有操作一键可审",
-        ]},
-        {"title": "多端协同", "bullets": [
-            "飞书 App（IM 入口）",
-            "Flutter iOS/Android/macOS/Windows",
-            "Yjs CRDT 实时同步 + 离线合并",
-        ]},
-        {"title": "现场 Demo", "bullets": [
-            f"文档链接：{doc_url or '（本次运行未生成）'}",
-            f"画布链接：{canvas_url or '（本次运行未生成）'}",
-            "语音指令实时改 PPT 内容",
-        ]},
-        {"title": "Thank You", "bullets": [
-            "戴尚好 · 中科大",
-            "李洁盈 · 港科大",
-            "GitHub: bcefghj/larkmentor",
-        ]},
+        {
+            "title": "背景与目标",
+            "bullets": [
+                "知识工作者被 IM 打断 → 创意流失",
+                "IM → Doc → PPT 全链路需要自动化",
+                "本 demo 展示完整闭环",
+            ],
+        },
+        {
+            "title": "Agent 驱动",
+            "bullets": [
+                "Planner 把自然语言拆成 DAG",
+                "工具层并行驱动 Doc / Canvas / PPT",
+                "所有操作一键可审",
+            ],
+        },
+        {
+            "title": "多端协同",
+            "bullets": [
+                "飞书 App（IM 入口）",
+                "Flutter iOS/Android/macOS/Windows",
+                "Yjs CRDT 实时同步 + 离线合并",
+            ],
+        },
+        {
+            "title": "现场 Demo",
+            "bullets": [
+                f"文档链接：{doc_url or '（本次运行未生成）'}",
+                f"画布链接：{canvas_url or '（本次运行未生成）'}",
+                "语音指令实时改 PPT 内容",
+            ],
+        },
+        {
+            "title": "Thank You",
+            "bullets": [
+                "戴尚好 · 中科大",
+                "李洁盈 · 港科大",
+                "GitHub: bcefghj/larkmentor",
+            ],
+        },
     ]
 
 
@@ -157,10 +187,12 @@ def _normalise_outline(outline) -> List[Dict[str, Any]]:
     result: List[Dict[str, Any]] = []
     for i, p in enumerate(outline, start=1):
         if isinstance(p, dict):
-            result.append({
-                "title": str(p.get("title") or f"Slide {i}"),
-                "bullets": [str(b) for b in (p.get("bullets") or [])],
-            })
+            result.append(
+                {
+                    "title": str(p.get("title") or f"Slide {i}"),
+                    "bullets": [str(b) for b in (p.get("bullets") or [])],
+                }
+            )
         elif isinstance(p, str):
             result.append({"title": p, "bullets": []})
         else:
@@ -184,7 +216,7 @@ def _outline_to_slidev_md(title: str, outline: List[Dict[str, Any]]) -> str:
     for page in outline:
         parts.append("---")
         parts.append("")
-        parts.append(f"# {page.get('title','')}")
+        parts.append(f"# {page.get('title', '')}")
         parts.append("")
         for b in page.get("bullets", []):
             parts.append(f"- {b}")

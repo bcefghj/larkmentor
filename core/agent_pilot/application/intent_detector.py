@@ -11,6 +11,7 @@
 - LLM judge 失败时降级为"规则强命中即触发"
 - 6 级 Memory 通过 ``memory_resolver`` 注入 LLM system prompt（P15 阶段加深）
 """
+
 from __future__ import annotations
 
 import json
@@ -29,31 +30,91 @@ logger = logging.getLogger("pilot.application.intent_detector")
 # 中文办公关键词（hot path，规则层先筛）
 KEYWORDS_OFFICE = {
     # 整理 / 沉淀
-    "整理一下", "汇总一下", "梳理一下", "拉齐一下", "沉淀一下", "形成材料",
+    "整理一下",
+    "汇总一下",
+    "梳理一下",
+    "拉齐一下",
+    "沉淀一下",
+    "形成材料",
     # 文档 / 方案
-    "做个方案", "出个文档", "起草", "做个计划书", "写个大纲", "PRD", "需求文档",
+    "做个方案",
+    "出个文档",
+    "起草",
+    "做个计划书",
+    "写个大纲",
+    "PRD",
+    "需求文档",
     # 演示 / 汇报
-    "生成 PPT", "做 PPT", "做PPT", "做演示", "下周汇报", "给老板看", "写汇报",
-    "评审", "做汇报", "准备演示", "演讲稿",
+    "生成 PPT",
+    "做 PPT",
+    "做PPT",
+    "做演示",
+    "下周汇报",
+    "给老板看",
+    "写汇报",
+    "评审",
+    "做汇报",
+    "准备演示",
+    "演讲稿",
     # 复盘 / 季度
-    "做个复盘", "复盘汇报", "季度复盘", "活动复盘", "周报", "月报",
+    "做个复盘",
+    "复盘汇报",
+    "季度复盘",
+    "活动复盘",
+    "周报",
+    "月报",
     # 输出 / 发布
-    "输出版本", "发一版", "出一版", "完结", "归档",
+    "输出版本",
+    "发一版",
+    "出一版",
+    "完结",
+    "归档",
     # 英文常见
-    "ppt", "deck", "presentation", "summary", "report", "proposal",
-    "wrap up", "follow up",
+    "ppt",
+    "deck",
+    "presentation",
+    "summary",
+    "report",
+    "proposal",
+    "wrap up",
+    "follow up",
 }
 
 # 任务语义动词（次要规则，用 substring 匹配，覆盖更广）
 SEMANTIC_VERBS = (
-    "汇报", "对外", "对上", "评审", "演示", "归档", "形成", "整理",
-    "结构化", "对齐", "结论", "材料", "成果", "交付",
+    "汇报",
+    "对外",
+    "对上",
+    "评审",
+    "演示",
+    "归档",
+    "形成",
+    "整理",
+    "结构化",
+    "对齐",
+    "结论",
+    "材料",
+    "成果",
+    "交付",
 )
 
 # 时间节点信号（提升任务真实性）
 TIME_KEYWORDS = (
-    "今天", "明天", "后天", "下周", "下下周", "本周", "本月", "下月",
-    "周一", "周二", "周三", "周四", "周五", "deadline", "ddl",
+    "今天",
+    "明天",
+    "后天",
+    "下周",
+    "下下周",
+    "本周",
+    "本月",
+    "下月",
+    "周一",
+    "周二",
+    "周三",
+    "周四",
+    "周五",
+    "deadline",
+    "ddl",
 )
 
 # 资料引用信号（提升任务真实性）
@@ -70,11 +131,11 @@ RESOURCE_PATTERNS = (
 class IntentVerdict(str, Enum):
     """三闸门最终结论."""
 
-    READY = "ready"               # 通过全部三闸门，应弹任务卡
-    NEEDS_CLARIFY = "clarify"     # 通过闸门 1+2 但闸门 3 不达标，弹澄清卡
-    NOT_INTENT = "not_intent"     # 闸门 1 或 2 不通过
-    COOLDOWN = "cooldown"         # 闸门通过但被冷却拦截
-    IGNORED = "ignored"           # 用户曾忽略此主题
+    READY = "ready"  # 通过全部三闸门，应弹任务卡
+    NEEDS_CLARIFY = "clarify"  # 通过闸门 1+2 但闸门 3 不达标，弹澄清卡
+    NOT_INTENT = "not_intent"  # 闸门 1 或 2 不通过
+    COOLDOWN = "cooldown"  # 闸门通过但被冷却拦截
+    IGNORED = "ignored"  # 用户曾忽略此主题
 
 
 @dataclass
@@ -106,11 +167,11 @@ class LLMJudgement:
     """闸门 2 LLM 结构化判断."""
 
     is_task: bool = False
-    task_type: str = ""        # "report" / "doc" / "ppt" / "canvas" / "review" / ...
+    task_type: str = ""  # "report" / "doc" / "ppt" / "canvas" / "review" / ...
     goal: str = ""
     resources: List[str] = field(default_factory=list)
     next_step: str = ""
-    confidence: float = 0.0    # 0.0-1.0
+    confidence: float = 0.0  # 0.0-1.0
     raw_response: str = ""
 
 
@@ -122,9 +183,9 @@ class TaskCandidate:
     rule_hit: RuleHit
     llm_judgement: Optional[LLMJudgement] = None
     suggested_title: str = ""
-    suggested_owner: str = ""    # 通常是发言人 open_id
+    suggested_owner: str = ""  # 通常是发言人 open_id
     chat_id: str = ""
-    theme_key: str = ""          # 用于冷却合并
+    theme_key: str = ""  # 用于冷却合并
     clarify_questions: List[str] = field(default_factory=list)
 
 
@@ -290,8 +351,7 @@ def _default_llm_caller(im_text: str) -> str:
         return ""
 
 
-def llm_judge(messages: List[ChatMessage], *,
-              caller: Optional[LLMCaller] = None) -> LLMJudgement:
+def llm_judge(messages: List[ChatMessage], *, caller: Optional[LLMCaller] = None) -> LLMJudgement:
     """闸门 2 入口."""
     text = "\n".join(f"[{m.sender_open_id[-4:] or '??'}] {m.text}" for m in messages[-15:])
     raw = (caller or _default_llm_caller)(text)
@@ -330,11 +390,12 @@ class CooldownManager:
     def is_ignored(self, chat_id: str, theme: str) -> bool:
         return self._key(chat_id, theme) in self._ignored
 
-    def mark_fired(self, chat_id: str, theme: str, *,
-                   duration_sec: Optional[int] = None,
-                   now_ts: Optional[int] = None) -> None:
+    def mark_fired(
+        self, chat_id: str, theme: str, *, duration_sec: Optional[int] = None, now_ts: Optional[int] = None
+    ) -> None:
         ent = CooldownEntry(
-            chat_id=chat_id, theme_key=_normalize_theme(theme),
+            chat_id=chat_id,
+            theme_key=_normalize_theme(theme),
             fired_ts=now_ts or int(time.time()),
             duration_sec=duration_sec or self.default_cooldown_sec,
         )
@@ -371,9 +432,13 @@ class IntentDetectorConfig:
 class IntentDetector:
     """三闸门主动识别器."""
 
-    def __init__(self, *, config: Optional[IntentDetectorConfig] = None,
-                 cooldown: Optional[CooldownManager] = None,
-                 llm_caller: Optional[LLMCaller] = None) -> None:
+    def __init__(
+        self,
+        *,
+        config: Optional[IntentDetectorConfig] = None,
+        cooldown: Optional[CooldownManager] = None,
+        llm_caller: Optional[LLMCaller] = None,
+    ) -> None:
         self.cfg = config or IntentDetectorConfig()
         self.cooldown = cooldown or CooldownManager(default_cooldown_sec=self.cfg.cooldown_sec)
         self.llm_caller = llm_caller or _default_llm_caller
@@ -407,7 +472,8 @@ class IntentDetector:
         if not jud.is_task and self.cfg.enable_llm:
             return TaskCandidate(
                 verdict=IntentVerdict.NOT_INTENT,
-                rule_hit=hit, llm_judgement=jud,
+                rule_hit=hit,
+                llm_judgement=jud,
                 chat_id=last.chat_id,
             )
 
@@ -417,14 +483,18 @@ class IntentDetector:
         if self.cooldown.is_ignored(last.chat_id, theme):
             return TaskCandidate(
                 verdict=IntentVerdict.IGNORED,
-                rule_hit=hit, llm_judgement=jud,
-                chat_id=last.chat_id, theme_key=theme,
+                rule_hit=hit,
+                llm_judgement=jud,
+                chat_id=last.chat_id,
+                theme_key=theme,
             )
         if self.cooldown.is_cooling(last.chat_id, theme):
             return TaskCandidate(
                 verdict=IntentVerdict.COOLDOWN,
-                rule_hit=hit, llm_judgement=jud,
-                chat_id=last.chat_id, theme_key=theme,
+                rule_hit=hit,
+                llm_judgement=jud,
+                chat_id=last.chat_id,
+                theme_key=theme,
             )
 
         # 闸门 3：信息充分性
@@ -432,7 +502,8 @@ class IntentDetector:
             qs = self._gen_clarify_questions(jud, hit, messages)
             return TaskCandidate(
                 verdict=IntentVerdict.NEEDS_CLARIFY,
-                rule_hit=hit, llm_judgement=jud,
+                rule_hit=hit,
+                llm_judgement=jud,
                 suggested_title=jud.goal or last.text[:30],
                 suggested_owner=last.sender_open_id,
                 chat_id=last.chat_id,
@@ -443,7 +514,8 @@ class IntentDetector:
         # 全部通过
         return TaskCandidate(
             verdict=IntentVerdict.READY,
-            rule_hit=hit, llm_judgement=jud,
+            rule_hit=hit,
+            llm_judgement=jud,
             suggested_title=jud.goal,
             suggested_owner=last.sender_open_id,
             chat_id=last.chat_id,
@@ -451,8 +523,7 @@ class IntentDetector:
         )
 
     @staticmethod
-    def _gen_clarify_questions(jud: LLMJudgement, hit: RuleHit,
-                                messages: List[ChatMessage]) -> List[str]:
+    def _gen_clarify_questions(jud: LLMJudgement, hit: RuleHit, messages: List[ChatMessage]) -> List[str]:
         """规则化生成 ≤2 个澄清问题（PRD §5 LLM 层信息不足分支）."""
         qs: List[str] = []
         if jud.task_type in ("report", "ppt") or "汇报" in (jud.goal or ""):

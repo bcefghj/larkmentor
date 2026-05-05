@@ -72,7 +72,7 @@ class OrchestratorState:
     replans: int = 0
     max_replans: int = 3
     finished: bool = False
-    verdict: str = ""        # "ok" / "partial" / "failed"
+    verdict: str = ""  # "ok" / "partial" / "failed"
     summary: str = ""
 
 
@@ -96,7 +96,8 @@ class ConversationOrchestrator:
         self._perm = permissions or default_permission_gate()
         self._ctxm = context or ContextManager(
             on_pre_compact=lambda ev, msgs: self._hooks.fire(
-                HookEvent.PRE_COMPACT, {"event": ev, "message_count": len(msgs)})
+                HookEvent.PRE_COMPACT, {"event": ev, "message_count": len(msgs)}
+            )
         )
         self._mem = memory or default_memory()
         self._skills = skills or default_skills()
@@ -105,7 +106,8 @@ class ConversationOrchestrator:
         self._events: List[OrchestratorEvent] = []
         self._lock = threading.RLock()
         self._executor = StreamingToolExecutor(
-            self._tools, emit=self._on_tool_event,
+            self._tools,
+            emit=self._on_tool_event,
         )
 
     # ── Event bus ──
@@ -113,12 +115,16 @@ class ConversationOrchestrator:
     def set_broadcaster(self, fn: Callable[[OrchestratorEvent], None]) -> None:
         self._broadcaster = fn
 
-    def _emit(self, kind: str, *, plan_id: str = "", step_id: str = "",
-              payload: Optional[Dict[str, Any]] = None) -> None:
+    def _emit(
+        self, kind: str, *, plan_id: str = "", step_id: str = "", payload: Optional[Dict[str, Any]] = None
+    ) -> None:
         ev = OrchestratorEvent(
-            event_id=f"ev_{int(time.time()*1000)}_{uuid.uuid4().hex[:4]}",
-            plan_id=plan_id, kind=kind, step_id=step_id,
-            payload=payload or {}, ts=int(time.time()),
+            event_id=f"ev_{int(time.time() * 1000)}_{uuid.uuid4().hex[:4]}",
+            plan_id=plan_id,
+            kind=kind,
+            step_id=step_id,
+            payload=payload or {},
+            ts=int(time.time()),
         )
         with self._lock:
             self._events.append(ev)
@@ -135,8 +141,14 @@ class ConversationOrchestrator:
     def events(self) -> List[Dict[str, Any]]:
         with self._lock:
             return [
-                {"event_id": e.event_id, "plan_id": e.plan_id, "kind": e.kind,
-                 "step_id": e.step_id, "payload": e.payload, "ts": e.ts}
+                {
+                    "event_id": e.event_id,
+                    "plan_id": e.plan_id,
+                    "kind": e.kind,
+                    "step_id": e.step_id,
+                    "payload": e.payload,
+                    "ts": e.ts,
+                }
                 for e in self._events
             ]
 
@@ -164,21 +176,28 @@ class ConversationOrchestrator:
 
     def _gather(self, state: OrchestratorState, ctx: Dict[str, Any]) -> None:
         plan = state.plan
-        self._emit("plan_started", plan_id=plan.plan_id, payload={
-            "intent": plan.intent, "total_steps": len(plan.steps),
-            "mode": self._perm.mode.value,
-        })
+        self._emit(
+            "plan_started",
+            plan_id=plan.plan_id,
+            payload={
+                "intent": plan.intent,
+                "total_steps": len(plan.steps),
+                "mode": self._perm.mode.value,
+            },
+        )
 
         # Fire SessionStart hook (inject LARKMENTOR.md etc.).
-        sess_payload = self._hooks.fire(HookEvent.SESSION_START, {
-            "project_root": ctx.get("project_root") or ".",
-            "plan_id": plan.plan_id,
-            "user_open_id": plan.user_open_id,
-        })
+        sess_payload = self._hooks.fire(
+            HookEvent.SESSION_START,
+            {
+                "project_root": ctx.get("project_root") or ".",
+                "plan_id": plan.plan_id,
+                "user_open_id": plan.user_open_id,
+            },
+        )
         memory_injected = sess_payload.payload.get("memory_injected") or ""
         if memory_injected:
-            state.messages.append({"role": "system",
-                                    "content": "[LARKMENTOR.md]\n\n" + memory_injected})
+            state.messages.append({"role": "system", "content": "[LARKMENTOR.md]\n\n" + memory_injected})
 
         # Skills metadata (always in system prompt).
         try:
@@ -200,17 +219,19 @@ class ConversationOrchestrator:
             logger.debug("memory recall skipped: %s", exc)
 
         # UserPromptSubmit hook (classifier / sanitisation).
-        up_payload = self._hooks.fire(HookEvent.USER_PROMPT_SUBMIT, {
-            "intent": plan.intent,
-            "plan_id": plan.plan_id,
-            "user_open_id": plan.user_open_id,
-        })
+        up_payload = self._hooks.fire(
+            HookEvent.USER_PROMPT_SUBMIT,
+            {
+                "intent": plan.intent,
+                "plan_id": plan.plan_id,
+                "user_open_id": plan.user_open_id,
+            },
+        )
         if up_payload.vetoed:
             state.verdict = "failed"
             state.summary = f"user prompt vetoed: {up_payload.veto_reason}"
             state.finished = True
-            self._emit("plan_vetoed", plan_id=plan.plan_id,
-                       payload={"reason": up_payload.veto_reason})
+            self._emit("plan_vetoed", plan_id=plan.plan_id, payload={"reason": up_payload.veto_reason})
             return
 
         state.messages.append({"role": "user", "content": plan.intent})
@@ -220,8 +241,7 @@ class ConversationOrchestrator:
     def _replan(self, state: OrchestratorState, ctx: Dict[str, Any]) -> None:
         """Produce new pending steps based on failures so far."""
         state.replans += 1
-        self._emit("replan_started", plan_id=state.plan.plan_id,
-                   payload={"replans": state.replans})
+        self._emit("replan_started", plan_id=state.plan.plan_id, payload={"replans": state.replans})
 
         # Strategy: mark failed steps as retry, or if a critical tool bug, ask user.
         retryable = [s for s in state.plan.steps if s.status == "failed" and s.tool not in ("im.send", "drive.delete")]
@@ -229,13 +249,13 @@ class ConversationOrchestrator:
             # Escalate: append a mentor.clarify step so the user decides.
             if self._tools.has("mentor.clarify"):
                 new_step = PlanStep(
-                    step_id=f"s_reask_{len(state.plan.steps)+1}",
+                    step_id=f"s_reask_{len(state.plan.steps) + 1}",
                     tool="mentor.clarify",
                     description="连续失败 → 主动问用户",
-                    args={"intent": state.plan.intent,
-                          "questions": [
-                              "刚才的计划部分失败，希望我重试还是换条路？",
-                              "是否需要简化需求范围？"]},
+                    args={
+                        "intent": state.plan.intent,
+                        "questions": ["刚才的计划部分失败，希望我重试还是换条路？", "是否需要简化需求范围？"],
+                    },
                 )
                 state.plan.steps.append(new_step)
             return
@@ -261,17 +281,21 @@ class ConversationOrchestrator:
             args = _resolve_args(step.args or {}, state.step_results)
 
             # PreToolUse hook (may rewrite args or veto).
-            hook_payload = self._hooks.fire(HookEvent.PRE_TOOL_USE, {
-                "tool": step.tool, "args": args,
-                "plan_id": plan.plan_id, "step_id": step.step_id,
-                "user_open_id": plan.user_open_id,
-                "permission_mode": self._perm.mode.value,
-            })
+            hook_payload = self._hooks.fire(
+                HookEvent.PRE_TOOL_USE,
+                {
+                    "tool": step.tool,
+                    "args": args,
+                    "plan_id": plan.plan_id,
+                    "step_id": step.step_id,
+                    "user_open_id": plan.user_open_id,
+                    "permission_mode": self._perm.mode.value,
+                },
+            )
             if hook_payload.vetoed:
                 step.status = "failed"
                 step.error = f"hook veto: {hook_payload.veto_reason}"
-                self._emit("step_failed", plan_id=plan.plan_id, step_id=step.step_id,
-                           payload={"error": step.error})
+                self._emit("step_failed", plan_id=plan.plan_id, step_id=step.step_id, payload={"error": step.error})
                 skipped.append(step)
                 continue
 
@@ -282,21 +306,32 @@ class ConversationOrchestrator:
 
             # PermissionGate.
             perm = self._perm.check(
-                tool=step.tool, readonly=readonly, destructive=destructive,
-                user_open_id=plan.user_open_id, args=args,
+                tool=step.tool,
+                readonly=readonly,
+                destructive=destructive,
+                user_open_id=plan.user_open_id,
+                args=args,
             )
             if perm.is_denied():
                 step.status = "failed"
                 step.error = perm.to_llm_error()
-                self._emit("step_failed", plan_id=plan.plan_id, step_id=step.step_id,
-                           payload={"error": step.error, "permission_decision": perm.decision.value})
+                self._emit(
+                    "step_failed",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    payload={"error": step.error, "permission_decision": perm.decision.value},
+                )
                 skipped.append(step)
                 continue
             if perm.needs_user_confirm() and ctx.get("auto_confirm") is not True:
                 step.status = "failed"
                 step.error = f"needs user confirm: {perm.reason}"
-                self._emit("step_needs_confirm", plan_id=plan.plan_id, step_id=step.step_id,
-                           payload={"reason": perm.reason, "tool": step.tool, "args_keys": list(args.keys())})
+                self._emit(
+                    "step_needs_confirm",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    payload={"reason": perm.reason, "tool": step.tool, "args_keys": list(args.keys())},
+                )
                 skipped.append(step)
                 continue
 
@@ -306,14 +341,25 @@ class ConversationOrchestrator:
             inv_ctx["tool"] = step.tool
             inv_ctx["description"] = step.description
             inv_ctx["step_results"] = state.step_results
-            invocations.append(ToolInvocation(
-                call_id=step.step_id, tool=step.tool, args=args, ctx=inv_ctx,
-            ))
+            invocations.append(
+                ToolInvocation(
+                    call_id=step.step_id,
+                    tool=step.tool,
+                    args=args,
+                    ctx=inv_ctx,
+                )
+            )
             step.status = "running"
             step.started_ts = int(time.time())
-            self._emit("step_started", plan_id=plan.plan_id, step_id=step.step_id, payload={
-                "tool": step.tool, "description": step.description,
-            })
+            self._emit(
+                "step_started",
+                plan_id=plan.plan_id,
+                step_id=step.step_id,
+                payload={
+                    "tool": step.tool,
+                    "description": step.description,
+                },
+            )
 
         if not invocations:
             return
@@ -330,24 +376,42 @@ class ConversationOrchestrator:
                 step.status = "done"
                 step.result = outcome.result or {}
                 state.step_results[step.step_id] = step.result
-                self._emit("step_done", plan_id=plan.plan_id, step_id=step.step_id, payload={
-                    "tool": step.tool, "result": step.result,
-                    "duration_ms": outcome.duration_ms,
-                })
+                self._emit(
+                    "step_done",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    payload={
+                        "tool": step.tool,
+                        "result": step.result,
+                        "duration_ms": outcome.duration_ms,
+                    },
+                )
             else:
                 step.status = "failed"
                 step.error = outcome.error
                 step.result = outcome.result or {}
                 state.step_results[step.step_id] = {"error": outcome.error}
-                self._emit("step_failed", plan_id=plan.plan_id, step_id=step.step_id, payload={
-                    "tool": step.tool, "error": outcome.error,
-                })
+                self._emit(
+                    "step_failed",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    payload={
+                        "tool": step.tool,
+                        "error": outcome.error,
+                    },
+                )
             # PostToolUse hook.
-            self._hooks.fire(HookEvent.POST_TOOL_USE, {
-                "tool": step.tool, "ok": outcome.ok,
-                "result": step.result, "plan_id": plan.plan_id,
-                "step_id": step.step_id, "user_open_id": plan.user_open_id,
-            })
+            self._hooks.fire(
+                HookEvent.POST_TOOL_USE,
+                {
+                    "tool": step.tool,
+                    "ok": outcome.ok,
+                    "result": step.result,
+                    "plan_id": plan.plan_id,
+                    "step_id": step.step_id,
+                    "user_open_id": plan.user_open_id,
+                },
+            )
 
     # ── Node 4: verify ──
 
@@ -411,16 +475,17 @@ class ConversationOrchestrator:
 
     def _finish(self, state: OrchestratorState, ctx: Dict[str, Any]) -> None:
         plan = state.plan
-        self._hooks.fire(HookEvent.STOP, {
-            "plan_id": plan.plan_id, "verdict": state.verdict,
-            "user_open_id": plan.user_open_id,
-        })
+        self._hooks.fire(
+            HookEvent.STOP,
+            {
+                "plan_id": plan.plan_id,
+                "verdict": state.verdict,
+                "user_open_id": plan.user_open_id,
+            },
+        )
         done = sum(1 for s in plan.steps if s.status == "done")
         failed = sum(1 for s in plan.steps if s.status == "failed")
-        summary = (
-            f"verdict={state.verdict} done={done}/{len(plan.steps)} failed={failed} "
-            f"replans={state.replans}"
-        )
+        summary = f"verdict={state.verdict} done={done}/{len(plan.steps)} failed={failed} replans={state.replans}"
         state.summary = summary
 
         # Persist memory fact (last run summary).
@@ -434,10 +499,17 @@ class ConversationOrchestrator:
         except Exception:
             pass
 
-        self._emit("plan_done", plan_id=plan.plan_id, payload={
-            "verdict": state.verdict, "done": done, "failed": failed,
-            "replans": state.replans, "summary": summary,
-        })
+        self._emit(
+            "plan_done",
+            plan_id=plan.plan_id,
+            payload={
+                "verdict": state.verdict,
+                "done": done,
+                "failed": failed,
+                "replans": state.replans,
+                "summary": summary,
+            },
+        )
 
     # ── Accessors ──
 
@@ -476,6 +548,7 @@ def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]])
     avoid poisoning downstream tools with `{{..}}` leftovers.
     """
     import re
+
     placeholder_re = re.compile(r"\$\{([^}]+)\}|\{\{([^}]+)\}\}")
 
     def _lookup(token: str) -> Any:
@@ -502,11 +575,13 @@ def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]])
                 token = m.group(1) or m.group(2) or ""
                 resolved = _lookup(token)
                 return resolved if resolved is not None else ""
+
             # Embedded: do text replacement.
             def _sub(mm):
                 token = mm.group(1) or mm.group(2) or ""
                 resolved = _lookup(token)
                 return str(resolved) if resolved is not None else ""
+
             return placeholder_re.sub(_sub, v)
         if isinstance(v, list):
             return [_expand(x) for x in v]
@@ -528,6 +603,7 @@ def default_orchestrator() -> ConversationOrchestrator:
             _default = ConversationOrchestrator()
             try:
                 from core.sync.crdt_hub import attach_orchestrator
+
                 attach_orchestrator(_default)
             except Exception as exc:
                 logger.debug("crdt attach skipped: %s", exc)

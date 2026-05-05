@@ -79,28 +79,38 @@ class MCPClient:
         try:
             self._proc = subprocess.Popen(
                 [self.cfg.command, *self.cfg.args],
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                env=env, text=True, bufsize=1,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                env=env,
+                text=True,
+                bufsize=1,
             )
             self._stdin = self._proc.stdin
             self._stdout = self._proc.stdout
             self._initialize_session()
             return True
         except FileNotFoundError:
-            logger.warning("mcp stdio command not found: %s (server=%s). "
-                           "Install with: npm i -g %s",
-                           self.cfg.command, self.cfg.alias, self.cfg.command)
+            logger.warning(
+                "mcp stdio command not found: %s (server=%s). Install with: npm i -g %s",
+                self.cfg.command,
+                self.cfg.alias,
+                self.cfg.command,
+            )
             return False
         except Exception as exc:
             logger.warning("mcp stdio connect failed %s: %s", self.cfg.alias, exc)
             return False
 
     def _initialize_session(self) -> None:
-        result = self._rpc_call("initialize", {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {"tools": {}, "resources": {}},
-            "clientInfo": {"name": "larkmentor-agent-pilot", "version": "2.0.0"},
-        })
+        result = self._rpc_call(
+            "initialize",
+            {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {"tools": {}, "resources": {}},
+                "clientInfo": {"name": "larkmentor-agent-pilot", "version": "2.0.0"},
+            },
+        )
         if "error" in result:
             raise MCPError(f"initialize failed: {result['error']}")
         self._initialized = True
@@ -236,13 +246,15 @@ class MCPManager:
         out = []
         for alias, tspec in self.list_tools():
             qname = f"mcp:{alias}.{tspec.get('name', 'unnamed')}"
-            out.append({
-                "name": qname,
-                "description": tspec.get("description", "") or "",
-                "parameters": tspec.get("inputSchema", {}),
-                "alias": alias,
-                "tool_name": tspec.get("name", ""),
-            })
+            out.append(
+                {
+                    "name": qname,
+                    "description": tspec.get("description", "") or "",
+                    "parameters": tspec.get("inputSchema", {}),
+                    "alias": alias,
+                    "tool_name": tspec.get("name", ""),
+                }
+            )
         return out
 
     def close_all(self) -> None:
@@ -342,22 +354,26 @@ def load_from_json(path: str) -> List[MCPServerConfig]:
         transport = s.get("transport") or "stdio"
         if transport == "stdio":
             env = {k: os.environ.get(k, "") for k in (s.get("env_pass") or [])}
-            cfgs.append(MCPServerConfig(
-                alias=alias,
-                transport=MCPTransport.STDIO,
-                command=s.get("command"),
-                args=list(s.get("args") or []),
-                env=env,
-                timeout_sec=int(s.get("timeout_sec") or 30),
-            ))
+            cfgs.append(
+                MCPServerConfig(
+                    alias=alias,
+                    transport=MCPTransport.STDIO,
+                    command=s.get("command"),
+                    args=list(s.get("args") or []),
+                    env=env,
+                    timeout_sec=int(s.get("timeout_sec") or 30),
+                )
+            )
         elif transport == "http":
-            cfgs.append(MCPServerConfig(
-                alias=alias,
-                transport=MCPTransport.HTTP_STREAMABLE,
-                url=s.get("url"),
-                headers=dict(s.get("headers") or {}),
-                timeout_sec=int(s.get("timeout_sec") or 45),
-            ))
+            cfgs.append(
+                MCPServerConfig(
+                    alias=alias,
+                    transport=MCPTransport.HTTP_STREAMABLE,
+                    url=s.get("url"),
+                    headers=dict(s.get("headers") or {}),
+                    timeout_sec=int(s.get("timeout_sec") or 45),
+                )
+            )
     return cfgs
 
 

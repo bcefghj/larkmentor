@@ -70,14 +70,16 @@ class ToolRegistry:
         skill: str = "",
         rate_limit_per_minute: int = 60,
     ) -> None:
-        self.register(ToolMetadata(
-            name=name,
-            description=description or name,
-            handler=handler,
-            permission=permission,
-            skill=skill,
-            rate_limit_per_minute=rate_limit_per_minute,
-        ))
+        self.register(
+            ToolMetadata(
+                name=name,
+                description=description or name,
+                handler=handler,
+                permission=permission,
+                skill=skill,
+                rate_limit_per_minute=rate_limit_per_minute,
+            )
+        )
 
     # ── 查询 ───────────────────────────────────────────────────
 
@@ -117,6 +119,7 @@ class ToolRegistry:
         if not skip_permission:
             try:
                 from .permission_facade import default_facade
+
                 allowed, reason = default_facade().check(name, user_open_id)
                 if not allowed:
                     self._audit(name, user_open_id, "permission_denied", reason, skip_audit)
@@ -172,6 +175,7 @@ class ToolRegistry:
             return
         try:
             from core.security.audit_log import audit
+
             audit(
                 actor=user or "system",
                 action=f"tool.invoke:{tool}",
@@ -190,8 +194,7 @@ class ToolRegistry:
             "total_tools": len(self._tools),
             "call_counts": dict(self._call_count),
             "tools_by_skill": {
-                skill: len(self.list_by_skill(skill))
-                for skill in {t.skill for t in self._tools.values() if t.skill}
+                skill: len(self.list_by_skill(skill)) for skill in {t.skill for t in self._tools.values() if t.skill}
             },
         }
 

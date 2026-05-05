@@ -23,7 +23,8 @@ logger = logging.getLogger("pilot.tool.canvas")
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "data", "pilot_artifacts",
+    "data",
+    "pilot_artifacts",
 )
 
 
@@ -51,12 +52,15 @@ def canvas_create(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     # Mirror to Feishu Board (best-effort)
     feishu_url = _try_create_feishu_board(title)
 
-    _broadcast(ctx, {
-        "type": "canvas.created",
-        "canvas_id": canvas_id,
-        "title": title,
-        "url": feishu_url or f"/artifacts/{canvas_id}.json",
-    })
+    _broadcast(
+        ctx,
+        {
+            "type": "canvas.created",
+            "canvas_id": canvas_id,
+            "title": title,
+            "url": feishu_url or f"/artifacts/{canvas_id}.json",
+        },
+    )
 
     return {
         "canvas_id": canvas_id,
@@ -102,7 +106,10 @@ def canvas_add_shape(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     shape = {
         "id": shape_id,
         "type": shape_type,
-        "x": x, "y": y, "w": w, "h": h,
+        "x": x,
+        "y": y,
+        "w": w,
+        "h": h,
         "text": text,
         "ts": int(time.time()),
     }
@@ -119,29 +126,74 @@ def canvas_add_shape(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     scene["shapes"].append(shape)
     # Demo seed: if this is first shape and user asked for "frame", add 3 connected nodes
     if shape_type == "frame" and len(scene["shapes"]) == 1:
-        scene["shapes"].extend([
-            {"id": f"s_{uuid.uuid4().hex[:8]}", "type": "node",
-             "x": 160, "y": 120, "w": 160, "h": 60, "text": "输入", "ts": int(time.time())},
-            {"id": f"s_{uuid.uuid4().hex[:8]}", "type": "node",
-             "x": 400, "y": 120, "w": 160, "h": 60, "text": "Agent Planner", "ts": int(time.time())},
-            {"id": f"s_{uuid.uuid4().hex[:8]}", "type": "node",
-             "x": 640, "y": 120, "w": 160, "h": 60, "text": "Doc / Canvas / PPT", "ts": int(time.time())},
-            {"id": f"arrow_{uuid.uuid4().hex[:8]}", "type": "arrow",
-             "x": 320, "y": 150, "w": 80, "h": 1, "text": "", "ts": int(time.time())},
-            {"id": f"arrow_{uuid.uuid4().hex[:8]}", "type": "arrow",
-             "x": 560, "y": 150, "w": 80, "h": 1, "text": "", "ts": int(time.time())},
-        ])
+        scene["shapes"].extend(
+            [
+                {
+                    "id": f"s_{uuid.uuid4().hex[:8]}",
+                    "type": "node",
+                    "x": 160,
+                    "y": 120,
+                    "w": 160,
+                    "h": 60,
+                    "text": "输入",
+                    "ts": int(time.time()),
+                },
+                {
+                    "id": f"s_{uuid.uuid4().hex[:8]}",
+                    "type": "node",
+                    "x": 400,
+                    "y": 120,
+                    "w": 160,
+                    "h": 60,
+                    "text": "Agent Planner",
+                    "ts": int(time.time()),
+                },
+                {
+                    "id": f"s_{uuid.uuid4().hex[:8]}",
+                    "type": "node",
+                    "x": 640,
+                    "y": 120,
+                    "w": 160,
+                    "h": 60,
+                    "text": "Doc / Canvas / PPT",
+                    "ts": int(time.time()),
+                },
+                {
+                    "id": f"arrow_{uuid.uuid4().hex[:8]}",
+                    "type": "arrow",
+                    "x": 320,
+                    "y": 150,
+                    "w": 80,
+                    "h": 1,
+                    "text": "",
+                    "ts": int(time.time()),
+                },
+                {
+                    "id": f"arrow_{uuid.uuid4().hex[:8]}",
+                    "type": "arrow",
+                    "x": 560,
+                    "y": 150,
+                    "w": 80,
+                    "h": 1,
+                    "text": "",
+                    "ts": int(time.time()),
+                },
+            ]
+        )
     scene["version"] += 1
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(scene, f, ensure_ascii=False, indent=2)
 
-    _broadcast(ctx, {
-        "type": "canvas.shape_added",
-        "canvas_id": canvas_id,
-        "shape": shape,
-        "version": scene["version"],
-    })
+    _broadcast(
+        ctx,
+        {
+            "type": "canvas.shape_added",
+            "canvas_id": canvas_id,
+            "shape": shape,
+            "version": scene["version"],
+        },
+    )
 
     return {"canvas_id": canvas_id, "shape_id": shape_id, "total_shapes": len(scene["shapes"])}
 
@@ -162,6 +214,7 @@ def _try_create_feishu_board(title: str) -> Optional[str]:
     try:
         try:
             from core.feishu_advanced.board_api import create_board as _cb  # type: ignore
+
             url = _cb(title=title)
             if url:
                 return url
@@ -169,16 +222,19 @@ def _try_create_feishu_board(title: str) -> Optional[str]:
             pass
 
         from config import Config
+
         if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
             return None
         # HTTP path: requires board:whiteboard scope. Best-effort only.
         from bot.feishu_client import get_tenant_access_token  # type: ignore
+
         tat = get_tenant_access_token()
         if not tat:
             return None
         import json as _json
         import urllib.error
         import urllib.request
+
         req = urllib.request.Request(
             "https://open.feishu.cn/open-apis/board/v1/whiteboards",
             data=_json.dumps({"name": title}).encode("utf-8"),
@@ -205,6 +261,7 @@ def _try_create_feishu_board(title: str) -> Optional[str]:
 def _broadcast(ctx: Dict[str, Any], payload: Dict[str, Any]) -> None:
     try:
         from core.sync.crdt_hub import broadcast_state
+
         broadcast_state(ctx.get("plan_id", ""), payload)
     except Exception as e:
         logger.debug("canvas broadcast skipped: %s", e)

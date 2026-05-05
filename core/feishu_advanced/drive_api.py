@@ -16,8 +16,9 @@ from typing import Dict, Optional
 logger = logging.getLogger("feishu.drive")
 
 
-def upload_all(local_path: str, *, parent_type: str = "explorer",
-               parent_node: str = "", title: str = "") -> Optional[Dict[str, str]]:
+def upload_all(
+    local_path: str, *, parent_type: str = "explorer", parent_node: str = "", title: str = ""
+) -> Optional[Dict[str, str]]:
     """Upload a small file (<20MB) via one-shot API.
 
     Returns ``{"file_token": ..., "url": ...}`` on success, ``None`` on error.
@@ -56,7 +57,8 @@ def upload_all(local_path: str, *, parent_type: str = "explorer",
             r = requests.post(
                 url,
                 headers={"Authorization": f"Bearer {token}"},
-                files=files, timeout=60,
+                files=files,
+                timeout=60,
             )
             data = r.json() if r.content else {}
         except Exception as e:

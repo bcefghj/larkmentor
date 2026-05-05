@@ -15,7 +15,8 @@ logger = logging.getLogger("agent.patterns.debate")
 
 
 def debate_round(
-    question: str, *,
+    question: str,
+    *,
     llm_doubao: Callable[[str], str],
     llm_minimax: Callable[[str], str],
     llm_deepseek: Callable[[str], str],
@@ -30,18 +31,17 @@ def debate_round(
     ]
     judge_prompt = (
         f"Question: {question}\n\n"
-        f"3 independent answers:\n"
-        + "\n---\n".join(f"[{a['model']}]: {a['text']}" for a in answers) +
-        "\n\n"
+        f"3 independent answers:\n" + "\n---\n".join(f"[{a['model']}]: {a['text']}" for a in answers) + "\n\n"
         "Tasks:\n"
         "1. Determine if these answers agree (2 of 3 is majority).\n"
         "2. If agree → synthesize a final answer using the majority.\n"
         "3. If 3 disagree → write down the key disagreement points for a debate round.\n"
-        "Respond as JSON: {\"converged\": true|false, \"final_answer\": \"...\", \"disagreements\": [\"...\"]}"
+        'Respond as JSON: {"converged": true|false, "final_answer": "...", "disagreements": ["..."]}'
     )
     judgement = llm_judge(judge_prompt)
     try:
         import json
+
         data = json.loads(judgement.strip().removeprefix("```json").removeprefix("```").removesuffix("```"))
     except Exception:
         data = {"converged": True, "final_answer": answers[0]["text"], "disagreements": []}
@@ -61,9 +61,12 @@ def debate_round(
             {"model": "minimax", "text": llm_minimax(debate_prompt)[:1500]},
             {"model": "deepseek", "text": llm_deepseek(debate_prompt)[:1500]},
         ]
-        judgement = llm_judge(judge_prompt + "\n\nRound " + str(r + 1) + ":\n" + "\n---\n".join(a["text"] for a in answers))
+        judgement = llm_judge(
+            judge_prompt + "\n\nRound " + str(r + 1) + ":\n" + "\n---\n".join(a["text"] for a in answers)
+        )
         try:
             import json
+
             data = json.loads(judgement.strip().removeprefix("```json").removeprefix("```").removesuffix("```"))
         except Exception:
             pass

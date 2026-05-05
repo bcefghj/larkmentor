@@ -18,6 +18,7 @@ Design:
   ``GENERATION_DONE`` → REVIEWING
   ``USER_DELIVER`` → DELIVERED (user-driven)
 """
+
 from __future__ import annotations
 
 import logging
@@ -57,6 +58,7 @@ def _default_llm_fn(prompt: str) -> str:
     """Try providers -> llm_client -> return empty."""
     try:
         from agent.providers import default_providers
+
         return default_providers().chat(
             messages=[{"role": "user", "content": prompt}],
             task_kind="chinese_chat",
@@ -66,6 +68,7 @@ def _default_llm_fn(prompt: str) -> str:
         pass
     try:
         from llm.llm_client import chat as _chat
+
         return _chat(messages=[{"role": "user", "content": prompt}], temperature=0.4, max_tokens=2000)
     except Exception:
         return ""
@@ -98,7 +101,6 @@ class OrchestratorConfig:
 
 
 class OrchestratorService:
-
     def __init__(
         self,
         *,
@@ -124,22 +126,30 @@ class OrchestratorService:
 
         # 状态机：进入第一档 generating（按 ContextPack.output_requirements 决定）
         if advance_state and task.state == TaskState.PLANNING:
-            primary = (task.context_pack.output_requirements.primary
-                       if task.context_pack else "doc")
-            evt = {"doc": TaskEvent.PLAN_DONE_DOC,
-                   "ppt": TaskEvent.PLAN_DONE_PPT,
-                   "canvas": TaskEvent.PLAN_DONE_CANVAS}.get(primary, TaskEvent.PLAN_DONE_DOC)
+            primary = task.context_pack.output_requirements.primary if task.context_pack else "doc"
+            evt = {
+                "doc": TaskEvent.PLAN_DONE_DOC,
+                "ppt": TaskEvent.PLAN_DONE_PPT,
+                "canvas": TaskEvent.PLAN_DONE_CANVAS,
+            }.get(primary, TaskEvent.PLAN_DONE_DOC)
             try:
-                task.apply(evt, actor_open_id=task.owner_lock.owner_open_id,
-                           event_bus=self.bus, enforce_owner_lock=False)
+                task.apply(
+                    evt, actor_open_id=task.owner_lock.owner_open_id, event_bus=self.bus, enforce_owner_lock=False
+                )
             except Exception as e:
                 logger.warning("state advance to generating failed: %s", e)
 
-        self.bus.publish(make_event(
-            EVT_PLAN_CREATED, task.task_id,
-            data={"plan_id": plan.plan_id, "step_count": plan.step_count(),
-                  "reasoning_pattern": plan.reasoning_pattern},
-        ))
+        self.bus.publish(
+            make_event(
+                EVT_PLAN_CREATED,
+                task.task_id,
+                data={
+                    "plan_id": plan.plan_id,
+                    "step_count": plan.step_count(),
+                    "reasoning_pattern": plan.reasoning_pattern,
+                },
+            )
+        )
 
         ctx: Dict[str, Any] = {
             "task_id": task.task_id,
@@ -186,9 +196,12 @@ class OrchestratorService:
         # 状态推进 → REVIEWING
         if advance_state and task.state.is_generating:
             try:
-                task.apply(TaskEvent.GENERATION_DONE,
-                            actor_open_id=task.owner_lock.owner_open_id,
-                            event_bus=self.bus, enforce_owner_lock=False)
+                task.apply(
+                    TaskEvent.GENERATION_DONE,
+                    actor_open_id=task.owner_lock.owner_open_id,
+                    event_bus=self.bus,
+                    enforce_owner_lock=False,
+                )
             except Exception as e:
                 logger.warning("state advance to REVIEWING failed: %s", e)
 
@@ -198,14 +211,17 @@ class OrchestratorService:
     def _run_step(self, step: DomainPlanStep, task: Task, ctx: Dict[str, Any]) -> None:
         step.status = "running"
         step.started_ts = int(time.time())
-        self.bus.publish(make_event(
-            EVT_STEP_STARTED, task.task_id,
-            data={"step_id": step.step_id, "tool": step.tool},
-            ts=step.started_ts,
-        ))
-        task.log(agent="@pilot", kind="tool_call",
-                  content=f"{step.tool}({step.description})",
-                  meta={"step_id": step.step_id})
+        self.bus.publish(
+            make_event(
+                EVT_STEP_STARTED,
+                task.task_id,
+                data={"step_id": step.step_id, "tool": step.tool},
+                ts=step.started_ts,
+            )
+        )
+        task.log(
+            agent="@pilot", kind="tool_call", content=f"{step.tool}({step.description})", meta={"step_id": step.step_id}
+        )
 
         args = self._resolve_args(step.args or {}, ctx["step_results"])
 
@@ -230,20 +246,25 @@ class OrchestratorService:
                 logger.exception("step %s failed: %s", step.step_id, e)
                 step.status = "failed"
                 step.error = f"{type(e).__name__}: {e}"
-                step.result = {"error": step.error,
-                                "traceback": traceback.format_exc(limit=3)}
+                step.result = {"error": step.error, "traceback": traceback.format_exc(limit=3)}
 
         step.finished_ts = int(time.time())
         ctx["step_results"][step.step_id] = step.result or {}
 
         evt_kind = EVT_STEP_DONE if step.status == "done" else EVT_STEP_FAILED
-        self.bus.publish(make_event(
-            evt_kind, task.task_id,
-            data={"step_id": step.step_id, "tool": step.tool,
-                  "duration_ms": (step.finished_ts - step.started_ts) * 1000,
-                  "error": step.error},
-            ts=step.finished_ts,
-        ))
+        self.bus.publish(
+            make_event(
+                evt_kind,
+                task.task_id,
+                data={
+                    "step_id": step.step_id,
+                    "tool": step.tool,
+                    "duration_ms": (step.finished_ts - step.started_ts) * 1000,
+                    "error": step.error,
+                },
+                ts=step.finished_ts,
+            )
+        )
         task.log(
             agent="@pilot",
             kind="result" if step.status == "done" else "error",
@@ -267,6 +288,7 @@ class OrchestratorService:
     def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
         """支持 ${s1.field} / {{s1.field}} 占位符。"""
         import re
+
         pat = re.compile(r"^\$\{(.+?)\}$|^\{\{(.+?)\}\}$")
         out = {}
         for k, v in args.items():
@@ -287,9 +309,7 @@ class OrchestratorService:
         cp = task.context_pack
         source_text = ""
         if cp and cp.source_messages:
-            source_text = "\n".join(
-                f"- {m.sender_open_id}: {m.text}" for m in cp.source_messages[:10]
-            )
+            source_text = "\n".join(f"- {m.sender_open_id}: {m.text}" for m in cp.source_messages[:10])
         prompt = (
             f"你是 Agent-Pilot，一个专业的文档生成助手。\n\n"
             f"任务目标：{task.intent}\n\n"
@@ -318,12 +338,13 @@ class OrchestratorService:
             f"任务目标：{task.intent}\n\n"
             f"文档内容摘要：\n{doc_content or '(无已有文档内容)'}\n\n"
             f"请生成一个 6-8 页的 PPT 大纲，每页包含标题和 3-4 个要点。\n"
-            f"输出格式为 JSON 数组：[{{\"title\": \"...\", \"bullets\": [\"...\"]}}]\n"
+            f'输出格式为 JSON 数组：[{{"title": "...", "bullets": ["..."]}}]\n'
             f"直接输出 JSON，不要包含 markdown 代码块标记。"
         )
         result = self._llm_fn(prompt)
         if result:
             import json as _json
+
             try:
                 cleaned = result.strip()
                 if cleaned.startswith("```"):
@@ -337,10 +358,13 @@ class OrchestratorService:
 
     def _finalize_failure(self, task: Task, error: str) -> None:
         try:
-            task.apply(TaskEvent.FATAL_ERROR,
-                        actor_open_id="system",
-                        note=f"orchestrator: {error}",
-                        event_bus=self.bus, enforce_owner_lock=False)
+            task.apply(
+                TaskEvent.FATAL_ERROR,
+                actor_open_id="system",
+                note=f"orchestrator: {error}",
+                event_bus=self.bus,
+                enforce_owner_lock=False,
+            )
         except Exception:
             pass
 

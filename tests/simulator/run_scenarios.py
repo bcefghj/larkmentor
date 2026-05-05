@@ -23,8 +23,13 @@ sys.path.insert(0, str(ROOT))
 from tests.simulator.scenario_loader import load_all_scenarios, filter_scenarios  # noqa
 from core.classification_engine import classify  # noqa
 from core.sender_profile import (  # noqa
-    SenderProfile, IDENTITY_VIP, IDENTITY_SUPERIOR, IDENTITY_PEER,
-    IDENTITY_OCCASIONAL, IDENTITY_UNKNOWN, IDENTITY_BOT,
+    SenderProfile,
+    IDENTITY_VIP,
+    IDENTITY_SUPERIOR,
+    IDENTITY_PEER,
+    IDENTITY_OCCASIONAL,
+    IDENTITY_UNKNOWN,
+    IDENTITY_BOT,
 )
 from memory.user_state import UserState  # noqa
 
@@ -33,9 +38,12 @@ REPORT_DIR = ROOT / "tests" / "reports"
 
 
 IDENTITY_MAP = {
-    "vip": IDENTITY_VIP, "superior": IDENTITY_SUPERIOR,
-    "peer": IDENTITY_PEER, "occasional": IDENTITY_OCCASIONAL,
-    "unknown": IDENTITY_UNKNOWN, "bot": IDENTITY_BOT,
+    "vip": IDENTITY_VIP,
+    "superior": IDENTITY_SUPERIOR,
+    "peer": IDENTITY_PEER,
+    "occasional": IDENTITY_OCCASIONAL,
+    "unknown": IDENTITY_UNKNOWN,
+    "bot": IDENTITY_BOT,
 }
 
 
@@ -82,9 +90,13 @@ def run_all(category=None):
     for sc in scenarios:
         res = run_one(sc)
         passed = res.level == sc.get("expected_level")
-        results.append({
-            "scenario": sc, "result": res, "passed": passed,
-        })
+        results.append(
+            {
+                "scenario": sc,
+                "result": res,
+                "passed": passed,
+            }
+        )
     elapsed = time.time() - t0
     return results, elapsed
 
@@ -99,7 +111,8 @@ def summarize(results):
         if r["passed"]:
             by_cat[cat]["passed"] += 1
     return {
-        "total": total, "passed": passed,
+        "total": total,
+        "passed": passed,
         "accuracy": passed / total if total else 0.0,
         "by_category": dict(by_cat),
     }
@@ -108,33 +121,30 @@ def summarize(results):
 def render_html(results, summary, elapsed_sec) -> str:
     rows = []
     for r in results:
-        sc = r["scenario"]; res = r["result"]
+        sc = r["scenario"]
+        res = r["result"]
         chat = sc.get("chat", {})
         sender = sc.get("sender", {})
         status = "PASS" if r["passed"] else "FAIL"
         status_cls = "pass" if r["passed"] else "fail"
-        dim_str = " ".join(
-            f'<span class="dim">{k}:{v:.2f}</span>'
-            for k, v in (res.dimensions or {}).items()
-        )
+        dim_str = " ".join(f'<span class="dim">{k}:{v:.2f}</span>' for k, v in (res.dimensions or {}).items())
         rows.append(f"""
         <tr class="{status_cls}">
           <td><span class="status">{status}</span></td>
-          <td>{sc['id']}</td>
-          <td>{sc.get('category','')}</td>
-          <td>{sc.get('description','')}</td>
-          <td>{sender.get('name','')} ({sender.get('identity','')})</td>
-          <td>{chat.get('type','')} {chat.get('name','')}</td>
-          <td class="msg">{(sc.get('message','') or '<i>(empty)</i>')[:80]}</td>
-          <td>{sc.get('expected_level','')}</td>
+          <td>{sc["id"]}</td>
+          <td>{sc.get("category", "")}</td>
+          <td>{sc.get("description", "")}</td>
+          <td>{sender.get("name", "")} ({sender.get("identity", "")})</td>
+          <td>{chat.get("type", "")} {chat.get("name", "")}</td>
+          <td class="msg">{(sc.get("message", "") or "<i>(empty)</i>")[:80]}</td>
+          <td>{sc.get("expected_level", "")}</td>
           <td><strong>{res.level}</strong> ({res.score:.2f})</td>
           <td class="dims">{dim_str}</td>
         </tr>""")
     rows_html = "\n".join(rows)
 
     cat_rows = "\n".join(
-        f"<tr><td>{c}</td><td>{v['passed']}/{v['total']}</td>"
-        f"<td>{(v['passed']/v['total']*100):.1f}%</td></tr>"
+        f"<tr><td>{c}</td><td>{v['passed']}/{v['total']}</td><td>{(v['passed'] / v['total'] * 100):.1f}%</td></tr>"
         for c, v in summary["by_category"].items()
     )
 
@@ -170,11 +180,11 @@ def render_html(results, summary, elapsed_sec) -> str:
   h2 {{ margin-top: 32px; }}
 </style></head><body><div class="container">
 <h1>LarkMentor 6 维分类引擎准确率报告</h1>
-<div class="meta">运行 {summary['total']} 个场景 · 耗时 {elapsed_sec:.2f}s · 报告时间 {time.strftime('%Y-%m-%d %H:%M:%S')}</div>
+<div class="meta">运行 {summary["total"]} 个场景 · 耗时 {elapsed_sec:.2f}s · 报告时间 {time.strftime("%Y-%m-%d %H:%M:%S")}</div>
 
 <div class="summary">
-  <div class="card"><div class="label">总场景</div><div class="value">{summary['total']}</div></div>
-  <div class="card"><div class="label">通过</div><div class="value">{summary['passed']}</div></div>
+  <div class="card"><div class="label">总场景</div><div class="value">{summary["total"]}</div></div>
+  <div class="card"><div class="label">通过</div><div class="value">{summary["passed"]}</div></div>
   <div class="card accuracy"><div class="label">总准确率</div><div class="value">{accuracy_pct:.1f}%</div></div>
 </div>
 
@@ -208,16 +218,16 @@ def main():
     results, elapsed = run_all(args.category)
     summary = summarize(results)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("LarkMentor Classification Engine - Test Report")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Scenarios: {summary['total']}")
     print(f"Passed:    {summary['passed']}")
-    print(f"Accuracy:  {summary['accuracy']*100:.1f}%")
+    print(f"Accuracy:  {summary['accuracy'] * 100:.1f}%")
     print(f"Time:      {elapsed:.2f}s")
     print("\nBy category:")
     for cat, v in summary["by_category"].items():
-        pct = v['passed'] / v['total'] * 100 if v['total'] else 0
+        pct = v["passed"] / v["total"] * 100 if v["total"] else 0
         print(f"  {cat:20s} {v['passed']}/{v['total']:3d}  ({pct:.1f}%)")
 
     failed = [r for r in results if not r["passed"]]
@@ -225,11 +235,14 @@ def main():
         print(f"\nFailures ({len(failed)}):")
         limit = 100 if os.environ.get("VERBOSE") else 10
         for r in failed[:limit]:
-            sc = r["scenario"]; res = r["result"]
-            print(f"  {sc['id']:20s} expected={sc.get('expected_level')} got={res.level} "
-                  f"({res.score:.2f}) | {sc.get('description','')[:50]}")
+            sc = r["scenario"]
+            res = r["result"]
+            print(
+                f"  {sc['id']:20s} expected={sc.get('expected_level')} got={res.level} "
+                f"({res.score:.2f}) | {sc.get('description', '')[:50]}"
+            )
         if len(failed) > limit:
-            print(f"  ... and {len(failed)-limit} more")
+            print(f"  ... and {len(failed) - limit} more")
 
     if not args.no_html:
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -237,7 +250,7 @@ def main():
         out.write_text(render_html(results, summary, elapsed), encoding="utf-8")
         print(f"\nHTML report: {out}")
 
-    sys.exit(0 if summary['accuracy'] >= 0.75 else 1)
+    sys.exit(0 if summary["accuracy"] >= 0.75 else 1)
 
 
 if __name__ == "__main__":

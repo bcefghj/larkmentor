@@ -11,6 +11,7 @@ Task 是 Pilot 主流程的核心聚合根（aggregate root），持有：
 
 Task 是 application 层 ``task_service`` 的主要操作对象。
 """
+
 from __future__ import annotations
 
 import time
@@ -53,8 +54,8 @@ class TransitionRecord:
 class AgentLogEntry:
     """Agent 推理痕迹一条（PRD §8.1）."""
 
-    agent: str           # "@pilot" / "@researcher" / "@validator" / ...
-    kind: str            # "thought" / "tool_call" / "result" / "error" / "delegation"
+    agent: str  # "@pilot" / "@researcher" / "@validator" / ...
+    kind: str  # "thought" / "tool_call" / "result" / "error" / "delegation"
     content: str
     ts: int = 0
     meta: Dict[str, Any] = field(default_factory=dict)
@@ -66,11 +67,11 @@ class Task:
 
     task_id: str
     title: str = ""
-    intent: str = ""                        # 用户原始自然语言或 IM 摘要
+    intent: str = ""  # 用户原始自然语言或 IM 摘要
     source_chat_id: str = ""
     source_msg_id: str = ""
     tenant_id: str = "default"
-    workspace_id: str = ""                  # 6 级 Memory 之一
+    workspace_id: str = ""  # 6 级 Memory 之一
     department_id: str = ""
     state: TaskState = TaskState.SUGGESTED
 
@@ -92,12 +93,20 @@ class Task:
 
     # ── factories ─────────────────────────────────────────────────────────────
     @classmethod
-    def new(cls, *, intent: str, source_chat_id: str = "",
-            source_msg_id: str = "", tenant_id: str = "default",
-            workspace_id: str = "", department_id: str = "",
-            owner_open_id: str = "",
-            title: str = "", task_id: str = "",
-            event_bus: Optional[EventBus] = None) -> "Task":
+    def new(
+        cls,
+        *,
+        intent: str,
+        source_chat_id: str = "",
+        source_msg_id: str = "",
+        tenant_id: str = "default",
+        workspace_id: str = "",
+        department_id: str = "",
+        owner_open_id: str = "",
+        title: str = "",
+        task_id: str = "",
+        event_bus: Optional[EventBus] = None,
+    ) -> "Task":
         tid = task_id or f"task-{uuid.uuid4().hex[:10]}"
         now = int(time.time())
         t = cls(
@@ -115,18 +124,27 @@ class Task:
             updated_ts=now,
         )
         bus = event_bus or default_event_bus()
-        bus.publish(make_event(
-            EVT_TASK_CREATED, tid,
-            actor_open_id=owner_open_id,
-            data={"intent": intent[:200], "title": t.title},
-            ts=now,
-        ))
+        bus.publish(
+            make_event(
+                EVT_TASK_CREATED,
+                tid,
+                actor_open_id=owner_open_id,
+                data={"intent": intent[:200], "title": t.title},
+                ts=now,
+            )
+        )
         return t
 
     # ── transitions ───────────────────────────────────────────────────────────
-    def apply(self, event: TaskEvent, *, actor_open_id: str = "",
-              note: str = "", event_bus: Optional[EventBus] = None,
-              enforce_owner_lock: bool = True) -> None:
+    def apply(
+        self,
+        event: TaskEvent,
+        *,
+        actor_open_id: str = "",
+        note: str = "",
+        event_bus: Optional[EventBus] = None,
+        enforce_owner_lock: bool = True,
+    ) -> None:
         """触发一次状态转移.
 
         Args:
@@ -167,51 +185,69 @@ class Task:
         ts = int(time.time())
         self.state = new
         self.updated_ts = ts
-        self.transitions.append(TransitionRecord(
-            from_state=old.value, to_state=new.value, event=event.value,
-            actor_open_id=actor_open_id, ts=ts, note=note,
-        ))
-        bus.publish(make_event(
-            EVT_TASK_STATE_CHANGED, self.task_id,
-            actor_open_id=actor_open_id,
-            data={"from": old.value, "to": new.value, "event": event.value, "note": note},
-            ts=ts,
-        ))
+        self.transitions.append(
+            TransitionRecord(
+                from_state=old.value,
+                to_state=new.value,
+                event=event.value,
+                actor_open_id=actor_open_id,
+                ts=ts,
+                note=note,
+            )
+        )
+        bus.publish(
+            make_event(
+                EVT_TASK_STATE_CHANGED,
+                self.task_id,
+                actor_open_id=actor_open_id,
+                data={"from": old.value, "to": new.value, "event": event.value, "note": note},
+                ts=ts,
+            )
+        )
 
     # ── owner ops ─────────────────────────────────────────────────────────────
-    def assign(self, *, to_open_id: str, by_open_id: str,
-               event_bus: Optional[EventBus] = None) -> None:
+    def assign(self, *, to_open_id: str, by_open_id: str, event_bus: Optional[EventBus] = None) -> None:
         bus = event_bus or default_event_bus()
         ts = int(time.time())
         if not self.owner_lock.owner_open_id:
             self.owner_lock.owner_open_id = to_open_id
-            self.owner_lock.history.append(OwnerAssignment(
-                actor_open_id=to_open_id, by_open_id=by_open_id,
-                accepted=True, ts=ts,
-            ))
+            self.owner_lock.history.append(
+                OwnerAssignment(
+                    actor_open_id=to_open_id,
+                    by_open_id=by_open_id,
+                    accepted=True,
+                    ts=ts,
+                )
+            )
         else:
             self.owner_lock.transfer_to(to_open_id, by_open_id, ts=ts)
         self.updated_ts = ts
-        bus.publish(make_event(
-            EVT_TASK_ASSIGNED, self.task_id,
-            actor_open_id=by_open_id,
-            data={"to": to_open_id, "by": by_open_id},
-            ts=ts,
-        ))
+        bus.publish(
+            make_event(
+                EVT_TASK_ASSIGNED,
+                self.task_id,
+                actor_open_id=by_open_id,
+                data={"to": to_open_id, "by": by_open_id},
+                ts=ts,
+            )
+        )
 
-    def lock_for_action(self, *, actor_open_id: str, action: str,
-                        event_bus: Optional[EventBus] = None) -> None:
+    def lock_for_action(self, *, actor_open_id: str, action: str, event_bus: Optional[EventBus] = None) -> None:
         self.owner_lock.acquire_for_action(actor_open_id, action)
         bus = event_bus or default_event_bus()
-        bus.publish(make_event(
-            EVT_TASK_OWNER_LOCKED, self.task_id,
-            actor_open_id=actor_open_id,
-            data={"action": action, "owner": self.owner_lock.owner_open_id},
-        ))
+        bus.publish(
+            make_event(
+                EVT_TASK_OWNER_LOCKED,
+                self.task_id,
+                actor_open_id=actor_open_id,
+                data={"action": action, "owner": self.owner_lock.owner_open_id},
+            )
+        )
 
     # ── context ──────────────────────────────────────────────────────────────
-    def attach_context(self, ctx: ContextPack, *, confirmed: bool = False,
-                        event_bus: Optional[EventBus] = None) -> None:
+    def attach_context(
+        self, ctx: ContextPack, *, confirmed: bool = False, event_bus: Optional[EventBus] = None
+    ) -> None:
         ctx.task_id = self.task_id
         if confirmed and not ctx.confirmed_by_owner:
             ctx.confirmed_by_owner = True
@@ -219,11 +255,14 @@ class Task:
         self.context_pack = ctx
         self.updated_ts = int(time.time())
         if confirmed:
-            (event_bus or default_event_bus()).publish(make_event(
-                EVT_CONTEXT_CONFIRMED, self.task_id,
-                actor_open_id=self.owner_lock.owner_open_id,
-                data={"goal": ctx.task_goal[:200], "n_msgs": len(ctx.source_messages)},
-            ))
+            (event_bus or default_event_bus()).publish(
+                make_event(
+                    EVT_CONTEXT_CONFIRMED,
+                    self.task_id,
+                    actor_open_id=self.owner_lock.owner_open_id,
+                    data={"goal": ctx.task_goal[:200], "n_msgs": len(ctx.source_messages)},
+                )
+            )
 
     # ── artifacts ─────────────────────────────────────────────────────────────
     def add_artifact(self, art: Artifact, *, event_bus: Optional[EventBus] = None) -> None:
@@ -232,19 +271,25 @@ class Task:
             art.created_ts = int(time.time())
         self.artifacts.append(art)
         self.updated_ts = int(time.time())
-        (event_bus or default_event_bus()).publish(make_event(
-            EVT_ARTIFACT_CREATED, self.task_id,
-            data={"artifact_id": art.artifact_id, "kind": art.kind.value,
-                  "title": art.title[:120]},
-        ))
+        (event_bus or default_event_bus()).publish(
+            make_event(
+                EVT_ARTIFACT_CREATED,
+                self.task_id,
+                data={"artifact_id": art.artifact_id, "kind": art.kind.value, "title": art.title[:120]},
+            )
+        )
 
     # ── agent log ────────────────────────────────────────────────────────────
-    def log(self, *, agent: str, kind: str, content: str,
-            meta: Optional[Dict[str, Any]] = None) -> None:
-        self.agent_logs.append(AgentLogEntry(
-            agent=agent, kind=kind, content=content,
-            ts=int(time.time()), meta=meta or {},
-        ))
+    def log(self, *, agent: str, kind: str, content: str, meta: Optional[Dict[str, Any]] = None) -> None:
+        self.agent_logs.append(
+            AgentLogEntry(
+                agent=agent,
+                kind=kind,
+                content=content,
+                ts=int(time.time()),
+                meta=meta or {},
+            )
+        )
         self.updated_ts = int(time.time())
 
     # ── serialization ─────────────────────────────────────────────────────────

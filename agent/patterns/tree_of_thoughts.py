@@ -33,9 +33,11 @@ logger = logging.getLogger("agent.patterns.tree_of_thoughts")
 # Data structures
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ThoughtNode:
     """A single node in the thought tree."""
+
     node_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     depth: int = 0
     branch_index: int = 0
@@ -68,6 +70,7 @@ class ThoughtNode:
 @dataclass
 class ToTResult:
     """Final result of a Tree-of-Thoughts solve."""
+
     answer: str
     best_path: List[ThoughtNode]
     best_score: float
@@ -100,6 +103,7 @@ class ToTResult:
 @dataclass
 class ToTEvent:
     """Observable event emitted during tree exploration."""
+
     kind: str  # "branch_generated", "branch_evaluated", "branch_pruned", "depth_complete", "budget_warning", "finalize"
     depth: int
     node_id: str = ""
@@ -113,6 +117,7 @@ EventCallback = Callable[[ToTEvent], None]
 # ---------------------------------------------------------------------------
 # TreeOfThoughts
 # ---------------------------------------------------------------------------
+
 
 class TreeOfThoughts:
     """Tree-of-Thoughts solver with real LLM calls, evaluation, and pruning.
@@ -153,6 +158,7 @@ class TreeOfThoughts:
     def provider(self):
         if self._provider is None:
             from agent.providers import default_providers
+
             self._provider = default_providers()
         return self._provider
 
@@ -173,8 +179,9 @@ class TreeOfThoughts:
                 return True
         return False
 
-    def _llm_call(self, messages: List[Dict[str, str]], *, task_kind: str,
-                  temperature: float = 0.7, max_tokens: int = 800) -> str:
+    def _llm_call(
+        self, messages: List[Dict[str, str]], *, task_kind: str, temperature: float = 0.7, max_tokens: int = 800
+    ) -> str:
         """Make an LLM call via the provider router, tracking usage."""
         before_usage = list(self.provider.usage)
         result = self.provider.chat(
@@ -184,7 +191,7 @@ class TreeOfThoughts:
             max_tokens=max_tokens,
         )
         after_usage = self.provider.usage
-        new_records = after_usage[len(before_usage):]
+        new_records = after_usage[len(before_usage) :]
         for rec in new_records:
             self._total_input_tokens += rec.input_tokens
             self._total_output_tokens += rec.output_tokens
@@ -232,14 +239,16 @@ class TreeOfThoughts:
         for depth in range(1, max_depth + 1):
             if self._budget_exceeded():
                 budget_exceeded = True
-                self._emit(ToTEvent(
-                    kind="budget_warning",
-                    depth=depth,
-                    data={
-                        "total_tokens": self._total_input_tokens + self._total_output_tokens,
-                        "total_cost_cny": self._total_cost_cny,
-                    },
-                ))
+                self._emit(
+                    ToTEvent(
+                        kind="budget_warning",
+                        depth=depth,
+                        data={
+                            "total_tokens": self._total_input_tokens + self._total_output_tokens,
+                            "total_cost_cny": self._total_cost_cny,
+                        },
+                    )
+                )
                 logger.warning("Budget exceeded at depth %d, stopping early", depth)
                 break
 
@@ -259,12 +268,14 @@ class TreeOfThoughts:
                     leaf.children.append(branch.node_id)
                     next_leaves.append(branch)
 
-                    self._emit(ToTEvent(
-                        kind="branch_generated",
-                        depth=depth,
-                        node_id=branch.node_id,
-                        data=branch.to_dict(),
-                    ))
+                    self._emit(
+                        ToTEvent(
+                            kind="branch_generated",
+                            depth=depth,
+                            node_id=branch.node_id,
+                            data=branch.to_dict(),
+                        )
+                    )
 
             if not next_leaves:
                 break
@@ -275,12 +286,14 @@ class TreeOfThoughts:
             self._evaluate_thoughts(problem, next_leaves)
 
             for node in next_leaves:
-                self._emit(ToTEvent(
-                    kind="branch_evaluated",
-                    depth=depth,
-                    node_id=node.node_id,
-                    data={"score": node.score, "text_preview": node.text[:100]},
-                ))
+                self._emit(
+                    ToTEvent(
+                        kind="branch_evaluated",
+                        depth=depth,
+                        node_id=node.node_id,
+                        data={"score": node.score, "text_preview": node.text[:100]},
+                    )
+                )
 
             # Prune: remove branches below threshold
             surviving: List[ThoughtNode] = []
@@ -288,12 +301,14 @@ class TreeOfThoughts:
                 if node.score < prune_threshold:
                     node.pruned = True
                     total_pruned += 1
-                    self._emit(ToTEvent(
-                        kind="branch_pruned",
-                        depth=depth,
-                        node_id=node.node_id,
-                        data={"score": node.score, "threshold": prune_threshold},
-                    ))
+                    self._emit(
+                        ToTEvent(
+                            kind="branch_pruned",
+                            depth=depth,
+                            node_id=node.node_id,
+                            data={"score": node.score, "threshold": prune_threshold},
+                        )
+                    )
                 else:
                     surviving.append(node)
 
@@ -311,15 +326,17 @@ class TreeOfThoughts:
                     n.pruned = False
 
             current_leaves = surviving
-            self._emit(ToTEvent(
-                kind="depth_complete",
-                depth=depth,
-                data={
-                    "surviving_count": len(surviving),
-                    "pruned_count": total_pruned,
-                    "best_score": max(n.score for n in surviving) if surviving else 0,
-                },
-            ))
+            self._emit(
+                ToTEvent(
+                    kind="depth_complete",
+                    depth=depth,
+                    data={
+                        "surviving_count": len(surviving),
+                        "pruned_count": total_pruned,
+                        "best_score": max(n.score for n in surviving) if surviving else 0,
+                    },
+                )
+            )
 
         # Pick the best leaf and reconstruct path
         best_leaf = max(current_leaves, key=lambda n: n.score) if current_leaves else root
@@ -328,12 +345,14 @@ class TreeOfThoughts:
         # Generate final answer from best reasoning chain
         answer = self._finalize(problem, best_leaf)
 
-        self._emit(ToTEvent(
-            kind="finalize",
-            depth=depth_reached,
-            node_id=best_leaf.node_id,
-            data={"best_score": best_leaf.score, "answer_preview": answer[:200]},
-        ))
+        self._emit(
+            ToTEvent(
+                kind="finalize",
+                depth=depth_reached,
+                node_id=best_leaf.node_id,
+                data={"best_score": best_leaf.score, "answer_preview": answer[:200]},
+            )
+        )
 
         elapsed = time.time() - start_time
 
@@ -367,12 +386,10 @@ class TreeOfThoughts:
                 f"## Problem\n{problem}\n\n"
             )
             if parent.cumulative_text:
-                prompt += (
-                    f"## Reasoning so far\n{parent.cumulative_text}\n\n"
-                )
+                prompt += f"## Reasoning so far\n{parent.cumulative_text}\n\n"
             prompt += (
                 f"## Task\n"
-                f"Generate thought branch #{i+1} of {num_thoughts}. "
+                f"Generate thought branch #{i + 1} of {num_thoughts}. "
                 f"Explore a DIFFERENT angle or approach than what's been considered. "
                 f"Be creative but rigorous. Think step by step.\n\n"
                 f"Write your next reasoning step (2-4 paragraphs):"
@@ -397,7 +414,7 @@ class TreeOfThoughts:
                 parent_id=parent.node_id,
                 text=response.strip(),
                 cumulative_text=(
-                    f"{parent.cumulative_text}\n\n--- Step {parent.depth + 1} (Branch {i+1}) ---\n{response.strip()}"
+                    f"{parent.cumulative_text}\n\n--- Step {parent.depth + 1} (Branch {i + 1}) ---\n{response.strip()}"
                 ).strip(),
             )
             branches.append(node)
@@ -459,7 +476,7 @@ class TreeOfThoughts:
         # Try parsing as JSON array first
         cleaned = response.strip()
         # Extract JSON array from response
-        match = re.search(r'\[[\s\d.,]+\]', cleaned)
+        match = re.search(r"\[[\s\d.,]+\]", cleaned)
         if match:
             try:
                 scores = json.loads(match.group(0))
@@ -468,7 +485,7 @@ class TreeOfThoughts:
                 pass
 
         # Fallback: extract all numbers
-        nums = re.findall(r'(\d+(?:\.\d+)?)', cleaned)
+        nums = re.findall(r"(\d+(?:\.\d+)?)", cleaned)
         scores = []
         for n in nums:
             val = float(n)
@@ -519,6 +536,7 @@ class TreeOfThoughts:
 # Convenience function (backwards-compatible with old API)
 # ---------------------------------------------------------------------------
 
+
 def tree_of_thoughts(
     question: str,
     *,
@@ -547,8 +565,7 @@ def tree_of_thoughts(
         # Monkey-patch _llm_call for legacy compatibility
         original_call = tot._llm_call
 
-        def _legacy_call(messages, *, task_kind="default",
-                         temperature=0.7, max_tokens=800):
+        def _legacy_call(messages, *, task_kind="default", temperature=0.7, max_tokens=800):
             prompt = messages[-1]["content"] if messages else ""
             return llm(prompt)
 

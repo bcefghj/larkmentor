@@ -67,8 +67,10 @@ DEFAULT_CONFIGS: Dict[str, ProviderConfig] = {
         endpoint="https://ark.cn-beijing.volces.com/api/v3",
         api_key_env="DOUBAO_API_KEY",
         model=os.getenv("DOUBAO_MODEL", "doubao-1-5-pro-32k-250115"),
-        cost_input_per_1m=0.8, cost_output_per_1m=2.0,
-        speed_tps=80, context_window=32_768,
+        cost_input_per_1m=0.8,
+        cost_output_per_1m=2.0,
+        speed_tps=80,
+        context_window=32_768,
         strength=["chinese", "fast"],
     ),
     "minimax": ProviderConfig(
@@ -76,8 +78,10 @@ DEFAULT_CONFIGS: Dict[str, ProviderConfig] = {
         endpoint="https://api.minimax.chat/v1",
         api_key_env="MINIMAX_API_KEY",
         model=os.getenv("MINIMAX_MODEL", "MiniMax-M2"),
-        cost_input_per_1m=0.30, cost_output_per_1m=1.20,
-        speed_tps=46, context_window=205_000,
+        cost_input_per_1m=0.30,
+        cost_output_per_1m=1.20,
+        speed_tps=46,
+        context_window=205_000,
         strength=["reasoning", "long_context", "planning"],
     ),
     "deepseek": ProviderConfig(
@@ -85,8 +89,10 @@ DEFAULT_CONFIGS: Dict[str, ProviderConfig] = {
         endpoint="https://api.deepseek.com/v1",
         api_key_env="DEEPSEEK_API_KEY",
         model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
-        cost_input_per_1m=0.14, cost_output_per_1m=0.28,
-        speed_tps=60, context_window=65_536,
+        cost_input_per_1m=0.14,
+        cost_output_per_1m=0.28,
+        speed_tps=60,
+        context_window=65_536,
         strength=["cheap", "summary"],
     ),
     "kimi": ProviderConfig(
@@ -94,8 +100,10 @@ DEFAULT_CONFIGS: Dict[str, ProviderConfig] = {
         endpoint="https://api.moonshot.cn/v1",
         api_key_env="KIMI_API_KEY",
         model=os.getenv("KIMI_MODEL", "moonshot-v1-128k"),
-        cost_input_per_1m=12.0, cost_output_per_1m=12.0,
-        speed_tps=40, context_window=128_000,
+        cost_input_per_1m=12.0,
+        cost_output_per_1m=12.0,
+        speed_tps=40,
+        context_window=128_000,
         strength=["long_doc", "128k"],
     ),
 }
@@ -130,6 +138,7 @@ class UsageRecord:
 @dataclass
 class CallRecord:
     """Single call outcome for sliding-window tracking."""
+
     success: bool
     latency_ms: float
     cost_cny: float
@@ -139,6 +148,7 @@ class CallRecord:
 @dataclass
 class ProviderHealth:
     """Health state for a single provider."""
+
     consecutive_failures: int = 0
     degraded_since: Optional[float] = None
     total_calls: int = 0
@@ -200,6 +210,7 @@ class ProviderRouter:
             return
         try:
             import yaml  # type: ignore
+
             data = yaml.safe_load(cfg_path.read_text())
             for name, pc in (data.get("providers") or {}).items():
                 if name in self.configs:
@@ -238,12 +249,14 @@ class ProviderRouter:
                 for task_kind, records in task_map.items():
                     dq = deque(maxlen=SLIDING_WINDOW_SIZE)
                     for r in records[-SLIDING_WINDOW_SIZE:]:
-                        dq.append(CallRecord(
-                            success=r["success"],
-                            latency_ms=r["latency_ms"],
-                            cost_cny=r["cost_cny"],
-                            ts=r["ts"],
-                        ))
+                        dq.append(
+                            CallRecord(
+                                success=r["success"],
+                                latency_ms=r["latency_ms"],
+                                cost_cny=r["cost_cny"],
+                                ts=r["ts"],
+                            )
+                        )
                     self._call_history[provider_name][task_kind] = dq
             for provider_name, h in data.get("health", {}).items():
                 if provider_name in self._health:
@@ -266,8 +279,7 @@ class ProviderRouter:
                     data["call_history"][provider_name] = {}
                     for task_kind, dq in task_map.items():
                         data["call_history"][provider_name][task_kind] = [
-                            {"success": r.success, "latency_ms": r.latency_ms,
-                             "cost_cny": r.cost_cny, "ts": r.ts}
+                            {"success": r.success, "latency_ms": r.latency_ms, "cost_cny": r.cost_cny, "ts": r.ts}
                             for r in dq
                         ]
                 for provider_name, h in self._health.items():
@@ -288,14 +300,17 @@ class ProviderRouter:
             task_map[task_kind] = deque(maxlen=SLIDING_WINDOW_SIZE)
         return task_map[task_kind]
 
-    def _record_call(self, provider: str, task_kind: str, success: bool,
-                     latency_ms: float, cost_cny: float) -> None:
+    def _record_call(self, provider: str, task_kind: str, success: bool, latency_ms: float, cost_cny: float) -> None:
         """Record a call outcome into sliding window and health tracker."""
         with self._lock:
             window = self._get_window(provider, task_kind)
-            window.append(CallRecord(
-                success=success, latency_ms=latency_ms, cost_cny=cost_cny,
-            ))
+            window.append(
+                CallRecord(
+                    success=success,
+                    latency_ms=latency_ms,
+                    cost_cny=cost_cny,
+                )
+            )
             health = self._health.setdefault(provider, ProviderHealth())
             if success:
                 health.record_success()
@@ -403,7 +418,9 @@ class ProviderRouter:
         return None
 
     def chat(
-        self, messages: List[Dict[str, Any]], *,
+        self,
+        messages: List[Dict[str, Any]],
+        *,
         task_kind: str = "default",
         temperature: float = 0.4,
         max_tokens: int = 1500,
@@ -413,8 +430,11 @@ class ProviderRouter:
         # Cost circuit breaker: per-plan budget check
         if self._current_plan_cost_cny >= self.per_plan_budget:
             task_kind = "summary"
-            logger.warning("budget exceeded %.3f >= %.3f, downgrading to cheapest",
-                           self._current_plan_cost_cny, self.per_plan_budget)
+            logger.warning(
+                "budget exceeded %.3f >= %.3f, downgrading to cheapest",
+                self._current_plan_cost_cny,
+                self.per_plan_budget,
+            )
 
         cfg = self.pick(task_kind)
         if not cfg:
@@ -424,31 +444,39 @@ class ProviderRouter:
         try:
             t0 = time.time()
             text, input_tokens, output_tokens = self._openai_compatible_call(
-                cfg, messages, temperature=temperature, max_tokens=max_tokens, tools=tools,
+                cfg,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                tools=tools,
             )
             latency_ms = (time.time() - t0) * 1000
 
-            cost = (input_tokens / 1_000_000) * cfg.cost_input_per_1m + \
-                   (output_tokens / 1_000_000) * cfg.cost_output_per_1m
+            cost = (input_tokens / 1_000_000) * cfg.cost_input_per_1m + (
+                output_tokens / 1_000_000
+            ) * cfg.cost_output_per_1m
 
             with self._lock:
                 self._current_plan_cost_cny += cost
-                self.usage.append(UsageRecord(
-                    provider=cfg.name, model=cfg.model,
-                    input_tokens=input_tokens, output_tokens=output_tokens,
-                    cost_cny=cost, task_kind=task_kind,
-                ))
+                self.usage.append(
+                    UsageRecord(
+                        provider=cfg.name,
+                        model=cfg.model,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_cny=cost,
+                        task_kind=task_kind,
+                    )
+                )
                 if len(self.usage) > 1000:
                     self.usage = self.usage[-1000:]
 
-            self._record_call(cfg.name, task_kind, success=True,
-                              latency_ms=latency_ms, cost_cny=cost)
+            self._record_call(cfg.name, task_kind, success=True, latency_ms=latency_ms, cost_cny=cost)
             return text
 
         except Exception as e:
-            latency_ms = (time.time() - t0) * 1000 if 't0' in dir() else 0.0
-            self._record_call(cfg.name, task_kind, success=False,
-                              latency_ms=latency_ms, cost_cny=0.0)
+            latency_ms = (time.time() - t0) * 1000 if "t0" in dir() else 0.0
+            self._record_call(cfg.name, task_kind, success=False, latency_ms=latency_ms, cost_cny=0.0)
             logger.warning("provider %s failed: %s; trying fallback", cfg.name, e)
 
             for fb in self.fallback:
@@ -463,25 +491,32 @@ class ProviderRouter:
                 try:
                     t0_fb = time.time()
                     text, itok, otok = self._openai_compatible_call(
-                        fb_cfg, messages, temperature=temperature,
-                        max_tokens=max_tokens, tools=tools,
+                        fb_cfg,
+                        messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        tools=tools,
                     )
                     fb_latency = (time.time() - t0_fb) * 1000
-                    fb_cost = (itok / 1_000_000) * fb_cfg.cost_input_per_1m + \
-                              (otok / 1_000_000) * fb_cfg.cost_output_per_1m
-                    self._record_call(fb_cfg.name, task_kind, success=True,
-                                      latency_ms=fb_latency, cost_cny=fb_cost)
+                    fb_cost = (itok / 1_000_000) * fb_cfg.cost_input_per_1m + (
+                        otok / 1_000_000
+                    ) * fb_cfg.cost_output_per_1m
+                    self._record_call(fb_cfg.name, task_kind, success=True, latency_ms=fb_latency, cost_cny=fb_cost)
                     return text
                 except Exception as e2:
-                    self._record_call(fb, task_kind, success=False,
-                                      latency_ms=0.0, cost_cny=0.0)
+                    self._record_call(fb, task_kind, success=False, latency_ms=0.0, cost_cny=0.0)
                     logger.debug("fallback %s also failed: %s", fb, e2)
                     continue
             return ""
 
     def _openai_compatible_call(
-        self, cfg: ProviderConfig, messages: List[Dict], *,
-        temperature: float, max_tokens: int, tools: Optional[List[Dict]] = None,
+        self,
+        cfg: ProviderConfig,
+        messages: List[Dict],
+        *,
+        temperature: float,
+        max_tokens: int,
+        tools: Optional[List[Dict]] = None,
     ):
         """OpenAI-compatible chat completion call. Works for Doubao, MiniMax, DeepSeek, Kimi."""
         try:
@@ -527,6 +562,7 @@ class ProviderRouter:
 
     def daily_cost(self) -> float:
         from datetime import datetime
+
         start_of_day = datetime.now().replace(hour=0, minute=0, second=0).timestamp()
         return sum(u.cost_cny for u in self.usage if u.ts >= start_of_day)
 
@@ -561,8 +597,7 @@ class ProviderRouter:
                 "total_calls": health.total_calls,
                 "total_successes": health.total_successes,
                 "lifetime_success_rate": (
-                    round(health.total_successes / health.total_calls, 4)
-                    if health.total_calls > 0 else None
+                    round(health.total_successes / health.total_calls, 4) if health.total_calls > 0 else None
                 ),
                 "task_stats": task_stats,
             }
@@ -580,7 +615,8 @@ class ProviderRouter:
                     "cost_input": c.cost_input_per_1m,
                     "cost_output": c.cost_output_per_1m,
                     "is_degraded": self._health.get(name, ProviderHealth()).is_degraded,
-                } for name, c in self.configs.items()
+                }
+                for name, c in self.configs.items()
             },
             "routing": self.routing,
             "fallback": self.fallback,
@@ -591,9 +627,14 @@ class ProviderRouter:
                 "daily_cost": self.daily_cost(),
             },
             "recent_usage": [
-                {"provider": u.provider, "model": u.model,
-                 "input": u.input_tokens, "output": u.output_tokens,
-                 "cost": round(u.cost_cny, 5), "task": u.task_kind}
+                {
+                    "provider": u.provider,
+                    "model": u.model,
+                    "input": u.input_tokens,
+                    "output": u.output_tokens,
+                    "cost": round(u.cost_cny, 5),
+                    "task": u.task_kind,
+                }
                 for u in self.usage[-10:]
             ],
             "health": self.get_provider_stats(),

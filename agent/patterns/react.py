@@ -9,7 +9,8 @@ logger = logging.getLogger("agent.patterns.react")
 
 
 def react_loop(
-    question: str, *,
+    question: str,
+    *,
     tools: Dict[str, Callable],
     llm: Callable[[str], str],
     max_iters: int = 5,
@@ -29,24 +30,27 @@ def react_loop(
     )
     for _ in range(max_iters):
         prompt = prompt_template.format(
-            q=question, tools=", ".join(tools.keys()),
+            q=question,
+            tools=", ".join(tools.keys()),
             scratch="\n".join(scratch),
         )
         out = llm(prompt).strip()
         if out.startswith("FINAL:"):
-            return {"answer": out[len("FINAL:"):].strip(), "iters": len(scratch) // 2}
+            return {"answer": out[len("FINAL:") :].strip(), "iters": len(scratch) // 2}
         if "ACTION:" in out:
             action_part = out.split("ACTION:", 1)[1].strip()
             # naive parse: tool(args)
             if "(" in action_part and action_part.endswith(")"):
                 name = action_part.split("(", 1)[0].strip()
-                args_str = action_part[action_part.index("(") + 1:-1]
+                args_str = action_part[action_part.index("(") + 1 : -1]
                 kwargs: Dict[str, Any] = {}
                 for part in args_str.split(","):
                     if "=" in part:
                         k, v = part.split("=", 1)
                         kwargs[k.strip()] = v.strip().strip("'\"")
-                scratch.append(f"THOUGHT: {out.split('THOUGHT:')[1].split('ACTION:')[0].strip() if 'THOUGHT:' in out else ''}")
+                scratch.append(
+                    f"THOUGHT: {out.split('THOUGHT:')[1].split('ACTION:')[0].strip() if 'THOUGHT:' in out else ''}"
+                )
                 scratch.append(f"ACTION: {action_part}")
                 fn = tools.get(name)
                 if fn:

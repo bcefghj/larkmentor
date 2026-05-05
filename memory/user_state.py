@@ -19,6 +19,7 @@ from typing import Dict, List, Optional
 
 try:
     import fcntl  # POSIX only
+
     _HAS_FCNTL = True
 except ImportError:
     _HAS_FCNTL = False
@@ -101,13 +102,21 @@ class TaskContext:
     context_note: str = ""
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "created_ts": self.created_ts,
-                "last_active_ts": self.last_active_ts, "context_note": self.context_note}
+        return {
+            "name": self.name,
+            "created_ts": self.created_ts,
+            "last_active_ts": self.last_active_ts,
+            "context_note": self.context_note,
+        }
 
     @classmethod
     def from_dict(cls, d: dict) -> "TaskContext":
-        return cls(name=d.get("name", ""), created_ts=d.get("created_ts", 0),
-                   last_active_ts=d.get("last_active_ts", 0), context_note=d.get("context_note", ""))
+        return cls(
+            name=d.get("name", ""),
+            created_ts=d.get("created_ts", 0),
+            last_active_ts=d.get("last_active_ts", 0),
+            context_note=d.get("context_note", ""),
+        )
 
 
 ACHIEVEMENT_DEFS = [
@@ -191,10 +200,7 @@ class UserState:
             "p1_count": sum(1 for m in self.pending_messages if m.level == "P1"),
             "p2_count": sum(1 for m in self.pending_messages if m.level == "P2"),
             "p3_count": sum(1 for m in self.pending_messages if m.level == "P3"),
-            "p1_messages": [
-                f"[{m.sender_name}] {m.content[:60]}"
-                for m in self.pending_messages if m.level == "P1"
-            ],
+            "p1_messages": [f"[{m.sender_name}] {m.content[:60]}" for m in self.pending_messages if m.level == "P1"],
             "work_context": self.work_context,
         }
 
@@ -310,8 +316,10 @@ class UserState:
             "whitelist": self.whitelist,
             "rookie_mode": self.rookie_mode,
             "daily_interrupt_count": self.daily_interrupt_count,
-            "daily_p0": self.daily_p0, "daily_p1": self.daily_p1,
-            "daily_p2": self.daily_p2, "daily_p3": self.daily_p3,
+            "daily_p0": self.daily_p0,
+            "daily_p1": self.daily_p1,
+            "daily_p2": self.daily_p2,
+            "daily_p3": self.daily_p3,
             "daily_focus_seconds": self.daily_focus_seconds,
             "tasks": [t.to_dict() for t in self.tasks],
             "active_task_name": self.active_task_name,
@@ -357,6 +365,7 @@ class UserState:
 
 def _yesterday_str() -> str:
     from datetime import timedelta
+
     return (now_cst() - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
@@ -375,6 +384,7 @@ def all_users() -> List[UserState]:
 
 
 # ── Persistence ──
+
 
 def _save_all():
     """Persist user states to disk. Cross-process safe via fcntl + atomic rename."""

@@ -19,13 +19,12 @@ from utils.time_utils import fmt_time
 
 logger = logging.getLogger("flowguard.advanced")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
-)
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 DECISION_LOG_FILE = os.path.join(DATA_DIR, "decision_log.json")
 
 
 # ─── 1. Meeting Linkage ──────────────────────────────────────────
+
 
 def build_pre_meeting_brief(meeting_title: str, related_tasks: List[str], related_docs: List[str]) -> str:
     """Compose a 5-line pre-meeting brief shown to the user 10 min before start."""
@@ -54,6 +53,7 @@ def build_post_meeting_brief(meeting_title: str, captured_pending_count: int, pe
 
 
 # ─── 3. Decision Rollback ────────────────────────────────────────
+
 
 @dataclass
 class DecisionRecord:
@@ -96,6 +96,7 @@ def rollback_decision(decision_id: str, new_level: str, reason: str = "user_corr
     # Feedback into sender profile
     try:
         from core.sender_profile import get_profile
+
         p = get_profile(rec.sender_id, rec.sender_name)
         old_was_low = rec.classification_level in ("P2", "P3")
         new_is_high = new_level in ("P0", "P1")
@@ -104,6 +105,7 @@ def rollback_decision(decision_id: str, new_level: str, reason: str = "user_corr
         elif (rec.classification_level in ("P0", "P1")) and new_level in ("P2", "P3"):
             p.user_marked_unimportant += 2
         from core.sender_profile import save
+
         save()
     except Exception as e:
         logger.debug("rollback feedback to profile failed: %s", e)
@@ -118,14 +120,19 @@ def list_recent_decisions(user_open_id: str, limit: int = 10) -> List[DecisionRe
 
 # ─── 4. Explainable AI ───────────────────────────────────────────
 
+
 def explain_decision(rec: DecisionRecord) -> str:
     """Return a multi-line human-readable explanation of why this verdict."""
     if not rec.dimensions:
         return f"分级为 {rec.classification_level}（未记录详细维度）"
     lines = [f"**为什么判为 {rec.classification_level}（分数 {rec.classification_score:.2f}）：**"]
     dim_labels = {
-        "identity": "身份权重", "relation": "关系强度", "content": "内容信号",
-        "task_relation": "任务关联", "time": "时间敏感", "channel": "频道权重",
+        "identity": "身份权重",
+        "relation": "关系强度",
+        "content": "内容信号",
+        "task_relation": "任务关联",
+        "time": "时间敏感",
+        "channel": "频道权重",
     }
     for k, v in rec.dimensions.items():
         label = dim_labels.get(k, k)
@@ -145,6 +152,7 @@ def _bar(v: float, width: int = 10) -> str:
 
 
 # ─── Persistence ─────────────────────────────────────────────────
+
 
 def _save():
     os.makedirs(DATA_DIR, exist_ok=True)

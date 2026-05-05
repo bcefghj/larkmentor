@@ -23,6 +23,7 @@ def mentor_clarify(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
     try:
         from core.mentor import mentor_task as v4_task
+
         if intent:
             # mentor_task returns ambiguity + proposed questions in the existing codebase
             try:
@@ -59,22 +60,16 @@ def mentor_summarize(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     snippets = []
     for m in messages[-10:]:
         if isinstance(m, dict):
-            snippets.append(f"{m.get('sender','?')}: {m.get('text','')[:100]}")
+            snippets.append(f"{m.get('sender', '?')}: {m.get('text', '')[:100]}")
 
     try:
         from llm.llm_client import chat as llm_chat
-        prompt = (
-            "请把下面的讨论压缩成 3-5 条决议/共识，每条一行。\n\n"
-            + "\n".join(snippets)
-        )
+
+        prompt = "请把下面的讨论压缩成 3-5 条决议/共识，每条一行。\n\n" + "\n".join(snippets)
         summary = llm_chat(prompt, temperature=0.2)
         if summary:
             return {"summary": summary.strip()}
     except Exception as e:
         logger.debug("summarize llm fallback: %s", e)
 
-    return {
-        "summary": "- 围绕 Agent-Pilot 架构达成初步共识\n"
-                   "- 多端同步采用 Yjs CRDT\n"
-                   "- 下周 Demo 以 IM→Doc→PPT 为主线"
-    }
+    return {"summary": "- 围绕 Agent-Pilot 架构达成初步共识\n- 多端同步采用 Yjs CRDT\n- 下周 Demo 以 IM→Doc→PPT 为主线"}

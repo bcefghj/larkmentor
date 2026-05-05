@@ -31,7 +31,7 @@ logger = logging.getLogger("pilot.harness.memory")
 @dataclass
 class MemoryItem:
     content: str
-    scope: str = "user"          # user / session / org / project
+    scope: str = "user"  # user / session / org / project
     tags: List[str] = field(default_factory=list)
     ts: int = 0
 
@@ -75,12 +75,14 @@ class MemoryLayer:
                 items: List[MemoryItem] = []
                 for r in results.get("results", []) if isinstance(results, dict) else results or []:
                     if isinstance(r, dict):
-                        items.append(MemoryItem(
-                            content=str(r.get("memory") or r.get("text") or r),
-                            scope="user",
-                            tags=list((r.get("metadata") or {}).keys()),
-                            ts=int(r.get("created_at") or time.time()),
-                        ))
+                        items.append(
+                            MemoryItem(
+                                content=str(r.get("memory") or r.get("text") or r),
+                                scope="user",
+                                tags=list((r.get("metadata") or {}).keys()),
+                                ts=int(r.get("created_at") or time.time()),
+                            )
+                        )
                 if items:
                     return items
             except Exception as exc:
@@ -88,8 +90,9 @@ class MemoryLayer:
         # Fallback: keyword search over local JSONL store.
         return self._local_recall(intent, user_id, k)
 
-    def remember(self, content: str, *, user_id: str = "default",
-                 scope: str = "user", tags: Optional[List[str]] = None) -> None:
+    def remember(
+        self, content: str, *, user_id: str = "default", scope: str = "user", tags: Optional[List[str]] = None
+    ) -> None:
         """Persist a memory item."""
         if self._mem0 is not None:
             try:
@@ -107,6 +110,7 @@ class MemoryLayer:
             return
         try:
             from mem0 import Memory  # type: ignore
+
             self._mem0 = Memory()
             logger.info("mem0 memory backend initialised")
         except Exception as exc:
@@ -121,6 +125,7 @@ class MemoryLayer:
 
     def _local_remember(self, content: str, user_id: str, scope: str, tags: List[str]) -> None:
         import json
+
         path = self._user_path(user_id)
         entry = {
             "ts": int(time.time()),
@@ -137,6 +142,7 @@ class MemoryLayer:
 
     def _local_recall(self, intent: str, user_id: str, k: int) -> List[MemoryItem]:
         import json
+
         path = self._user_path(user_id)
         if not os.path.exists(path):
             return []
@@ -160,12 +166,14 @@ class MemoryLayer:
         matches.sort(key=lambda x: (-x[0], -int(x[1].get("ts", 0))))
         out: List[MemoryItem] = []
         for _, obj in matches[:k]:
-            out.append(MemoryItem(
-                content=str(obj.get("content", "")),
-                scope=str(obj.get("scope", "user")),
-                tags=list(obj.get("tags") or []),
-                ts=int(obj.get("ts", 0)),
-            ))
+            out.append(
+                MemoryItem(
+                    content=str(obj.get("content", "")),
+                    scope=str(obj.get("scope", "user")),
+                    tags=list(obj.get("tags") or []),
+                    ts=int(obj.get("ts", 0)),
+                )
+            )
         return out
 
 

@@ -82,10 +82,7 @@ class ToolSpec:
         if self.destructive:
             flags.append("destructive")
         flag_str = f" [{', '.join(flags)}]" if flags else ""
-        return (
-            f"- {self.name}{flag_str}: {self.description}\n"
-            f"{args_block}"
-        )
+        return f"- {self.name}{flag_str}: {self.description}\n{args_block}"
 
 
 def build_tool(
@@ -188,37 +185,40 @@ def _populate_default(reg: ToolRegistry) -> None:
     legacy = build_default_registry()
 
     _annotations = {
-        "im.fetch_thread":   dict(readonly=True,  category="im",      desc="拉取指定 chat_id 最近 N 条 IM 消息。"),
-        "doc.create":        dict(readonly=False, category="doc",     desc="创建飞书 Docx 文档。"),
-        "doc.append":        dict(readonly=False, category="doc",     desc="往已创建的飞书 Docx 追加 markdown 块。"),
-        "canvas.create":     dict(readonly=False, category="canvas",  desc="创建 tldraw 画布；best-effort 同步到飞书画板。"),
-        "canvas.add_shape":  dict(readonly=False, category="canvas",  desc="在画布上插入形状 / 图片 / sticky / 表格。"),
-        "slide.generate":    dict(readonly=False, category="slide",   desc="把大纲编译成 Slidev PPT（pptx + pdf）。"),
-        "slide.rehearse":    dict(readonly=False, category="slide",   desc="为 PPT 逐页生成演讲稿。"),
-        "voice.transcribe":  dict(readonly=True,  category="voice",   desc="ASR 语音转写（豆包 / 妙记 / Whisper）。"),
-        "archive.bundle":    dict(readonly=False, category="archive", desc="打包产物并生成飞书分享链接。"),
-        "mentor.clarify":    dict(readonly=True,  category="mentor",  desc="Agent 主动向用户发出澄清问题。"),
-        "mentor.summarize":  dict(readonly=True,  category="mentor",  desc="对一段对话/上下文做结构化总结。"),
+        "im.fetch_thread": dict(readonly=True, category="im", desc="拉取指定 chat_id 最近 N 条 IM 消息。"),
+        "doc.create": dict(readonly=False, category="doc", desc="创建飞书 Docx 文档。"),
+        "doc.append": dict(readonly=False, category="doc", desc="往已创建的飞书 Docx 追加 markdown 块。"),
+        "canvas.create": dict(readonly=False, category="canvas", desc="创建 tldraw 画布；best-effort 同步到飞书画板。"),
+        "canvas.add_shape": dict(readonly=False, category="canvas", desc="在画布上插入形状 / 图片 / sticky / 表格。"),
+        "slide.generate": dict(readonly=False, category="slide", desc="把大纲编译成 Slidev PPT（pptx + pdf）。"),
+        "slide.rehearse": dict(readonly=False, category="slide", desc="为 PPT 逐页生成演讲稿。"),
+        "voice.transcribe": dict(readonly=True, category="voice", desc="ASR 语音转写（豆包 / 妙记 / Whisper）。"),
+        "archive.bundle": dict(readonly=False, category="archive", desc="打包产物并生成飞书分享链接。"),
+        "mentor.clarify": dict(readonly=True, category="mentor", desc="Agent 主动向用户发出澄清问题。"),
+        "mentor.summarize": dict(readonly=True, category="mentor", desc="对一段对话/上下文做结构化总结。"),
     }
 
     for name, fn in legacy.items():
         meta = _annotations.get(name, {})
-        reg.register(build_tool(
-            name=name,
-            description=meta.get("desc", f"Tool: {name}"),
-            fn=lambda args, ctx, _f=fn: _fn_shim(_f, args, ctx),
-            parameters={},
-            readonly=meta.get("readonly", False),
-            destructive=False,
-            needs_permission="default",
-            category=meta.get("category", "generic"),
-            timeout_sec=60,
-        ))
+        reg.register(
+            build_tool(
+                name=name,
+                description=meta.get("desc", f"Tool: {name}"),
+                fn=lambda args, ctx, _f=fn: _fn_shim(_f, args, ctx),
+                parameters={},
+                readonly=meta.get("readonly", False),
+                destructive=False,
+                needs_permission="default",
+                category=meta.get("category", "generic"),
+                timeout_sec=60,
+            )
+        )
     logger.info("default ToolRegistry populated with %d tools", len(reg.names()))
 
 
 def _fn_shim(legacy_fn, args: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
     """Adapt legacy ``(step, ctx)`` tools to the new ``(args, ctx)`` signature."""
+
     class _FakeStep:
         def __init__(self, a):
             self.args = a

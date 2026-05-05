@@ -27,6 +27,7 @@ logger = logging.getLogger("flowguard.feishu.remote_mcp")
 def _mgr():
     try:
         from core.agent_pilot.harness.mcp_client import default_mcp_manager
+
         return default_mcp_manager()
     except Exception as exc:
         logger.debug("mcp manager unavailable: %s", exc)
@@ -69,9 +70,14 @@ def calendar_list(user_id: str = "", days: int = 7) -> Dict[str, Any]:
 
 
 def bitable_add_record(app_token: str, table_id: str, fields: Dict[str, Any]) -> Dict[str, Any]:
-    return call("bitable.add_record", {
-        "app_token": app_token, "table_id": table_id, "fields": fields,
-    })
+    return call(
+        "bitable.add_record",
+        {
+            "app_token": app_token,
+            "table_id": table_id,
+            "fields": fields,
+        },
+    )
 
 
 def wiki_search(query: str, space_id: str = "") -> Dict[str, Any]:

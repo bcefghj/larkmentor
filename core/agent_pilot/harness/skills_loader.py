@@ -35,12 +35,12 @@ class Skill:
     name: str
     description: str
     when_to_use: str = ""
-    body: str = ""                          # SKILL.md minus frontmatter
-    path: str = ""                          # directory path
+    body: str = ""  # SKILL.md minus frontmatter
+    path: str = ""  # directory path
     version: str = "1.0.0"
     allowed_tools: List[str] = field(default_factory=list)
     disable_model_invocation: bool = False
-    source: str = "user"                    # user / project / system / official
+    source: str = "user"  # user / project / system / official
 
     def metadata_line(self) -> str:
         """Rendered into system prompt every session."""
@@ -62,12 +62,14 @@ class SkillsLoader:
         out = []
         if os.getenv("LARKMENTOR_SKILLS_HOME"):
             out.append(os.getenv("LARKMENTOR_SKILLS_HOME"))
-        out.extend([
-            os.path.expanduser("~/.claude/skills"),
-            os.path.expanduser("~/.larkmentor/skills"),
-            os.path.join(os.getcwd(), ".larkmentor", "skills"),
-            os.path.join(os.getcwd(), "skills"),
-        ])
+        out.extend(
+            [
+                os.path.expanduser("~/.claude/skills"),
+                os.path.expanduser("~/.larkmentor/skills"),
+                os.path.join(os.getcwd(), ".larkmentor", "skills"),
+                os.path.join(os.getcwd(), "skills"),
+            ]
+        )
         return [p for p in out if p]
 
     # ── Discovery ──
@@ -123,8 +125,9 @@ class SkillsLoader:
             allowed = [t.strip() for t in allowed.strip("[]").split(",") if t.strip()]
         elif not isinstance(allowed, list):
             allowed = []
-        disable = bool(frontmatter.get("disable-model-invocation") or
-                       frontmatter.get("disable_model_invocation") or False)
+        disable = bool(
+            frontmatter.get("disable-model-invocation") or frontmatter.get("disable_model_invocation") or False
+        )
         return Skill(
             name=name,
             description=description[:400],

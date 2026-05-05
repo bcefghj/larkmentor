@@ -24,6 +24,7 @@ logger = logging.getLogger("pilot.advanced")
 
 # ── 1. Proactive clarification ──
 
+
 @dataclass
 class ClarifyDecision:
     should_clarify: bool
@@ -51,6 +52,7 @@ def diagnose_intent(intent: str) -> ClarifyDecision:
         # Try Mentor Task for an LLM-backed refinement
         try:
             from core.mentor import mentor_task
+
             diag = mentor_task.diagnose(intent)
             llm_qs = [q for q in (getattr(diag, "questions", []) or [])]
             for q in llm_qs:
@@ -85,8 +87,9 @@ def _heuristic_ambiguity(intent: str) -> float:
 def _missing_dimensions(intent: str) -> List[str]:
     text = intent.lower()
     missing: List[str] = []
-    if not re.search(r"(\d{1,2}\s*(?:月|日|周|天|小时|分钟|min|h)|today|tomorrow|周一|周二|周三|周四|周五|本周|下周)",
-                     text):
+    if not re.search(
+        r"(\d{1,2}\s*(?:月|日|周|天|小时|分钟|min|h)|today|tomorrow|周一|周二|周三|周四|周五|本周|下周)", text
+    ):
         missing.append("when")
     if not re.search(r"(上级|老板|客户|团队|同事|上司|评委|judges|stakeholder)", text):
         missing.append("audience")
@@ -96,6 +99,7 @@ def _missing_dimensions(intent: str) -> List[str]:
 
 
 # ── 2. Discussion summarisation ──
+
 
 def summarise_messages(messages: List[Dict[str, Any]], *, max_points: int = 5) -> str:
     if not messages:
@@ -111,9 +115,9 @@ def summarise_messages(messages: List[Dict[str, Any]], *, max_points: int = 5) -
         return ""
     try:
         from llm.llm_client import chat
-        prompt = (
-            f"把以下讨论压缩成不超过 {max_points} 条「共识/决议」。每条一行，中文，以动词开头。\n\n"
-            + "\n".join(bullets)
+
+        prompt = f"把以下讨论压缩成不超过 {max_points} 条「共识/决议」。每条一行，中文，以动词开头。\n\n" + "\n".join(
+            bullets
         )
         out = chat(prompt, temperature=0.2)
         if out:
@@ -124,6 +128,7 @@ def summarise_messages(messages: List[Dict[str, Any]], *, max_points: int = 5) -
 
 
 # ── 3. Next-step recommendation ──
+
 
 def recommend_next_steps(plan_dict: Dict[str, Any]) -> List[str]:
     """Given a completed / running plan dict, suggest 2-3 next actions."""

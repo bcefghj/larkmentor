@@ -38,7 +38,7 @@ _LOG_PATH = os.path.join(_DATA_DIR, "growth_entries.jsonl")
 class GrowthEntry:
     open_id: str
     ts: int
-    kind: str              # "writing" | "task" | "proactive_picked" | "weekly"
+    kind: str  # "writing" | "task" | "proactive_picked" | "weekly"
     original: str
     improved: str
     citations: List[str] = field(default_factory=list)
@@ -47,9 +47,13 @@ class GrowthEntry:
     def to_json(self) -> str:
         return json.dumps(
             {
-                "open_id": self.open_id, "ts": self.ts, "kind": self.kind,
-                "original": self.original, "improved": self.improved,
-                "citations": self.citations, "extra": self.extra,
+                "open_id": self.open_id,
+                "ts": self.ts,
+                "kind": self.kind,
+                "original": self.original,
+                "improved": self.improved,
+                "citations": self.citations,
+                "extra": self.extra,
             },
             ensure_ascii=False,
         )
@@ -100,6 +104,7 @@ def load_entries(open_id: str, *, since_ts: int = 0) -> List[GrowthEntry]:
 
 # ── Feishu Docx helpers ──────────────────────────────────────────────────────
 
+
 def _create_docx(title: str, body_md: str) -> Optional[str]:
     """Return the new docx token or None on failure. Mirrors v3 _create_doc."""
     try:
@@ -110,9 +115,7 @@ def _create_docx(title: str, body_md: str) -> Optional[str]:
         client = get_client()
         req = (
             docx_api.CreateDocumentRequest.builder()
-            .request_body(
-                docx_api.CreateDocumentRequestBody.builder().title(title).build()
-            )
+            .request_body(docx_api.CreateDocumentRequestBody.builder().title(title).build())
             .build()
         )
         resp = client.docx.v1.document.create(req)
@@ -152,10 +155,7 @@ def _append_block(doc_token: str, content: str) -> bool:
             CreateDocumentBlockChildrenRequest.builder()
             .document_id(doc_token)
             .block_id(doc_token)
-            .request_body(
-                CreateDocumentBlockChildrenRequestBody.builder()
-                .children([block]).build()
-            )
+            .request_body(CreateDocumentBlockChildrenRequestBody.builder().children([block]).build())
             .build()
         )
         resp = client.docx.v1.document_block_children.create(req)
@@ -166,6 +166,7 @@ def _append_block(doc_token: str, content: str) -> bool:
 
 
 # ── public API ───────────────────────────────────────────────────────────────
+
 
 def ensure_growth_doc(open_id: str) -> str:
     """Return the docx token for the user's growth journal, creating if needed.
@@ -211,9 +212,13 @@ def append_entry(
 ) -> None:
     """Append a Mentor action to both the local jsonl log and the Feishu Docx."""
     entry = GrowthEntry(
-        open_id=open_id, ts=int(time.time()), kind=kind,
-        original=original or "", improved=improved or "",
-        citations=list(citations or []), extra=dict(extra or {}),
+        open_id=open_id,
+        ts=int(time.time()),
+        kind=kind,
+        original=original or "",
+        improved=improved or "",
+        citations=list(citations or []),
+        extra=dict(extra or {}),
     )
     _append_log(entry)
 
@@ -223,11 +228,8 @@ def append_entry(
 
     ts_str = time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts))
     cite = " ".join(entry.citations) if entry.citations else ""
-    body = (
-        f"\n## [{kind}] {ts_str}\n"
-        f"- 原文：{entry.original[:300]}\n"
-        f"- 改写/建议：{entry.improved[:300]}\n"
-        + (f"- 引用：{cite}\n" if cite else "")
+    body = f"\n## [{kind}] {ts_str}\n- 原文：{entry.original[:300]}\n- 改写/建议：{entry.improved[:300]}\n" + (
+        f"- 引用：{cite}\n" if cite else ""
     )
     _append_block(token, body)
 
@@ -243,10 +245,7 @@ def write_weekly_summary(open_id: str) -> Optional[str]:
     if not entries:
         return None
 
-    lines = [
-        f"- [{e.kind}] {e.original[:60]} -> {e.improved[:60]}"
-        for e in entries[-30:]
-    ]
+    lines = [f"- [{e.kind}] {e.original[:60]} -> {e.improved[:60]}" for e in entries[-30:]]
     payload = "\n".join(lines)
 
     summary = ""
@@ -254,10 +253,13 @@ def write_weekly_summary(open_id: str) -> Optional[str]:
         from llm.llm_client import chat
         from llm.prompts import MENTOR_GROWTH_SUMMARY_PROMPT
 
-        summary = chat(
-            MENTOR_GROWTH_SUMMARY_PROMPT.format(entries=payload),
-            temperature=0.4,
-        ) or ""
+        summary = (
+            chat(
+                MENTOR_GROWTH_SUMMARY_PROMPT.format(entries=payload),
+                temperature=0.4,
+            )
+            or ""
+        )
     except Exception as e:  # noqa: BLE001
         logger.warning("growth_summary_llm_fail err=%s", e)
 

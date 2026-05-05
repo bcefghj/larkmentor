@@ -91,8 +91,7 @@ def maybe_suggest(
     org_context = kb.render_citations(hits) if hits else "（无组织文档可用）"
 
     user_context = (
-        f"focus_mode={getattr(user, 'focus_mode', 'normal')} "
-        f"task={getattr(user, 'work_context', '') or 'n/a'}"
+        f"focus_mode={getattr(user, 'focus_mode', 'normal')} task={getattr(user, 'work_context', '') or 'n/a'}"
     )
 
     prompt = MENTOR_PROACTIVE_REPLY_PROMPT.format(
@@ -115,9 +114,7 @@ def maybe_suggest(
         result = {
             "three_versions": {
                 "conservative": "收到，我先看一下，稍后回复您。",
-                "neutral": (
-                    f"收到[{sender_name}]的消息，我先确认一下情况，预计今天内回复您。"
-                ),
+                "neutral": (f"收到[{sender_name}]的消息，我先确认一下情况，预计今天内回复您。"),
                 "direct": message[:120],
             },
             "risk_warning": "模型暂不可用，已给出兜底模板，请人工复核。",

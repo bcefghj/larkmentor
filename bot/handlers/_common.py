@@ -28,11 +28,13 @@ def get_scheduler():
 
 # ── v3 FlowMemory bridge ──
 
+
 def wm_append(open_id: str, kind: str, payload: dict = None):
     """Best-effort append to v3 WorkingMemory. Never raises."""
     try:
         from core.flow_memory.compaction import compact_session
         from core.flow_memory.working import WorkingEvent, WorkingMemory
+
         wm = WorkingMemory.load(open_id)
         ev = WorkingEvent(ts=int(_time.time()), kind=kind, payload=payload or {})
         spilled = wm.append(ev)
@@ -45,6 +47,7 @@ def wm_append(open_id: str, kind: str, payload: dict = None):
 
 # ── Achievement check ──
 
+
 def check_and_send_achievements(open_id: str):
     user = get_user(open_id)
     newly = user.check_achievements()
@@ -54,6 +57,7 @@ def check_and_send_achievements(open_id: str):
 
 
 # ── Focus scheduling ──
+
 
 def auto_end_focus(open_id: str):
     """Called by scheduler when focus timer expires."""
@@ -83,10 +87,15 @@ def schedule_focus_expiry(open_id: str, duration_sec: int):
         except Exception:
             pass
         from datetime import datetime, timedelta
+
         run_time = datetime.now() + timedelta(seconds=duration_sec)
         _scheduler.add_job(
-            auto_end_focus, "date", run_date=run_time,
-            args=[open_id], id=job_id, replace_existing=True,
+            auto_end_focus,
+            "date",
+            run_date=run_time,
+            args=[open_id],
+            id=job_id,
+            replace_existing=True,
         )
         logger.info("Scheduled focus expiry for %s in %d sec", open_id, duration_sec)
 
@@ -101,6 +110,7 @@ def cancel_focus_expiry(open_id: str):
 
 # ── Text extraction ──
 
+
 def extract_text(message) -> str:
     try:
         content_str = message.content
@@ -114,6 +124,7 @@ def resolve_name(open_id: str) -> str:
     """Resolve open_id to display name, fallback to short id."""
     try:
         from utils.feishu_api import resolve_user_name
+
         return resolve_user_name(open_id)
     except Exception:
         return open_id[:12]

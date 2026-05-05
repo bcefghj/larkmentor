@@ -45,6 +45,7 @@ class TeamTask:
 
 class InMemoryBus:
     """Local fallback for Redis pub/sub."""
+
     def __init__(self) -> None:
         self.channels: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
         self.subscribers: Dict[str, List[Callable]] = defaultdict(list)
@@ -81,6 +82,7 @@ class AgentTeam:
         if use_redis:
             try:
                 import redis  # type: ignore
+
                 self.redis = redis.Redis(host="localhost", port=6379, decode_responses=True)
                 self.redis.ping()
                 self._bus_type = "redis"
@@ -97,9 +99,12 @@ class AgentTeam:
 
     def send(self, msg: TeamMessage) -> None:
         data = {
-            "team_id": msg.team_id, "from_agent": msg.from_agent,
-            "to_agent": msg.to_agent, "kind": msg.kind,
-            "content": msg.content, "ts": msg.ts,
+            "team_id": msg.team_id,
+            "from_agent": msg.from_agent,
+            "to_agent": msg.to_agent,
+            "kind": msg.kind,
+            "content": msg.content,
+            "ts": msg.ts,
         }
         if self._bus_type == "redis":
             self.redis.publish(self.channel(), json.dumps(data))
@@ -164,6 +169,7 @@ def architect_debate(topic: str, *, team_id: str = "", providers=None) -> Dict[s
     team_id = team_id or f"debate-{uuid.uuid4().hex[:6]}"
     team = AgentTeam(team_id, agents=["pilot", "debater", "researcher"])
     from .providers import default_providers
+
     providers = providers or default_providers()
 
     # Round 1: each agent proposes
@@ -183,10 +189,7 @@ def architect_debate(topic: str, *, team_id: str = "", providers=None) -> Dict[s
     critiques = []
     for role in ["pilot", "debater", "researcher"]:
         others = [m["content"][:400] for m in messages if m["from_agent"] != role]
-        prompt = (
-            f"你是 {role}。其他两个观点：\n\n" + "\n---\n".join(others) +
-            "\n\n对这些观点做出批判（200 字以内）："
-        )
+        prompt = f"你是 {role}。其他两个观点：\n\n" + "\n---\n".join(others) + "\n\n对这些观点做出批判（200 字以内）："
         task_kind = {"pilot": "reasoning", "debater": "chinese_chat", "researcher": "long_context"}[role]
         text = providers.chat([{"role": "user", "content": prompt}], task_kind=task_kind, max_tokens=400)
         team.send(TeamMessage(team_id=team_id, from_agent=role, to_agent="*", kind="critique", content=text))
@@ -195,8 +198,9 @@ def architect_debate(topic: str, *, team_id: str = "", providers=None) -> Dict[s
     # Round 3: converge
     summary_prompt = (
         f"话题：{topic}\n\n"
-        f"3 轮辩论的所有观点：\n" + "\n---\n".join(m["content"][:300] for m in team.recent_messages(20)) +
-        "\n\n请综合所有观点，给出最终决策建议（含关键依据和取舍）。"
+        f"3 轮辩论的所有观点：\n"
+        + "\n---\n".join(m["content"][:300] for m in team.recent_messages(20))
+        + "\n\n请综合所有观点，给出最终决策建议（含关键依据和取舍）。"
     )
     final = providers.chat([{"role": "user", "content": summary_prompt}], task_kind="reasoning", max_tokens=1200)
     team.send(TeamMessage(team_id=team_id, from_agent="orchestrator", to_agent="*", kind="decision", content=final))

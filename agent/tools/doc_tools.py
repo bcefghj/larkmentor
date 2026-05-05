@@ -9,9 +9,11 @@ from typing import Any, Dict, List, Optional
 
 try:
     import structlog
+
     logger = structlog.get_logger("agent.tools.doc")
 except ImportError:
     import logging
+
     logger = logging.getLogger("agent.tools.doc")
 
 from .registry import tool
@@ -19,19 +21,22 @@ from .registry import tool
 try:
     from core.resilience import retry_with_backoff, RetryConfig
 except ImportError:
-    class RetryConfig:                                    # type: ignore[no-redef]
+
+    class RetryConfig:  # type: ignore[no-redef]
         def __init__(self, max_attempts=3, base_delay_sec=1.0, **kw):
             pass
 
-    def retry_with_backoff(config=None):                  # type: ignore[no-redef]
+    def retry_with_backoff(config=None):  # type: ignore[no-redef]
         def decorator(fn):
             return fn
+
         return decorator
 
 
 # ---------------------------------------------------------------------------
 # Custom exception hierarchy
 # ---------------------------------------------------------------------------
+
 
 class DocToolError(Exception):
     """Base exception for doc-tool operations."""
@@ -69,9 +74,11 @@ def _ensure_artifacts() -> Path:
 def _get_feishu_client():
     """Obtain a configured ``lark_oapi.Client``, refreshing token if needed."""
     from config import Config
+
     if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
         raise FeishuTokenError("FEISHU_APP_ID / APP_SECRET not configured")
     from bot.feishu_client import get_client
+
     return get_client()
 
 
@@ -95,6 +102,7 @@ def _save_local_markdown(title: str, markdown: str) -> Dict[str, Any]:
 # doc.create
 # ---------------------------------------------------------------------------
 
+
 @retry_with_backoff(config=RetryConfig(max_attempts=3, base_delay_sec=1.0))
 def _create_doc_via_sdk(title: str, folder_token: str) -> Dict[str, Any]:
     """Create a new Feishu Docx document via ``lark_oapi``."""
@@ -105,19 +113,14 @@ def _create_doc_via_sdk(title: str, folder_token: str) -> Dict[str, Any]:
     req_body_builder = docx_api.CreateDocumentRequestBody.builder().title(title)
     if folder_token:
         req_body_builder = req_body_builder.folder_token(folder_token)
-    req = (
-        docx_api.CreateDocumentRequest.builder()
-        .request_body(req_body_builder.build())
-        .build()
-    )
+    req = docx_api.CreateDocumentRequest.builder().request_body(req_body_builder.build()).build()
 
     logger.info("feishu_sdk.doc.create", title=title, folder_token=folder_token or "(root)")
     resp = client.docx.v1.document.create(req)
 
     if not resp.success() or not resp.data or not resp.data.document:
         raise FeishuDocAPIError(
-            f"CreateDocument failed: code={getattr(resp, 'code', '?')} "
-            f"msg={getattr(resp, 'msg', '?')}",
+            f"CreateDocument failed: code={getattr(resp, 'code', '?')} msg={getattr(resp, 'msg', '?')}",
             code=str(getattr(resp, "code", "")),
             log_id=str(getattr(resp, "log_id", "")),
         )
@@ -155,6 +158,7 @@ def create_doc(
     # 2. Try core.agent_pilot.tools.doc_tool (legacy integration)
     try:
         from core.agent_pilot.tools.doc_tool import create_docx
+
         result = create_docx(title=title, markdown=markdown, folder_token=folder_token)
         logger.info("doc.create.legacy_ok")
         return {"ok": True, **result}
@@ -168,6 +172,7 @@ def create_doc(
 # ---------------------------------------------------------------------------
 # doc.update
 # ---------------------------------------------------------------------------
+
 
 @retry_with_backoff(config=RetryConfig(max_attempts=3, base_delay_sec=1.0))
 def _update_doc_via_sdk(doc_token: str, markdown: str, mode: str) -> Dict[str, Any]:
@@ -188,18 +193,12 @@ def _clear_document_blocks(client: Any, doc_token: str) -> None:
     try:
         from lark_oapi.api.docx.v1 import ListDocumentBlockRequest
 
-        req = (
-            ListDocumentBlockRequest.builder()
-            .document_id(doc_token)
-            .build()
-        )
+        req = ListDocumentBlockRequest.builder().document_id(doc_token).build()
         resp = client.docx.v1.document_block.list(req)
         if resp.success() and resp.data and resp.data.items:
             from lark_oapi.api.docx.v1 import BatchDeleteDocumentBlockChildrenRequest
-            block_ids = [
-                b.block_id for b in resp.data.items
-                if hasattr(b, "block_id") and b.block_id != doc_token
-            ]
+
+            block_ids = [b.block_id for b in resp.data.items if hasattr(b, "block_id") and b.block_id != doc_token]
             if block_ids:
                 del_req = (
                     BatchDeleteDocumentBlockChildrenRequest.builder()
@@ -218,10 +217,14 @@ def _append_blocks(doc_token: str, markdown: str) -> int:
     """Convert markdown lines to Feishu Docx blocks and append to document."""
     try:
         from lark_oapi.api.docx.v1 import (
-            Block, Text, TextElement, TextRun,
+            Block,
+            Text,
+            TextElement,
+            TextRun,
             CreateDocumentBlockChildrenRequest,
             CreateDocumentBlockChildrenRequestBody,
         )
+
         client = _get_feishu_client()
 
         blocks = _markdown_to_blocks(markdown)
@@ -232,11 +235,7 @@ def _append_blocks(doc_token: str, markdown: str) -> int:
             CreateDocumentBlockChildrenRequest.builder()
             .document_id(doc_token)
             .block_id(doc_token)
-            .request_body(
-                CreateDocumentBlockChildrenRequestBody.builder()
-                .children(blocks)
-                .build()
-            )
+            .request_body(CreateDocumentBlockChildrenRequestBody.builder().children(blocks).build())
             .build()
         )
         resp = client.docx.v1.document_block_children.create(req)
@@ -321,6 +320,7 @@ def update_doc(
     # 2. Legacy integration
     try:
         from core.agent_pilot.tools.doc_tool import update_docx
+
         result = update_docx(doc_token=doc_token, markdown=markdown, mode=mode)
         return {"ok": True, **result}
     except Exception as exc:
@@ -333,17 +333,14 @@ def update_doc(
 # doc.get
 # ---------------------------------------------------------------------------
 
+
 @retry_with_backoff(config=RetryConfig(max_attempts=2, base_delay_sec=0.5))
 def _get_doc_via_sdk(doc_token: str) -> Dict[str, Any]:
     """Fetch raw content of a Feishu Docx document."""
     from lark_oapi.api.docx.v1 import RawContentDocumentRequest
 
     client = _get_feishu_client()
-    req = (
-        RawContentDocumentRequest.builder()
-        .document_id(doc_token)
-        .build()
-    )
+    req = RawContentDocumentRequest.builder().document_id(doc_token).build()
 
     logger.info("feishu_sdk.doc.get", doc_token=doc_token)
     resp = client.docx.v1.document.raw_content(req)
@@ -381,6 +378,7 @@ def get_doc(doc_token: str = "") -> Dict[str, Any]:
     # 2. Legacy
     try:
         from core.agent_pilot.tools.doc_tool import fetch_docx
+
         content = fetch_docx(doc_token=doc_token)
         return {"ok": True, "content": content, "doc_token": doc_token}
     except Exception as exc:
@@ -392,6 +390,7 @@ def get_doc(doc_token: str = "") -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # doc.search
 # ---------------------------------------------------------------------------
+
 
 @retry_with_backoff(config=RetryConfig(max_attempts=2, base_delay_sec=0.5))
 def _search_via_sdk(query: str, limit: int) -> Dict[str, Any]:
@@ -409,10 +408,13 @@ def _search_via_sdk(query: str, limit: int) -> Dict[str, Any]:
         f"?search_key={urllib.request.quote(query)}&count={limit}&offset=0"
         f"&owner_ids=&docs_types=doc,docx,sheet,wiki"
     )
-    req = urllib.request.Request(url, headers={
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json; charset=utf-8",
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
     with urllib.request.urlopen(req, timeout=10) as resp:
         body = json.loads(resp.read().decode("utf-8"))
 
@@ -451,6 +453,7 @@ def search_doc(query: str = "", limit: int = 5) -> Dict[str, Any]:
     # 2. Legacy wiki_search
     try:
         from core.feishu_advanced.wiki_search import wiki_search
+
         results = wiki_search(query, page_size=limit)
         return {"ok": True, "results": results or []}
     except Exception as exc:
@@ -462,6 +465,7 @@ def search_doc(query: str = "", limit: int = 5) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # doc.insert_image
 # ---------------------------------------------------------------------------
+
 
 @tool(
     name="doc.insert_image",
@@ -490,6 +494,7 @@ def insert_image(
     # 2. Legacy
     try:
         from core.agent_pilot.tools.doc_tool import insert_image as _insert
+
         result = _insert(doc_token=doc_token, image_path=image_path, caption=caption)
         return {"ok": True, **result}
     except Exception as exc:
@@ -515,6 +520,7 @@ def _insert_image_via_sdk(doc_token: str, image_path: str, caption: str) -> Dict
 
     # Upload image via Drive media API
     import mimetypes
+
     mime = mimetypes.guess_type(image_path)[0] or "image/png"
     file_name = os.path.basename(image_path)
 
@@ -524,12 +530,16 @@ def _insert_image_via_sdk(doc_token: str, image_path: str, caption: str) -> Dict
         file_data = f.read()
 
     body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="image_type"\r\n\r\nmessage\r\n'
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="image"; filename="{file_name}"\r\n'
-        f"Content-Type: {mime}\r\n\r\n"
-    ).encode() + file_data + f"\r\n--{boundary}--\r\n".encode()
+        (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="image_type"\r\n\r\nmessage\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="image"; filename="{file_name}"\r\n'
+            f"Content-Type: {mime}\r\n\r\n"
+        ).encode()
+        + file_data
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
 
     req = urllib.request.Request(
         "https://open.feishu.cn/open-apis/im/v1/images",
@@ -559,6 +569,7 @@ def _insert_image_via_sdk(doc_token: str, image_path: str, caption: str) -> Dict
 # doc.insert_table
 # ---------------------------------------------------------------------------
 
+
 @tool(
     name="doc.insert_table",
     description="往飞书文档插入表格（Markdown 表格语法或二维列表）",
@@ -586,6 +597,7 @@ def insert_table(
     # 2. Legacy
     try:
         from core.agent_pilot.tools.doc_tool import insert_table as _insert
+
         result = _insert(doc_token=doc_token, rows=rows, markdown_table=markdown_table)
         return {"ok": True, **result}
     except Exception as exc:
@@ -611,6 +623,7 @@ def _insert_table_via_sdk(
         CreateDocumentBlockChildrenRequestBody,
         Block,
     )
+
     client = _get_feishu_client()
 
     n_rows = len(rows)
@@ -627,11 +640,7 @@ def _insert_table_via_sdk(
         CreateDocumentBlockChildrenRequest.builder()
         .document_id(doc_token)
         .block_id(doc_token)
-        .request_body(
-            CreateDocumentBlockChildrenRequestBody.builder()
-            .children([table_block])
-            .build()
-        )
+        .request_body(CreateDocumentBlockChildrenRequestBody.builder().children([table_block]).build())
         .build()
     )
     resp = client.docx.v1.document_block_children.create(req)

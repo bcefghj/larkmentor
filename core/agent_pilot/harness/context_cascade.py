@@ -32,6 +32,7 @@ logger = logging.getLogger("pilot.harness.context_cascade")
 # Token counting
 # ────────────────────────────────────────────────────────────────
 
+
 def estimate_tokens(text: str) -> int:
     """Estimate token count from raw text.
 
@@ -58,12 +59,13 @@ def messages_token_count(messages: List[Dict[str, Any]]) -> int:
 # Structured events (observability)
 # ────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class CascadeEvent:
     """Emitted whenever a cascade layer fires or skips."""
 
-    layer: str                          # "micro" | "auto" | "full" | "cascade"
-    action: str                         # "triggered" | "skipped" | "completed" | "failed"
+    layer: str  # "micro" | "auto" | "full" | "cascade"
+    action: str  # "triggered" | "skipped" | "completed" | "failed"
     tokens_before: int = 0
     tokens_after: int = 0
     messages_dropped: int = 0
@@ -105,6 +107,7 @@ def _emit(
 # Compact result
 # ────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class CompactResult:
     """Output of a cascade compaction pass."""
@@ -120,6 +123,7 @@ class CompactResult:
 # ────────────────────────────────────────────────────────────────
 # Layer 1: MicroCompact
 # ────────────────────────────────────────────────────────────────
+
 
 class MicroCompact:
     """Zero-API-cost trimming of stale tool outputs.
@@ -148,8 +152,7 @@ class MicroCompact:
         tokens_before = messages_token_count(messages)
 
         if len(messages) <= self.keep_recent_turns:
-            _emit(self._on_event, "micro", "skipped",
-                  tokens_before=tokens_before, detail="too few messages")
+            _emit(self._on_event, "micro", "skipped", tokens_before=tokens_before, detail="too few messages")
             return messages, 0
 
         cutoff = len(messages) - self.keep_recent_turns
@@ -171,8 +174,11 @@ class MicroCompact:
 
         tokens_after = messages_token_count(result)
         _emit(
-            self._on_event, "micro", "completed",
-            tokens_before=tokens_before, tokens_after=tokens_after,
+            self._on_event,
+            "micro",
+            "completed",
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
             messages_dropped=dropped,
             detail=f"trimmed {cutoff} old messages, dropped {dropped} acks",
         )
@@ -182,6 +188,7 @@ class MicroCompact:
 # ────────────────────────────────────────────────────────────────
 # Layer 2: AutoCompact
 # ────────────────────────────────────────────────────────────────
+
 
 class AutoCompact:
     """Fires when approaching context window ceiling.
@@ -220,15 +227,23 @@ class AutoCompact:
         tokens_before = messages_token_count(messages)
 
         if tokens_before < self.ceiling_tokens:
-            _emit(self._on_event, "auto", "skipped",
-                  tokens_before=tokens_before,
-                  detail=f"below ceiling ({tokens_before}/{self.ceiling_tokens})")
+            _emit(
+                self._on_event,
+                "auto",
+                "skipped",
+                tokens_before=tokens_before,
+                detail=f"below ceiling ({tokens_before}/{self.ceiling_tokens})",
+            )
             return messages, 0
 
         if self.circuit_open:
-            _emit(self._on_event, "auto", "skipped",
-                  tokens_before=tokens_before,
-                  detail=f"circuit breaker open after {self.max_failures} failures")
+            _emit(
+                self._on_event,
+                "auto",
+                "skipped",
+                tokens_before=tokens_before,
+                detail=f"circuit breaker open after {self.max_failures} failures",
+            )
             return messages, 0
 
         try:
@@ -240,8 +255,11 @@ class AutoCompact:
 
             self._consecutive_failures = 0
             _emit(
-                self._on_event, "auto", "completed",
-                tokens_before=tokens_before, tokens_after=tokens_after,
+                self._on_event,
+                "auto",
+                "completed",
+                tokens_before=tokens_before,
+                tokens_after=tokens_after,
                 messages_dropped=dropped,
                 detail=f"summarised middle section into ≤{self.summary_budget}t",
             )
@@ -250,7 +268,9 @@ class AutoCompact:
         except Exception as exc:
             self._consecutive_failures += 1
             _emit(
-                self._on_event, "auto", "failed",
+                self._on_event,
+                "auto",
+                "failed",
                 tokens_before=tokens_before,
                 detail=f"failure #{self._consecutive_failures}: {exc}",
             )
@@ -310,6 +330,7 @@ class AutoCompact:
 # ────────────────────────────────────────────────────────────────
 # Layer 3: FullCompact
 # ────────────────────────────────────────────────────────────────
+
 
 class FullCompact:
     """Complete conversation compression and context re-injection.
@@ -409,8 +430,11 @@ class FullCompact:
         dropped = max(0, len(messages) - len(result))
 
         _emit(
-            self._on_event, "full", "completed",
-            tokens_before=tokens_before, tokens_after=tokens_after,
+            self._on_event,
+            "full",
+            "completed",
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
             messages_dropped=dropped,
             detail=f"full compress: {tokens_before}→{tokens_after}t, budget reset to {self.post_budget}t",
         )
@@ -456,6 +480,7 @@ class FullCompact:
 # ────────────────────────────────────────────────────────────────
 # Orchestrator: ContextCascade
 # ────────────────────────────────────────────────────────────────
+
 
 class ContextCascade:
     """Orchestrates the 3-layer compression cascade.
@@ -549,6 +574,7 @@ class ContextCascade:
 
         def collector(e):
             return events.append(e)
+
         self._micro._on_event = collector
         self._auto._on_event = collector
         self._full._on_event = collector
@@ -577,15 +603,21 @@ class ContextCascade:
 
         budget_remaining = max(0, self.context_window - tokens_now)
         cascade_evt = _emit(
-            collector, "cascade", "completed",
-            tokens_before=tokens_start, tokens_after=tokens_now,
+            collector,
+            "cascade",
+            "completed",
+            tokens_before=tokens_start,
+            tokens_after=tokens_now,
             detail=f"layers={layers_fired}, budget_remaining={budget_remaining}",
         )
         events.append(cascade_evt)
 
         logger.info(
             "context_cascade_done layers=%s tokens=%d→%d budget_remaining=%d",
-            layers_fired, tokens_start, tokens_now, budget_remaining,
+            layers_fired,
+            tokens_start,
+            tokens_now,
+            budget_remaining,
         )
 
         return CompactResult(

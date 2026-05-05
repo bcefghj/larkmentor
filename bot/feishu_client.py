@@ -48,10 +48,12 @@ def get_tenant_access_token() -> str:
         try:
             req = urllib.request.Request(
                 "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
-                data=json.dumps({
-                    "app_id": Config.FEISHU_APP_ID,
-                    "app_secret": Config.FEISHU_APP_SECRET,
-                }).encode("utf-8"),
+                data=json.dumps(
+                    {
+                        "app_id": Config.FEISHU_APP_ID,
+                        "app_secret": Config.FEISHU_APP_SECRET,
+                    }
+                ).encode("utf-8"),
                 headers={"Content-Type": "application/json; charset=utf-8"},
                 method="POST",
             )

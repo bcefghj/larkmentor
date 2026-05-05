@@ -11,6 +11,7 @@ class TestToolRegistry:
 
     def test_default_registry_exists(self):
         from core.agent_pilot.harness import default_registry
+
         reg = default_registry()
         assert reg is not None
 
@@ -77,6 +78,7 @@ class TestHookRegistry:
 
     def test_default_hook_registry_exists(self):
         from core.agent_pilot.harness import default_hook_registry
+
         reg = default_hook_registry()
         assert reg is not None
 
@@ -104,6 +106,7 @@ class TestPermissionGate:
 
     def test_default_permission_gate_exists(self):
         from core.agent_pilot.harness import default_permission_gate
+
         gate = default_permission_gate()
         assert gate is not None
 
@@ -141,6 +144,7 @@ class TestMemoryLayer:
 
     def test_default_memory_exists(self):
         from core.agent_pilot.harness import default_memory
+
         mem = default_memory()
         assert mem is not None
 
@@ -150,6 +154,7 @@ class TestSkillsLoader:
 
     def test_default_skills_exists(self):
         from core.agent_pilot.harness import default_skills
+
         skills = default_skills()
         assert skills is not None
 
@@ -159,6 +164,7 @@ class TestMCPClient:
 
     def test_default_mcp_manager_exists(self):
         from core.agent_pilot.harness import default_mcp_manager
+
         mgr = default_mcp_manager()
         assert mgr is not None
 

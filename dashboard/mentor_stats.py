@@ -99,8 +99,7 @@ def register(app) -> None:
         return
 
     @app.get("/api/v4/mentor_stats")
-    async def _mentor_stats(open_id: str = Query(..., min_length=4),
-                            range_days: int = Query(7, ge=1, le=90)):
+    async def _mentor_stats(open_id: str = Query(..., min_length=4), range_days: int = Query(7, ge=1, le=90)):
         try:
             return compute(open_id, range_days=range_days).to_dict()
         except Exception as e:  # noqa: BLE001

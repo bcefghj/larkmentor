@@ -47,7 +47,9 @@ def thinking_card(*, agent: str = "pilot", session_id: str = "") -> Dict[str, An
 
 
 def multi_agent_card(
-    *, task: str, session_id: str = "",
+    *,
+    task: str,
+    session_id: str = "",
     agents: Optional[List[Dict[str, str]]] = None,
 ) -> Dict[str, Any]:
     """Multi-agent 并行执行卡片（Orchestrator-Worker 可视化）。"""
@@ -60,10 +62,12 @@ def multi_agent_card(
         name = agent.get("name", "?")
         status = agent.get("status", "pending")
         status_icon = {"pending": "⏳", "running": "🔄", "done": "✅", "failed": "❌"}.get(status, "?")
-        body.append(_text(
-            f"{status_icon} **@{name}** ({role}): {agent.get('progress', '')}",
-            eid=f"ma.agent.{name}",
-        ))
+        body.append(
+            _text(
+                f"{status_icon} **@{name}** ({role}): {agent.get('progress', '')}",
+                eid=f"ma.agent.{name}",
+            )
+        )
     body.append(_divider())
     body.append(_text(f"_session: {session_id}_", eid="ma.session"))
     header = _header("Orchestrator-Worker", subtitle=f"{len(agents)} agents", template="purple")
@@ -76,15 +80,18 @@ def quality_gates_card(gates: List[Dict[str, Any]], *, session_id: str = "") -> 
     for g in gates:
         icon = "✅" if g.get("passed") else "❌"
         score_bar = "█" * int(g.get("score", 0) * 10) + "░" * (10 - int(g.get("score", 0) * 10))
-        body.append(_text(
-            f"{icon} **{g['name']}** `{score_bar}` {int(g.get('score', 0) * 100)}%\n_{g.get('detail', '')[:100]}_",
-            eid=f"qg.{g['name']}",
-        ))
+        body.append(
+            _text(
+                f"{icon} **{g['name']}** `{score_bar}` {int(g.get('score', 0) * 100)}%\n_{g.get('detail', '')[:100]}_",
+                eid=f"qg.{g['name']}",
+            )
+        )
     passed = sum(1 for g in gates if g.get("passed"))
     header_template = "green" if passed == len(gates) else ("yellow" if passed >= 3 else "red")
     header = _header(
         f"Quality Gates: {passed}/{len(gates)} 通过",
-        subtitle=session_id[:12], template=header_template,
+        subtitle=session_id[:12],
+        template=header_template,
     )
     return _envelope(header, body)
 
@@ -118,11 +125,13 @@ def debate_card(debate_result: Dict[str, Any], *, topic: str = "") -> Dict[str, 
     ]
     paths = debate_result.get("paths", [])
     for i, p in enumerate(paths):
-        body.append(_collapsible(
-            f"[{p.get('model', 'model-' + str(i))}] 观点",
-            _text(p.get("text", "")[:500], eid=f"db.path.{i}"),
-            expanded=False,
-        ))
+        body.append(
+            _collapsible(
+                f"[{p.get('model', 'model-' + str(i))}] 观点",
+                _text(p.get("text", "")[:500], eid=f"db.path.{i}"),
+                expanded=False,
+            )
+        )
     body.append(_divider())
     body.append(_text(f"**最终共识：**\n{answer[:800]}", eid="db.final"))
     header = _header(
@@ -141,8 +150,7 @@ def learning_loop_card(skill_name: str, skill_path: str, trigger_count: int = 3)
         _text(f"**路径：** `{skill_path}`", eid="ll.path"),
         _divider(),
         _text(
-            "下次相同意图将自动命中这个 skill，无需重新思考。\n"
-            "_灵感：Hermes Agent 的 closed learning loop_",
+            "下次相同意图将自动命中这个 skill，无需重新思考。\n_灵感：Hermes Agent 的 closed learning loop_",
             eid="ll.note",
         ),
     ]
@@ -163,10 +171,12 @@ def memory_recall_card(query: str, hits: List[Dict[str, Any]]) -> Dict[str, Any]
     ]
     for i, h in enumerate(hits[:5]):
         kind = h.get("kind", "?")
-        body.append(_text(
-            f"[{kind}] {h.get('content', '')[:200]}",
-            eid=f"mr.hit.{i}",
-        ))
+        body.append(
+            _text(
+                f"[{kind}] {h.get('content', '')[:200]}",
+                eid=f"mr.hit.{i}",
+            )
+        )
     header = _header(
         "💭 跨会话记忆召回",
         subtitle="SQLite + FTS5（不用向量 DB）",
@@ -176,8 +186,11 @@ def memory_recall_card(query: str, hits: List[Dict[str, Any]]) -> Dict[str, Any]
 
 
 def human_approval_card(
-    tool_name: str, arguments: Dict[str, Any],
-    *, plan_id: str = "", reason: str = "",
+    tool_name: str,
+    arguments: Dict[str, Any],
+    *,
+    plan_id: str = "",
+    reason: str = "",
 ) -> Dict[str, Any]:
     """Human-in-the-loop 审批卡片（敏感工具）。"""
     body = [
@@ -189,16 +202,22 @@ def human_approval_card(
             "tag": "action",
             "actions": [
                 {
-                    "tag": "button", "text": {"tag": "plain_text", "content": "✅ 批准"},
-                    "type": "primary", "value": {"action": "approve", "plan_id": plan_id, "tool": tool_name},
+                    "tag": "button",
+                    "text": {"tag": "plain_text", "content": "✅ 批准"},
+                    "type": "primary",
+                    "value": {"action": "approve", "plan_id": plan_id, "tool": tool_name},
                 },
                 {
-                    "tag": "button", "text": {"tag": "plain_text", "content": "❌ 拒绝"},
-                    "type": "danger", "value": {"action": "deny", "plan_id": plan_id, "tool": tool_name},
+                    "tag": "button",
+                    "text": {"tag": "plain_text", "content": "❌ 拒绝"},
+                    "type": "danger",
+                    "value": {"action": "deny", "plan_id": plan_id, "tool": tool_name},
                 },
                 {
-                    "tag": "button", "text": {"tag": "plain_text", "content": "🔁 总是允许"},
-                    "type": "default", "value": {"action": "always_allow", "plan_id": plan_id, "tool": tool_name},
+                    "tag": "button",
+                    "text": {"tag": "plain_text", "content": "🔁 总是允许"},
+                    "type": "default",
+                    "value": {"action": "always_allow", "plan_id": plan_id, "tool": tool_name},
                 },
             ],
         },
@@ -216,6 +235,7 @@ def stream_update(message_id: str, element_id: str, new_content: str) -> bool:
         # Using PATCH on im.v1.message via lark-oapi is safer, but cardkit streaming
         # uses a special endpoint. Fallback to patch_card if not available.
         from bot.message_sender import patch_card as _patch
+
         # Build minimal patch payload
         payload = {element_id: {"content": new_content}}
         return _patch(message_id, payload)

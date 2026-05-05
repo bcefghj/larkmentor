@@ -25,7 +25,8 @@ logger = logging.getLogger("pilot.service")
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "data", "pilot_plans",
+    "data",
+    "pilot_plans",
 )
 
 
@@ -49,9 +50,11 @@ def get_orchestrator():
     with _singleton_lock:
         if _singleton is None:
             from .harness import ConversationOrchestrator
+
             orch = ConversationOrchestrator()
             try:
                 from core.sync.crdt_hub import attach_orchestrator
+
                 attach_orchestrator(orch)
             except Exception as e:
                 logger.debug("attach_orchestrator skipped: %s", e)
@@ -59,8 +62,14 @@ def get_orchestrator():
         return _singleton
 
 
-def launch(intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]] = None,
-           async_run: bool = True, execute: bool = True) -> Plan:
+def launch(
+    intent: str,
+    *,
+    user_open_id: str = "",
+    meta: Optional[Dict[str, Any]] = None,
+    async_run: bool = True,
+    execute: bool = True,
+) -> Plan:
     """Launch a Plan.
 
     :param execute: when False the plan is generated + persisted but the
@@ -70,20 +79,19 @@ def launch(intent: str, *, user_open_id: str = "", meta: Optional[Dict[str, Any]
     # P5.3: rate limit the main Pilot entrypoint.
     try:
         from core.security.rate_limiter import acquire as _acquire
+
         dec = _acquire(user_open_id=user_open_id or "anonymous", tool="pilot.launch")
         if not dec.allowed:
-            raise RuntimeError(
-                f"Pilot 启动被限流：{dec.reason}（冷却 {int(dec.reset_in_sec)}s）"
-            )
+            raise RuntimeError(f"Pilot 启动被限流：{dec.reason}（冷却 {int(dec.reset_in_sec)}s）")
     except RuntimeError:
         raise
     except Exception as _e_rl:
         logger.debug("rate limiter skipped: %s", _e_rl)
     try:
         from core.observability import audit, incr
+
         incr("plan_started", source=(meta or {}).get("source", "unknown"))
-        audit("plan.launch", user=user_open_id, intent=intent[:120],
-              source=(meta or {}).get("source", ""))
+        audit("plan.launch", user=user_open_id, intent=intent[:120], source=(meta or {}).get("source", ""))
     except Exception:
         pass
 
@@ -114,16 +122,19 @@ def _run_and_persist(plan: Plan) -> None:
         ctx.update(plan.meta or {})
         orch.run(plan, context=ctx)
         duration_ms = int((time.time() - start_ts) * 1000)
-        logger.info("plan %s completed in %dms, steps: %d done / %d total",
-                    plan.plan_id, duration_ms,
-                    sum(1 for s in plan.steps if s.status == "done"),
-                    len(plan.steps))
+        logger.info(
+            "plan %s completed in %dms, steps: %d done / %d total",
+            plan.plan_id,
+            duration_ms,
+            sum(1 for s in plan.steps if s.status == "done"),
+            len(plan.steps),
+        )
     except Exception as e:
         duration_ms = int((time.time() - start_ts) * 1000)
-        logger.exception("pilot run failed plan=%s after %dms: %s",
-                         plan.plan_id, duration_ms, e)
+        logger.exception("pilot run failed plan=%s after %dms: %s", plan.plan_id, duration_ms, e)
         try:
             from core.resilience import notify_user_error
+
             notify_user_error(
                 plan.user_open_id,
                 e,
@@ -135,6 +146,7 @@ def _run_and_persist(plan: Plan) -> None:
         _persist(plan, phase="finished")
         try:
             from core.observability import incr
+
             done = sum(1 for s in plan.steps if s.status == "done")
             failed = sum(1 for s in plan.steps if s.status == "failed")
             incr("plan_finished", verdict="ok" if failed == 0 else "partial" if done > 0 else "failed")
@@ -165,6 +177,7 @@ def get_plan(plan_id: str) -> Optional[Plan]:
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         from .planner import Plan, PlanStep
+
         steps = [PlanStep(**s) for s in payload.get("steps", [])]
         p = Plan(
             plan_id=payload.get("plan_id", plan_id),
@@ -192,14 +205,16 @@ def list_plans(user_open_id: str = "", limit: int = 20) -> List[Dict[str, Any]]:
                 payload = json.load(f)
             if user_open_id and payload.get("user_open_id") != user_open_id:
                 continue
-            out.append({
-                "plan_id": payload.get("plan_id"),
-                "intent": payload.get("intent", "")[:80],
-                "created_ts": payload.get("created_ts", 0),
-                "phase": payload.get("phase", "unknown"),
-                "total_steps": len(payload.get("steps", [])),
-                "done_steps": sum(1 for s in payload.get("steps", []) if s.get("status") == "done"),
-            })
+            out.append(
+                {
+                    "plan_id": payload.get("plan_id"),
+                    "intent": payload.get("intent", "")[:80],
+                    "created_ts": payload.get("created_ts", 0),
+                    "phase": payload.get("phase", "unknown"),
+                    "total_steps": len(payload.get("steps", [])),
+                    "done_steps": sum(1 for s in payload.get("steps", []) if s.get("status") == "done"),
+                }
+            )
         except Exception:
             continue
         if len(out) >= limit:

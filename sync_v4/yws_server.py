@@ -31,9 +31,12 @@ def _varint_encode(n: int) -> bytes:
 
 
 def _varint_decode(data: bytes, offset: int = 0) -> tuple:
-    n = 0; shift = 0; pos = offset
+    n = 0
+    shift = 0
+    pos = offset
     while pos < len(data):
-        byte = data[pos]; pos += 1
+        byte = data[pos]
+        pos += 1
         n |= (byte & 0x7F) << shift
         if not (byte & 0x80):
             return n, pos
@@ -43,7 +46,7 @@ def _varint_decode(data: bytes, offset: int = 0) -> tuple:
 
 def _read_var_uint8_array(data: bytes, offset: int) -> tuple:
     length, pos = _varint_decode(data, offset)
-    return data[pos:pos + length], pos + length
+    return data[pos : pos + length], pos + length
 
 
 MSG_SYNC = 0
@@ -58,6 +61,7 @@ SYNC_UPDATE = 2
 
 class Room:
     """One collaborative room (e.g. one tldraw canvas or one Tiptap doc)."""
+
     def __init__(self, room_id: str) -> None:
         self.room_id = room_id
         self.clients: Set[Any] = set()
@@ -67,6 +71,7 @@ class Room:
     def _init_ydoc(self) -> None:
         try:
             import y_py as Y  # type: ignore
+
             self.ydoc = Y.YDoc()
             self._ypy = True
         except ImportError:
@@ -106,6 +111,7 @@ class YWSServer:
             # Send initial sync step 1
             if room._ypy:
                 import y_py as Y
+
                 state_vec = Y.encode_state_vector(room.ydoc)
                 sync_msg = bytes([MSG_SYNC]) + bytes([SYNC_STEP_1]) + _varint_encode(len(state_vec)) + state_vec
                 await websocket.send_bytes(sync_msg)
@@ -128,6 +134,7 @@ class YWSServer:
                 await room.broadcast(msg, exclude=ws)
                 return
             import y_py as Y
+
             sub_type = msg[1]
             if sub_type == SYNC_STEP_1:
                 state_vec, _ = _read_var_uint8_array(msg, 2)
@@ -149,11 +156,10 @@ class YWSServer:
 
     def snapshot(self) -> Dict[str, Any]:
         return {
-            "host": self.host, "port": self.port,
+            "host": self.host,
+            "port": self.port,
             "rooms": [
-                {"id": r.room_id, "clients": len(r.clients),
-                 "awareness": len(r.awareness),
-                 "ypy_enabled": r._ypy}
+                {"id": r.room_id, "clients": len(r.clients), "awareness": len(r.awareness), "ypy_enabled": r._ypy}
                 for r in self.rooms.values()
             ],
         }

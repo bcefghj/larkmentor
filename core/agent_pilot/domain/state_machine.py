@@ -30,6 +30,7 @@
 3. **transition() 是纯函数**——返回新状态，不修改入参
 4. **事件名必须是 ``str``**——便于 JSON 持久化与 hook 系统订阅
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -116,7 +117,6 @@ _TRANSITIONS: Dict[Tuple[TaskState, TaskEvent], TaskState] = {
     (TaskState.SUGGESTED, TaskEvent.USER_IGNORE): TaskState.IGNORED,
     (TaskState.SUGGESTED, TaskEvent.CONTEXT_INSUFFICIENT): TaskState.CONTEXT_PENDING,
     (TaskState.SUGGESTED, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # ── from ASSIGNED ──
     (TaskState.ASSIGNED, TaskEvent.USER_ADD_CONTEXT): TaskState.CONTEXT_PENDING,
     (TaskState.ASSIGNED, TaskEvent.USER_SKIP_CONTEXT): TaskState.PLANNING,
@@ -126,14 +126,12 @@ _TRANSITIONS: Dict[Tuple[TaskState, TaskEvent], TaskState] = {
     (TaskState.ASSIGNED, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.ASSIGNED, TaskEvent.USER_CANCEL): TaskState.IGNORED,
     (TaskState.ASSIGNED, TaskEvent.CONTEXT_INSUFFICIENT): TaskState.CONTEXT_PENDING,
-
     # ── from CONTEXT_PENDING ──
     (TaskState.CONTEXT_PENDING, TaskEvent.USER_CONFIRM_CONTEXT): TaskState.PLANNING,
     (TaskState.CONTEXT_PENDING, TaskEvent.USER_ADD_CONTEXT): TaskState.CONTEXT_PENDING,
     (TaskState.CONTEXT_PENDING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.CONTEXT_PENDING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
     (TaskState.CONTEXT_PENDING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
-
     # ── from PLANNING ──
     (TaskState.PLANNING, TaskEvent.PLAN_DONE_DOC): TaskState.DOC_GENERATING,
     (TaskState.PLANNING, TaskEvent.PLAN_DONE_PPT): TaskState.PPT_GENERATING,
@@ -141,7 +139,6 @@ _TRANSITIONS: Dict[Tuple[TaskState, TaskEvent], TaskState] = {
     (TaskState.PLANNING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.PLANNING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
     (TaskState.PLANNING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
-
     # ── from DOC_GENERATING ──
     (TaskState.DOC_GENERATING, TaskEvent.GENERATION_DONE): TaskState.REVIEWING,
     (TaskState.DOC_GENERATING, TaskEvent.USER_REQUEST_PPT): TaskState.PPT_GENERATING,
@@ -149,19 +146,16 @@ _TRANSITIONS: Dict[Tuple[TaskState, TaskEvent], TaskState] = {
     (TaskState.DOC_GENERATING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.DOC_GENERATING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
     (TaskState.DOC_GENERATING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # ── from PPT_GENERATING ──
     (TaskState.PPT_GENERATING, TaskEvent.GENERATION_DONE): TaskState.REVIEWING,
     (TaskState.PPT_GENERATING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.PPT_GENERATING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
     (TaskState.PPT_GENERATING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # ── from CANVAS_GENERATING ──
     (TaskState.CANVAS_GENERATING, TaskEvent.GENERATION_DONE): TaskState.REVIEWING,
     (TaskState.CANVAS_GENERATING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.CANVAS_GENERATING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
     (TaskState.CANVAS_GENERATING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # ── from REVIEWING ──
     (TaskState.REVIEWING, TaskEvent.USER_DELIVER): TaskState.DELIVERED,
     (TaskState.REVIEWING, TaskEvent.USER_REQUEST_PPT): TaskState.PPT_GENERATING,
@@ -170,16 +164,13 @@ _TRANSITIONS: Dict[Tuple[TaskState, TaskEvent], TaskState] = {
     (TaskState.REVIEWING, TaskEvent.USER_PAUSE): TaskState.PAUSED,
     (TaskState.REVIEWING, TaskEvent.FATAL_ERROR): TaskState.FAILED,
     (TaskState.REVIEWING, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # ── from PAUSED ──
     (TaskState.PAUSED, TaskEvent.USER_RESUME): TaskState.PLANNING,  # default resume → planning
     (TaskState.PAUSED, TaskEvent.USER_CANCEL): TaskState.IGNORED,
     (TaskState.PAUSED, TaskEvent.FATAL_ERROR): TaskState.FAILED,
-
     # ── from FAILED ──
     (TaskState.FAILED, TaskEvent.USER_RETRY): TaskState.PLANNING,
     (TaskState.FAILED, TaskEvent.USER_CANCEL): TaskState.IGNORED,
-
     # IGNORED / DELIVERED are terminal: only reactivate via explicit USER_RETRY (FAILED only)
 }
 
@@ -200,9 +191,8 @@ def transition(state: TaskState, event: TaskEvent) -> TaskState:
     raise InvalidTransitionError(
         frm=state.value,
         event=event.value,
-        hint=f"legal events from {state.value}: " + ", ".join(
-            sorted({ev.value for (s, ev) in _TRANSITIONS if s == state})
-        ),
+        hint=f"legal events from {state.value}: "
+        + ", ".join(sorted({ev.value for (s, ev) in _TRANSITIONS if s == state})),
     )
 
 

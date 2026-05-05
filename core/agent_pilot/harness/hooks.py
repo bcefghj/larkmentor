@@ -100,15 +100,15 @@ class HookRegistry:
     def load_declarative(self, path: str) -> int:
         """Load declarative hooks from ``path``. JSON schema::
 
-            {
-              "pre_tool_use": [
-                {"type": "deny_tool", "tool": "drive.delete", "reason": "too risky"},
-                {"type": "log_audit"}
-              ],
-              "session_start": [
-                {"type": "inject_memory", "file": "LARKMENTOR.md"}
-              ]
-            }
+        {
+          "pre_tool_use": [
+            {"type": "deny_tool", "tool": "drive.delete", "reason": "too risky"},
+            {"type": "log_audit"}
+          ],
+          "session_start": [
+            {"type": "inject_memory", "file": "LARKMENTOR.md"}
+          ]
+        }
         """
         if not os.path.exists(path):
             return 0
@@ -131,8 +131,9 @@ class HookRegistry:
                     count += 1
         return count
 
-    def _remember(self, event: HookEvent, before: Dict[str, Any], after: Dict[str, Any], *,
-                  vetoed: bool, reason: str) -> None:
+    def _remember(
+        self, event: HookEvent, before: Dict[str, Any], after: Dict[str, Any], *, vetoed: bool, reason: str
+    ) -> None:
         entry = {
             "ts": int(time.time() * 1000),
             "event": event.value,
@@ -144,7 +145,7 @@ class HookRegistry:
         with self._lock:
             self._history.append(entry)
             if len(self._history) > self._history_limit:
-                self._history = self._history[-self._history_limit:]
+                self._history = self._history[-self._history_limit :]
 
     def history(self) -> List[Dict[str, Any]]:
         with self._lock:
@@ -161,6 +162,7 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             if payload.get("tool") == tool:
                 return {"_veto": True, "_reason": reason}
             return None
+
         _fn.__name__ = f"deny_tool_{tool}"
         return _fn
 
@@ -171,16 +173,23 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             try:
                 os.makedirs(os.path.dirname(audit_path), exist_ok=True)
                 with open(audit_path, "a", encoding="utf-8") as f:
-                    f.write(json.dumps({
-                        "ts": int(time.time() * 1000),
-                        "event": ev,
-                        "tool": payload.get("tool"),
-                        "plan_id": payload.get("plan_id"),
-                        "user": payload.get("user_open_id"),
-                    }, ensure_ascii=False) + "\n")
+                    f.write(
+                        json.dumps(
+                            {
+                                "ts": int(time.time() * 1000),
+                                "event": ev,
+                                "tool": payload.get("tool"),
+                                "plan_id": payload.get("plan_id"),
+                                "user": payload.get("user_open_id"),
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
             except Exception:
                 pass
             return None
+
         _fn.__name__ = "log_audit"
         return _fn
 
@@ -195,6 +204,7 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             except Exception:
                 pass
             return None
+
         _fn.__name__ = f"inject_memory_{os.path.basename(fpath)}"
         return _fn
 
@@ -209,6 +219,7 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             args = dict(payload.get("args") or {})
             args[arg] = value
             return {"args": args}
+
         _fn.__name__ = f"rewrite_{tool}_{arg}"
         return _fn
 
@@ -237,17 +248,24 @@ def _seed_defaults(reg: HookRegistry) -> None:
         try:
             os.makedirs(os.path.dirname(audit_path), exist_ok=True)
             with open(audit_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps({
-                    "ts": int(time.time() * 1000),
-                    "event": ev,
-                    "tool": payload.get("tool"),
-                    "plan_id": payload.get("plan_id"),
-                    "user": payload.get("user_open_id"),
-                    "args_keys": sorted(list((payload.get("args") or {}).keys()))[:16],
-                }, ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "ts": int(time.time() * 1000),
+                            "event": ev,
+                            "tool": payload.get("tool"),
+                            "plan_id": payload.get("plan_id"),
+                            "user": payload.get("user_open_id"),
+                            "args_keys": sorted(list((payload.get("args") or {}).keys()))[:16],
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
         except Exception:
             pass
         return None
+
     _audit.__name__ = "audit_log"
     reg.register(HookEvent.PRE_TOOL_USE, _audit, name="audit_log")
 
@@ -259,6 +277,7 @@ def _seed_defaults(reg: HookRegistry) -> None:
         if tool in SENSITIVE and mode not in ("auto", "dontAsk", "bypassPermissions"):
             return {"_veto": True, "_reason": f"sensitive tool {tool} blocked in mode {mode}"}
         return None
+
     _sensitive_gate.__name__ = "sensitive_gate"
     reg.register(HookEvent.PRE_TOOL_USE, _sensitive_gate, name="sensitive_gate")
 
@@ -272,5 +291,6 @@ def _seed_defaults(reg: HookRegistry) -> None:
             except Exception:
                 pass
         return None
+
     _session_inject.__name__ = "inject_larkmentor_md"
     reg.register(HookEvent.SESSION_START, _session_inject, name="inject_larkmentor_md")

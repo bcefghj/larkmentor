@@ -60,14 +60,10 @@ def on_card_action(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
             "help": "正在加载帮助...",
         }
         toast_text = toast_map.get(action, "处理中...")
-        return P2CardActionTriggerResponse({
-            "toast": {"type": "info", "content": toast_text}
-        })
+        return P2CardActionTriggerResponse({"toast": {"type": "info", "content": toast_text}})
     except Exception as e:
         logger.exception("Card action error: %s", e)
-        return P2CardActionTriggerResponse({
-            "toast": {"type": "error", "content": "处理失败，请重试"}
-        })
+        return P2CardActionTriggerResponse({"toast": {"type": "error", "content": "处理失败，请重试"}})
 
 
 def _handle_card_action_async(open_id: str, action: str):
@@ -84,10 +80,14 @@ def _handle_card_action_async(open_id: str, action: str):
             recovery_text = generate_recovery(user, stats)
             card = recovery_card(stats, recovery_text)
             send_card(open_id, card)
-            wm_append(open_id, "focus_end", {
-                "duration_min": stats.get("duration_sec", 0) // 60,
-                "total_messages": stats.get("total_messages", 0),
-            })
+            wm_append(
+                open_id,
+                "focus_end",
+                {
+                    "duration_min": stats.get("duration_sec", 0) // 60,
+                    "total_messages": stats.get("total_messages", 0),
+                },
+            )
             check_and_send_achievements(open_id)
 
         elif action == "start_focus":
@@ -111,12 +111,15 @@ def _handle_card_action_async(open_id: str, action: str):
             try:
                 ws = ensure_workspace(open_id, force=False)
                 summary = workspace_summary_for_card(ws)
-                send_card(open_id, workspace_welcome_card(
-                    bitable_url=summary["bitable_url"],
-                    onboarding_url=summary["onboarding_url"],
-                    recovery_url=summary["recovery_url"],
-                    complete=summary["complete"],
-                ))
+                send_card(
+                    open_id,
+                    workspace_welcome_card(
+                        bitable_url=summary["bitable_url"],
+                        onboarding_url=summary["onboarding_url"],
+                        recovery_url=summary["recovery_url"],
+                        complete=summary["complete"],
+                    ),
+                )
             except Exception as e:
                 logger.exception("Workspace provisioning error (card): %s", e)
                 send_text(open_id, f"工作台开通失败：{e}\n\n请联系管理员检查应用权限（bitable:app / docx:document）。")
@@ -147,6 +150,7 @@ def _handle_card_action_async(open_id: str, action: str):
                 send_text(open_id, f"重新生成失败：{e}")
         elif action == "mentor_show_growth_week":
             from core.mentor.growth_doc import load_entries
+
             week = load_entries(open_id, since_ts=int(_time.time()) - 7 * 86400)
             if not week:
                 send_text(open_id, "本周暂无 Mentor 出手记录。")

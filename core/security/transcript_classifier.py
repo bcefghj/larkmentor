@@ -47,8 +47,7 @@ class InjectionVerdict:
 _SUSPICIOUS_PATTERNS: List[tuple[str, str]] = [
     (r"(?i)ignore (the )?(previous|above)\b.*?instruction", "ignore_previous"),
     (r"忽略(之前|上面|以上)?(所有)?(的)?(规则|指令|设定|提示)", "ignore_previous_zh"),
-    (r"(?i)you (are|act) (now |as )?(a )?(different|new) (assistant|ai|model)",
-     "role_override"),
+    (r"(?i)you (are|act) (now |as )?(a )?(different|new) (assistant|ai|model)", "role_override"),
     (r"你(现在)?是\s*(DAN|root|管理员|超级管理员)", "role_override_zh"),
     (r"(?i)system\s*(prompt|message)\s*[:：]", "system_prompt_leak"),
     (r"【?系统指令】?[:：]?", "system_prompt_zh"),
@@ -62,12 +61,14 @@ _SUSPICIOUS_PATTERNS: List[tuple[str, str]] = [
     (r"删除\s*(所有|全部|最近)\s*(白名单|任务|消息|记录|决策)", "destructive_intent_zh"),
     (r"<\!\-\-.*?\-\-\>", "html_comment"),
     (r"(?i)base64[:：]\s*[A-Za-z0-9+/=]{40,}", "long_base64"),
-
     # ── v7 OWASP LLM Top 10 扩展 ──
     # LLM01 Prompt Injection
     (r"#{2,}\s*system\s*#{2,}", "system_marker_injection"),
     (r"(?i)disregard\s+all\s+(?:previous|prior)\s+instructions", "disregard_instructions"),
-    (r"(把|输出|复述)?\s*(?:上面|以上|之前)?\s*(?:的)?\s*system\s*prompt\s*(?:完整|前)?\s*(?:复述|输出|说一下|发一下)?", "exfil_prompt_zh2"),
+    (
+        r"(把|输出|复述)?\s*(?:上面|以上|之前)?\s*(?:的)?\s*system\s*prompt\s*(?:完整|前)?\s*(?:复述|输出|说一下|发一下)?",
+        "exfil_prompt_zh2",
+    ),
     (r"(?i)repeat\s+verbatim.*?system\s+prompt", "exfil_prompt_repeat_verbatim"),
     # LLM02 Insecure Output Handling
     (r"(?i)<\s*script[^>]*>", "html_script_inject"),
@@ -77,17 +78,13 @@ _SUSPICIOUS_PATTERNS: List[tuple[str, str]] = [
     (r"(?i)按这个链接(?:的指令)?执行|fetch\s+and\s+execute", "supply_chain_fetch"),
     (r"system_prompt\.txt|prompt\.json", "external_prompt_link"),
     # LLM06 Sensitive Information Disclosure
-    (r"(?i)环境变量\s*(?:ARK_API_KEY|MINIMAX_API_KEY|FEISHU_APP_SECRET|API_KEY)",
-     "env_secret_request"),
-    (r"(?i)(?:输出|告诉|发给我|reveal|print)\s*(?:env|environment|secret|api[_ ]?key)",
-     "env_secret_request_alt"),
+    (r"(?i)环境变量\s*(?:ARK_API_KEY|MINIMAX_API_KEY|FEISHU_APP_SECRET|API_KEY)", "env_secret_request"),
+    (r"(?i)(?:输出|告诉|发给我|reveal|print)\s*(?:env|environment|secret|api[_ ]?key)", "env_secret_request_alt"),
     # LLM07 Insecure Plugin Design (privileged tool calls)
-    (r"(?i)@\s*(?:feishu|larkmentor|admin)[\w_]*\s+(?:强制|force|reset|clear|清空|删除)",
-     "privileged_plugin_call"),
+    (r"(?i)@\s*(?:feishu|larkmentor|admin)[\w_]*\s+(?:强制|force|reset|clear|清空|删除)", "privileged_plugin_call"),
     # LLM08 Excessive Agency (destructive shell-level)
     (r"(?:^|\s)rm\s+-rf\b", "rm_rf_root"),
-    (r"(?i)delete\s+all\s+messages\s+(?:in\s+the\s+chat|without\s+asking)",
-     "delete_all_no_ask"),
+    (r"(?i)delete\s+all\s+messages\s+(?:in\s+the\s+chat|without\s+asking)", "delete_all_no_ask"),
     # LLM10 Model Theft / system prompt extraction (extra patterns)
     (r"(?i)system\s+prompt\s+above\s+(?:and|or)?\s*ignore", "exfil_prompt_modeltheft"),
 ]
@@ -116,7 +113,9 @@ def _pattern_scan(text: str) -> tuple[float, List[str]]:
 
 
 def classify_transcript(
-    text: str, *, llm_chat: Optional[Callable[[str], str]] = None,
+    text: str,
+    *,
+    llm_chat: Optional[Callable[[str], str]] = None,
     block_threshold: float = 0.85,
     redact_threshold: float = 0.50,
     use_llm_above: float = 0.34,
@@ -129,14 +128,11 @@ def classify_transcript(
 
     # Cheap path: pattern catalog already conclusive.
     if score >= block_threshold:
-        return InjectionVerdict(action=Action.BLOCK, score=score,
-                                reason="pattern_block", tags=tags)
+        return InjectionVerdict(action=Action.BLOCK, score=score, reason="pattern_block", tags=tags)
     if score == 0:
-        return InjectionVerdict(action=Action.ALLOW, score=0.0,
-                                reason="pattern_clean")
+        return InjectionVerdict(action=Action.ALLOW, score=0.0, reason="pattern_clean")
     if score < use_llm_above:
-        return InjectionVerdict(action=Action.ALLOW, score=score,
-                                reason="pattern_low_signal", tags=tags)
+        return InjectionVerdict(action=Action.ALLOW, score=score, reason="pattern_low_signal", tags=tags)
 
     # LLM tie-break.
     if llm_chat is None:
@@ -147,15 +143,20 @@ def classify_transcript(
                 import json as _json
 
                 return _json.dumps(chat_json(prompt))
+
             llm_chat = _judge
         except Exception:
-            return InjectionVerdict(action=Action.REDACT if score >= redact_threshold else Action.ALLOW,
-                                    score=score, reason="pattern_only_llm_unavailable",
-                                    tags=tags)
+            return InjectionVerdict(
+                action=Action.REDACT if score >= redact_threshold else Action.ALLOW,
+                score=score,
+                reason="pattern_only_llm_unavailable",
+                tags=tags,
+            )
 
     snippet = text[:800]
     try:
         import json as _json
+
         raw = llm_chat(JUDGE_PROMPT.format(snippet=snippet))
         try:
             d = _json.loads(raw)
@@ -172,13 +173,16 @@ def classify_transcript(
             action = Action.BLOCK
         elif action_str == "redact" or llm_score >= redact_threshold:
             action = Action.REDACT
-        return InjectionVerdict(action=action, score=max(score, llm_score),
-                                reason=f"llm:{reason}", tags=tags, used_llm=True)
+        return InjectionVerdict(
+            action=action, score=max(score, llm_score), reason=f"llm:{reason}", tags=tags, used_llm=True
+        )
     except Exception as e:
         logger.warning("llm judge failed: %s", e)
         return InjectionVerdict(
             action=Action.REDACT if score >= redact_threshold else Action.ALLOW,
-            score=score, reason="llm_error_fallback", tags=tags,
+            score=score,
+            reason="llm_error_fallback",
+            tags=tags,
         )
 
 

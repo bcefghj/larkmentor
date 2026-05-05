@@ -23,6 +23,7 @@ def reply_draft(
 ) -> Dict[str, Any]:
     try:
         from core.mentor import mentor_write
+
         result = mentor_write.review(content, context=context)
         return {"ok": True, **(result or {})}
     except Exception as e:
@@ -38,6 +39,7 @@ def reply_draft(
 def clarify_task(task_text: str = "", user_open_id: str = "") -> Dict[str, Any]:
     try:
         from core.mentor import mentor_task
+
         result = mentor_task.clarify(task_text)
         return {"ok": True, **(result or {})}
     except Exception as e:
@@ -53,6 +55,7 @@ def clarify_task(task_text: str = "", user_open_id: str = "") -> Dict[str, Any]:
 def weekly_report(user_open_id: str = "", week_offset: int = 0) -> Dict[str, Any]:
     try:
         from core.mentor import mentor_review
+
         result = mentor_review.draft(user_open_id=user_open_id, week_offset=week_offset)
         return {"ok": True, **(result or {})}
     except Exception as e:
@@ -68,6 +71,7 @@ def weekly_report(user_open_id: str = "", week_offset: int = 0) -> Dict[str, Any
 def onboard_next(user_open_id: str = "", answer: str = "") -> Dict[str, Any]:
     try:
         from core.mentor import mentor_onboard
+
         if answer:
             result = mentor_onboard.submit_answer(user_open_id, answer)
         else:
@@ -87,13 +91,16 @@ def onboard_next(user_open_id: str = "", answer: str = "") -> Dict[str, Any]:
 def recommend_next(recent_context: str = "", user_open_id: str = "") -> Dict[str, Any]:
     try:
         from core.agent_pilot.advanced_agent import recommend_next_steps
+
         result = recommend_next_steps(recent_context)
         return {"ok": True, "recommendations": result}
     except Exception as e:
         logger.debug("recommend_next fallback: %s", e)
         from ..providers import default_providers
+
         text = default_providers().chat(
             messages=[{"role": "user", "content": f"根据以下对话，推荐 3 个下一步：\n\n{recent_context[:2000]}"}],
-            task_kind="summary", max_tokens=600,
+            task_kind="summary",
+            max_tokens=600,
         )
         return {"ok": True, "recommendations": text}

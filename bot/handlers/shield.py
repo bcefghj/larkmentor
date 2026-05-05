@@ -25,6 +25,7 @@ _active_process_message = _process_message_v3 if _USE_V3_MAIN_CHAIN else process
 
 # ── Proactive mentor suggestions ──
 
+
 def _resolve_sender_role(sender_name: str, focused_user) -> str:
     """Lightweight role hint: whitelist → 'leader', else 'peer'."""
     try:
@@ -55,6 +56,7 @@ def _maybe_fire_proactive(focused_user, *, sender_name, chat_name, message, leve
         v4_proactive.mark_fired(focused_user)
         try:
             from memory.user_state import _save_all
+
             _save_all()
         except Exception:
             pass
@@ -65,6 +67,7 @@ def _maybe_fire_proactive(focused_user, *, sender_name, chat_name, message, leve
 
 
 # ── Group message handling ──
+
 
 def handle_group_message(
     sender_open_id: str,
@@ -92,15 +95,27 @@ def handle_group_message(
             content=text,
             chat_name=chat_name,
         )
-        wm_append(focused_user.open_id, "message", {
-            "sender_name": sender_name, "chat_name": chat_name,
-            "level": result.get("level", "P3"), "action": result.get("action", "archive"),
-            "content": text[:60],
-        })
-        wm_append(focused_user.open_id, "decision", {
-            "level": result.get("level", "P3"), "action": result.get("action", "archive"),
-            "score": result.get("score", 0), "used_llm": result.get("used_llm", False),
-        })
+        wm_append(
+            focused_user.open_id,
+            "message",
+            {
+                "sender_name": sender_name,
+                "chat_name": chat_name,
+                "level": result.get("level", "P3"),
+                "action": result.get("action", "archive"),
+                "content": text[:60],
+            },
+        )
+        wm_append(
+            focused_user.open_id,
+            "decision",
+            {
+                "level": result.get("level", "P3"),
+                "action": result.get("action", "archive"),
+                "score": result.get("score", 0),
+                "used_llm": result.get("used_llm", False),
+            },
+        )
         action = result["action"]
         level = result.get("level", "P3")
         if action == "forward":
@@ -115,8 +130,11 @@ def handle_group_message(
 
         try:
             _maybe_fire_proactive(
-                focused_user, sender_name=sender_name,
-                chat_name=chat_name, message=text, level=level,
+                focused_user,
+                sender_name=sender_name,
+                chat_name=chat_name,
+                message=text,
+                level=level,
             )
         except Exception as e:
             logger.debug("proactive_hook_skipped err=%s", e)
@@ -126,7 +144,7 @@ def handle_group_message(
                 focused_user.open_id,
                 f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
                 f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-                f"LarkMentor 已自动结束保护模式，请尽快查看。"
+                f"LarkMentor 已自动结束保护模式，请尽快查看。",
             )
             cancel_focus_expiry(focused_user.open_id)
             stats = focused_user.end_focus()
@@ -152,14 +170,26 @@ def handle_focusing_p2p(
         content=text,
         chat_name=chat_name,
     )
-    wm_append(open_id, "message", {
-        "sender_name": sender_name, "level": result.get("level", "P3"),
-        "action": result.get("action", "archive"), "content": text[:60],
-    })
-    wm_append(open_id, "decision", {
-        "level": result.get("level", "P3"), "action": result.get("action", "archive"),
-        "score": result.get("score", 0), "used_llm": result.get("used_llm", False),
-    })
+    wm_append(
+        open_id,
+        "message",
+        {
+            "sender_name": sender_name,
+            "level": result.get("level", "P3"),
+            "action": result.get("action", "archive"),
+            "content": text[:60],
+        },
+    )
+    wm_append(
+        open_id,
+        "decision",
+        {
+            "level": result.get("level", "P3"),
+            "action": result.get("action", "archive"),
+            "score": result.get("score", 0),
+            "used_llm": result.get("used_llm", False),
+        },
+    )
     action = result["action"]
     if action == "forward":
         card = urgent_alert_card(sender=sender_name, content=text, chat_name=chat_name)
@@ -175,7 +205,7 @@ def handle_focusing_p2p(
             open_id,
             f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
             f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-            f"LarkMentor 已自动结束保护模式，请尽快查看。"
+            f"LarkMentor 已自动结束保护模式，请尽快查看。",
         )
         cancel_focus_expiry(open_id)
         stats = user.end_focus()

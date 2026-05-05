@@ -1,4 +1,5 @@
 """P10 · Dashboard v7 三视角 API 测试 (FastAPI TestClient)."""
+
 from __future__ import annotations
 
 import pytest
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 def app(tmp_path):
     """新建一个隔离 FastAPI app，挂 v7 路由（不依赖完整 dashboard.server）."""
     from dashboard.api_v7 import install_v7_routes
+
     a = FastAPI()
     install_v7_routes(a, static_dir=tmp_path / "v7")
     return a
@@ -38,12 +40,15 @@ def test_v7_tasks_list_with_pilot_task(client, tmp_path):
         TaskRepository,
         TaskService,
     )
+
     backup = ts_mod._default_service
     ts_mod._default_service = TaskService(repository=TaskRepository(root=str(tmp_path / "tasks")))
     try:
         from core.agent_pilot.application import default_task_service
+
         t = default_task_service().create_task(
-            intent="测试任务", owner_open_id="u1",
+            intent="测试任务",
+            owner_open_id="u1",
         )
         r = client.get("/api/v7/tasks")
         data = r.json()
@@ -64,10 +69,12 @@ def test_v7_task_detail_returns_full_object(client, tmp_path):
         TaskRepository,
         TaskService,
     )
+
     backup = ts_mod._default_service
     ts_mod._default_service = TaskService(repository=TaskRepository(root=str(tmp_path / "tasks")))
     try:
         from core.agent_pilot.application import default_task_service
+
         t = default_task_service().create_task(intent="x", owner_open_id="u1")
         r = client.get(f"/api/v7/tasks/{t.task_id}")
         assert r.status_code == 200
@@ -84,11 +91,13 @@ def test_v7_task_timeline(client, tmp_path):
         TaskRepository,
         TaskService,
     )
+
     backup = ts_mod._default_service
     ts_mod._default_service = TaskService(repository=TaskRepository(root=str(tmp_path / "tasks")))
     try:
         from core.agent_pilot.application import default_task_service
         from core.agent_pilot.domain import TaskEvent
+
         svc = default_task_service()
         t = svc.create_task(intent="x", owner_open_id="u1")
         svc.fire(t.task_id, TaskEvent.USER_CONFIRM, actor_open_id="u1")

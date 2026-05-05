@@ -29,7 +29,7 @@ class TaskRecord:
 
 def _fingerprint(intent: str) -> str:
     """Stable fingerprint of intent: lowercased, punctuation stripped, first 5 key keywords."""
-    norm = re.sub(r'[\W\s]+', ' ', intent.lower())
+    norm = re.sub(r"[\W\s]+", " ", intent.lower())
     words = [w for w in norm.split() if len(w) > 2][:8]
     h = hashlib.md5(" ".join(sorted(words)).encode()).hexdigest()[:12]
     return h
@@ -61,7 +61,8 @@ class LearningLoop:
     def record(self, *, intent: str, session_id: str, outcome_summary: str, kind: str = "") -> None:
         fp = _fingerprint(intent)
         rec = TaskRecord(
-            intent=intent[:400], session_id=session_id,
+            intent=intent[:400],
+            session_id=session_id,
             kind=kind or self._classify_kind(intent),
             fingerprint=fp,
             outcome_summary=outcome_summary[:400],
@@ -119,7 +120,7 @@ class LearningLoop:
 
         # Common keywords from intents
         all_text = " ".join(r.intent for r in records)
-        kws = list(set(re.findall(r'[\u4e00-\u9fff]{2,6}', all_text)))[:15]
+        kws = list(set(re.findall(r"[\u4e00-\u9fff]{2,6}", all_text)))[:15]
 
         kind = records[0].kind
         description = f"自动生成的 skill：处理 {kind} 类任务（从 {len(records)} 次相似请求中学习）"
@@ -173,12 +174,17 @@ trigger_count: {len(records)}
         events_log = Path.cwd() / ".larkmentor" / "learner_events.jsonl"
         try:
             with events_log.open("a") as f:
-                f.write(json.dumps({
-                    "kind": "skill_generated",
-                    "slug": slug,
-                    "path": skill_path,
-                    "ts": int(time.time()),
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "kind": "skill_generated",
+                            "slug": slug,
+                            "path": skill_path,
+                            "ts": int(time.time()),
+                        }
+                    )
+                    + "\n"
+                )
         except Exception:
             pass
 

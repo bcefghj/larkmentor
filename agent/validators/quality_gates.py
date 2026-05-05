@@ -48,7 +48,9 @@ class QualityGateRunner:
     """Runs 5 gates sequentially. All must pass for overall_passed."""
 
     def run(
-        self, content: str, *,
+        self,
+        content: str,
+        *,
         required_fields: Optional[List[str]] = None,
         related_content: Optional[List[str]] = None,
         tenant_id: str = "default",
@@ -86,10 +88,10 @@ class QualityGateRunner:
         if not related:
             return GateResult("G2_consistency", passed=True, score=0.9, detail="no cross-reference available")
         # Extract numbers and compare
-        content_numbers = set(re.findall(r'\d+(?:\.\d+)?', content))
+        content_numbers = set(re.findall(r"\d+(?:\.\d+)?", content))
         conflicts = 0
         for r in related:
-            r_numbers = set(re.findall(r'\d+(?:\.\d+)?', r))
+            r_numbers = set(re.findall(r"\d+(?:\.\d+)?", r))
             # same topic should share some numbers
             overlap = content_numbers & r_numbers
             # if neither has shared nums and both have many nums, suspicious
@@ -108,7 +110,9 @@ class QualityGateRunner:
             report = default_citation_agent().run(content, tenant_id=tenant_id)
         except Exception as e:
             logger.debug("factuality gate fallback: %s", e)
-            return GateResult("G3_factuality", passed=True, score=0.7, detail="citation agent unavailable, default pass")
+            return GateResult(
+                "G3_factuality", passed=True, score=0.7, detail="citation agent unavailable, default pass"
+            )
         if report.total_claims == 0:
             return GateResult("G3_factuality", passed=True, score=1.0, detail="no claims needing verification")
         ratio = report.verified_claims / report.total_claims
@@ -121,12 +125,12 @@ class QualityGateRunner:
 
     def _gate_readability(self, content: str) -> GateResult:
         # Heuristic readability: avg sentence length, heading density
-        sentences = re.split(r'(?<=[。！？!?.])\s*', content)
+        sentences = re.split(r"(?<=[。！？!?.])\s*", content)
         sentences = [s for s in sentences if s.strip()]
         if not sentences:
             return GateResult("G4_readability", passed=False, score=0.0, detail="empty")
         avg_len = sum(len(s) for s in sentences) / len(sentences)
-        headings = len(re.findall(r'^#+\s', content, re.MULTILINE))
+        headings = len(re.findall(r"^#+\s", content, re.MULTILINE))
         para_count = content.count("\n\n") + 1
         score = 1.0
         detail = []
@@ -167,12 +171,13 @@ def majority_vote(answers: List[Dict[str, Any]], *, judge_fn) -> Dict[str, Any]:
         return {"answer": answers[0] if answers else {}, "converged": True}
     judge_prompt = (
         "3 independent answers:\n\n"
-        + "\n---\n".join(f"[{i}] {a.get('text', str(a))[:800]}" for i, a in enumerate(answers)) +
-        "\n\nIs there a majority answer? If 2+ agree, synthesize it. If all 3 differ, note key disagreements.\n"
-        "Return JSON: {\"converged\": bool, \"final_answer\": \"...\", \"disagreements\": [\"...\"]}"
+        + "\n---\n".join(f"[{i}] {a.get('text', str(a))[:800]}" for i, a in enumerate(answers))
+        + "\n\nIs there a majority answer? If 2+ agree, synthesize it. If all 3 differ, note key disagreements.\n"
+        'Return JSON: {"converged": bool, "final_answer": "...", "disagreements": ["..."]}'
     )
     try:
         import json
+
         out = judge_fn(judge_prompt)
         cleaned = out.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
         data = json.loads(cleaned)

@@ -1,19 +1,20 @@
 """Tests for LarkMentor v4 agent/ package (harness + multi-agent)."""
 
 
-
 def test_agent_imports():
     """Core harness modules all importable."""
     from agent import (
         default_context_manager,
         default_permission_gate,
     )
+
     assert default_context_manager() is not None
     assert default_permission_gate() is not None
 
 
 def test_context_5_layer_compaction():
     from agent.context import ContextManager
+
     ctx = ContextManager(max_tokens=1000, single_result_cap=100)
     # Simulate a huge tool result
     messages = [
@@ -28,6 +29,7 @@ def test_context_5_layer_compaction():
 
 def test_permission_7_layer():
     from agent.permissions import Decision, PermissionGate, PermissionMode
+
     gate = PermissionGate(mode=PermissionMode.DEFAULT)
     # deny rule hit
     dec = gate.check("bash", "rm -rf /")
@@ -48,6 +50,7 @@ def test_memory_fts5():
     from pathlib import Path
 
     from agent.memory import MemoryLayer
+
     tmp = tempfile.TemporaryDirectory()
     mem = MemoryLayer(db_path=Path(tmp.name) / "t.sqlite")
     mid = mem.upsert("用户决定采用 MiniMax M2.7 作为规划模型", kind="decision", tenant_id="t1")
@@ -60,6 +63,7 @@ def test_memory_fts5():
 
 def test_provider_router():
     from agent.providers import default_providers
+
     p = default_providers()
     assert "doubao" in p.configs
     assert "minimax" in p.configs
@@ -69,6 +73,7 @@ def test_provider_router():
 
 def test_strategy_router_8_strategies():
     from agent.router import Strategy, default_router
+
     r = default_router()
     # Simple
     dec = r.route("你好")
@@ -83,12 +88,14 @@ def test_strategy_router_8_strategies():
 
 def test_skills_loader():
     from agent.skills import default_skills_loader
+
     loader = default_skills_loader()
     assert len(loader.skills) >= 0  # user-generated may be 0
 
 
 def test_tools_registry():
     from agent.tools import get_registry
+
     r = get_registry()
     # All 6 tool families present
     prefixes = {t.split(".")[0] for t in r}
@@ -102,6 +109,7 @@ def test_tools_registry():
 
 def test_quality_gates():
     from agent.validators import default_quality_gates
+
     gates = default_quality_gates()
     # Pass case
     report = gates.run("这是一段完整的内容，包含清晰的开头、中间和结尾。没有敏感信息。", required_fields=["内容"])
@@ -113,6 +121,7 @@ def test_quality_gates():
 
 def test_citation_agent_extract_claims():
     from agent.validators.citation_agent import default_citation_agent
+
     ca = default_citation_agent()
     text = "根据 2024 年报，公司年收入达到 1.2 亿元增长 20%。另外据 IDC 研究，员工满意度为 87% 比去年增加 5 个百分点。"
     claims = ca.extract_claims(text)
@@ -121,6 +130,7 @@ def test_citation_agent_extract_claims():
 
 def test_orchestrator_worker_predefined_teams():
     from agent.orchestrator_worker import PREDEFINED_TEAMS
+
     assert "pilot" in PREDEFINED_TEAMS
     assert "doc" in PREDEFINED_TEAMS
     assert "slides" in PREDEFINED_TEAMS
@@ -131,6 +141,7 @@ def test_orchestrator_worker_predefined_teams():
 
 def test_named_agents_loaded():
     from agent.named_agents import default_named_agents
+
     registry = default_named_agents()
     names = registry.list_names()
     # pilot/shield/mentor/debater/researcher all configured
@@ -140,6 +151,7 @@ def test_named_agents_loaded():
 
 def test_learner_fingerprint():
     from agent.learner import _fingerprint
+
     fp1 = _fingerprint("帮我起草一份周报")
     fp2 = _fingerprint("帮我起草一份周报")
     _fingerprint("帮我写一份周报")
@@ -148,6 +160,7 @@ def test_learner_fingerprint():
 
 def test_hooks_6_events():
     from agent.hooks import HookEvent
+
     events = {e.value for e in HookEvent}
     assert "session_start" in events
     assert "user_prompt_submit" in events
@@ -159,6 +172,7 @@ def test_hooks_6_events():
 
 def test_handlers_v4_intent_classification():
     from bot.handlers_v4 import classify_intent
+
     assert classify_intent("/help")["kind"] == "command"
     assert classify_intent("/pilot 做方案")["command"] == "pilot"
     assert classify_intent("@pilot 整理讨论")["kind"] == "named_agent"

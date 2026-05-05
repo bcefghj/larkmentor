@@ -27,6 +27,7 @@ def fetch_recent_minutes(open_id: str, *, limit: int = 5) -> List[Dict]:
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = ListMinuteRequest.builder().user_id_type("open_id").page_size(limit).build()
         resp = client.minutes.v1.minute.list(req)
@@ -41,8 +42,7 @@ def fetch_recent_minutes(open_id: str, *, limit: int = 5) -> List[Dict]:
             if not text:
                 continue
             summary = f"## 会议：{title}\n\n{text[:1500]}"
-            write_archival_summary(open_id, summary, kind="meeting",
-                                   meta={"minute_token": minute_token})
+            write_archival_summary(open_id, summary, kind="meeting", meta={"minute_token": minute_token})
             out.append({"minute_token": minute_token, "title": title, "chars": len(text)})
     except Exception as e:
         logger.debug("minutes fetch err: %s", e)
@@ -52,6 +52,7 @@ def fetch_recent_minutes(open_id: str, *, limit: int = 5) -> List[Dict]:
 def _fetch_transcript(client, minute_token: str) -> str:
     try:
         from lark_oapi.api.minutes.v1 import GetMinuteTranscriptRequest  # type: ignore
+
         req = GetMinuteTranscriptRequest.builder().minute_token(minute_token).build()
         resp = client.minutes.v1.minute_transcript.get(req)
         if not resp.success() or not resp.data:
@@ -87,25 +88,30 @@ def fetch_minutes(
     SDK or the minute doesn't expose speaker diarisation.
     """
     out: Dict = {
-        "minute_token": minute_token, "title": "", "text": "",
-        "segments": [], "ok": False,
+        "minute_token": minute_token,
+        "title": "",
+        "text": "",
+        "segments": [],
+        "ok": False,
     }
     if not minute_token:
         return out
     try:
         from bot.feishu_client import get_client
+
         client = get_client()
         out["text"] = _fetch_transcript(client, minute_token)
         if not out["text"]:
             return out
         out["ok"] = True
         if need_speaker or need_timestamp:
-            out["segments"] = _fetch_segments(client, minute_token,
-                                              need_speaker=need_speaker,
-                                              need_timestamp=need_timestamp)
+            out["segments"] = _fetch_segments(
+                client, minute_token, need_speaker=need_speaker, need_timestamp=need_timestamp
+            )
         # Try to pull title.
         try:
             from lark_oapi.api.minutes.v1 import GetMinuteRequest  # type: ignore
+
             mreq = GetMinuteRequest.builder().minute_token(minute_token).build()
             mresp = client.minutes.v1.minute.get(mreq)
             if getattr(mresp, "success", lambda: False)() and getattr(mresp, "data", None):
@@ -118,11 +124,11 @@ def fetch_minutes(
         return out
 
 
-def _fetch_segments(client, minute_token: str, *,
-                    need_speaker: bool, need_timestamp: bool) -> List[Dict]:
+def _fetch_segments(client, minute_token: str, *, need_speaker: bool, need_timestamp: bool) -> List[Dict]:
     """Return [{speaker, ts_ms, text}, ...]. Empty on failure."""
     try:
         from lark_oapi.api.minutes.v1 import GetMinuteTranscriptRequest  # type: ignore
+
         builder = GetMinuteTranscriptRequest.builder().minute_token(minute_token)
         # Some SDK versions expose need_speaker / need_timestamp params.
         try:
@@ -137,11 +143,13 @@ def _fetch_segments(client, minute_token: str, *,
         segments = getattr(data, "segments", None) or getattr(data, "items", None) or []
         out: List[Dict] = []
         for seg in segments:
-            out.append({
-                "speaker": getattr(seg, "speaker_name", "") or getattr(seg, "speaker", ""),
-                "ts_ms": int(getattr(seg, "start_time", 0) or getattr(seg, "ts_ms", 0) or 0),
-                "text": getattr(seg, "content", "") or getattr(seg, "text", ""),
-            })
+            out.append(
+                {
+                    "speaker": getattr(seg, "speaker_name", "") or getattr(seg, "speaker", ""),
+                    "ts_ms": int(getattr(seg, "start_time", 0) or getattr(seg, "ts_ms", 0) or 0),
+                    "text": getattr(seg, "content", "") or getattr(seg, "text", ""),
+                }
+            )
         return out
     except Exception as exc:
         logger.debug("minute segments fetch: %s", exc)

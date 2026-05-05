@@ -23,14 +23,17 @@ logger = logging.getLogger("agent.tools.archive")
     team="any",
 )
 def archive_to_wiki(
-    title: str = "", content: str = "",
-    wiki_space_token: str = "", parent_node_token: str = "",
+    title: str = "",
+    content: str = "",
+    wiki_space_token: str = "",
+    parent_node_token: str = "",
 ) -> Dict[str, Any]:
     try:
         from core.agent_pilot.tools.archive_tool import archive_to_wiki as _archive
-        result = _archive(title=title, content=content,
-                          wiki_space_token=wiki_space_token,
-                          parent_node_token=parent_node_token)
+
+        result = _archive(
+            title=title, content=content, wiki_space_token=wiki_space_token, parent_node_token=parent_node_token
+        )
         return {"ok": True, **(result or {})}
     except Exception as e:
         # Fallback: save local
@@ -49,6 +52,7 @@ def archive_to_wiki(
 def drive_upload(file_path: str = "", parent_folder_token: str = "") -> Dict[str, Any]:
     try:
         from core.feishu_advanced.drive_api import upload_all
+
         result = upload_all(file_path=file_path, parent_folder_token=parent_folder_token)
         return {"ok": True, **(result or {})}
     except Exception as e:
@@ -64,6 +68,7 @@ def drive_upload(file_path: str = "", parent_folder_token: str = "") -> Dict[str
 def share_link(plan_id: str = "", ttl_sec: int = 7 * 86400) -> Dict[str, Any]:
     try:
         from core.agent_pilot.share_sig import sign_url
+
         base = os.getenv("LARKMENTOR_DASHBOARD_URL", "")
         path = f"{base}/pilot/{plan_id}" if base else f"/pilot/{plan_id}"
         result = sign_url(plan_id, base_path=path, ttl_sec=ttl_sec)
@@ -76,5 +81,11 @@ def share_link(plan_id: str = "", ttl_sec: int = 7 * 86400) -> Dict[str, Any]:
             msg = f"{plan_id}|{exp}".encode()
             mac = hmac.new(secret.encode(), msg, hashlib.sha256).digest()
             sig = base64.urlsafe_b64encode(mac).decode().rstrip("=")
-            return {"ok": True, "plan_id": plan_id, "signed": True, "url": f"/pilot/{plan_id}?sig={sig}.{exp}", "exp_ts": exp}
+            return {
+                "ok": True,
+                "plan_id": plan_id,
+                "signed": True,
+                "url": f"/pilot/{plan_id}?sig={sig}.{exp}",
+                "exp_ts": exp,
+            }
         return {"ok": False, "error": str(e)}

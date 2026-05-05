@@ -8,6 +8,7 @@ import time
 def _make_user_with_blocked(open_id="u_test_recovery"):
     """Helper: seed working_memory with 4 blocked messages of mixed levels."""
     from core.flow_memory.working import WorkingEvent, WorkingMemory
+
     wm = WorkingMemory.load(open_id)
     wm.events = []
     base_ts = int(time.time()) - 1000
@@ -19,19 +20,21 @@ def _make_user_with_blocked(open_id="u_test_recovery"):
         ("noisy", "u3", "FYI 行业新闻分享", "P3", 0.10, "群通知", base_ts + 600),
     ]
     for name, sid, content, lvl, score, chat, ts in seeds:
-        wm.append(WorkingEvent(
-            ts=ts,
-            kind="message",
-            payload={
-                "sender_name": name,
-                "sender_id": sid,
-                "content": content,
-                "level": lvl,
-                "score": score,
-                "chat_name": chat,
-                "message_id": f"m_{sid}_{ts}",
-            },
-        ))
+        wm.append(
+            WorkingEvent(
+                ts=ts,
+                kind="message",
+                payload={
+                    "sender_name": name,
+                    "sender_id": sid,
+                    "content": content,
+                    "level": lvl,
+                    "score": score,
+                    "chat_name": chat,
+                    "message_id": f"m_{sid}_{ts}",
+                },
+            )
+        )
     wm.save()
     return open_id, base_ts
 
@@ -70,15 +73,21 @@ def test_pick_top_message_returns_p0():
 
 def test_pick_top_message_empty_returns_none():
     from core.recovery_card import pick_top_message
+
     assert pick_top_message([]) is None
 
 
 def test_blocked_message_relative_time():
     from core.recovery_card import BlockedMessage
+
     now = int(time.time())
     m = BlockedMessage(
-        sender_name="x", sender_id="y", content="hi",
-        level="P1", score=0.5, ts=now - 30,
+        sender_name="x",
+        sender_id="y",
+        content="hi",
+        level="P1",
+        score=0.5,
+        ts=now - 30,
     )
     s = m.relative_time(now)
     assert "秒前" in s
@@ -86,10 +95,15 @@ def test_blocked_message_relative_time():
 
 def test_blocked_message_short_content():
     from core.recovery_card import BlockedMessage
+
     long = "一二三四五" * 30
     m = BlockedMessage(
-        sender_name="x", sender_id="y", content=long,
-        level="P1", score=0.5, ts=0,
+        sender_name="x",
+        sender_id="y",
+        content=long,
+        level="P1",
+        score=0.5,
+        ts=0,
     )
     assert len(m.short_content(10)) <= 13
 
@@ -98,8 +112,12 @@ def test_draft_three_versions_falls_back_when_llm_unavailable():
     from core.recovery_card import BlockedMessage, draft_three_versions
 
     msg = BlockedMessage(
-        sender_name="王经理", sender_id="u9",
-        content="麻烦看下方案", level="P0", score=0.9, ts=0,
+        sender_name="王经理",
+        sender_id="u9",
+        content="麻烦看下方案",
+        level="P0",
+        score=0.9,
+        ts=0,
     )
     drafts = draft_three_versions("u_test", msg)
     assert len(drafts) == 3

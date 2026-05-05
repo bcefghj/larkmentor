@@ -75,14 +75,13 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_coach_open_id ON coach_chunks(open_id)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_coach_open_id ON coach_chunks(open_id)")
     conn.commit()
     return conn
 
 
 # ── chunking ─────────────────────────────────────────────────────────────────
+
 
 def chunk_text(text: str, chunk_chars: int = 400) -> List[str]:
     """Naive Chinese-friendly chunker: split by paragraph then window."""
@@ -113,6 +112,7 @@ def chunk_text(text: str, chunk_chars: int = 400) -> List[str]:
 
 
 # ── embedding ────────────────────────────────────────────────────────────────
+
 
 def _pack_vec(vec: List[float]) -> bytes:
     return struct.pack(f"{len(vec)}f", *vec)
@@ -164,6 +164,7 @@ def _cosine(a: List[float], b: List[float]) -> float:
 
 
 # ── BM25 fallback ────────────────────────────────────────────────────────────
+
 
 def _tokenize_zh(text: str) -> List[str]:
     """Char-level tokens for CJK plus word-level for ascii.
@@ -220,13 +221,11 @@ def _bm25_rank(query: str, docs: List[str]) -> List[float]:
         overlap_scores.append(hit / max(1, len(q_tokens)))
 
     # Take whichever is non-zero; prefer BM25 when meaningful.
-    return [
-        bm if bm > 0 else ov
-        for bm, ov in zip(bm_scores, overlap_scores)
-    ]
+    return [bm if bm > 0 else ov for bm, ov in zip(bm_scores, overlap_scores)]
 
 
 # ── data classes ─────────────────────────────────────────────────────────────
+
 
 @dataclass
 class Chunk:
@@ -257,6 +256,7 @@ class ImportResult:
 
 
 # ── public API ───────────────────────────────────────────────────────────────
+
 
 def import_text(
     open_id: str,
@@ -316,13 +316,18 @@ def import_text(
 
     logger.info(
         "kb_import open_id=%s source=%s chunks=%d embedded=%d",
-        open_id[-8:], source, len(chunks), sum(1 for v in embeddings if v),
+        open_id[-8:],
+        source,
+        len(chunks),
+        sum(1 for v in embeddings if v),
     )
     return ImportResult(ok=True, chunks_added=len(chunks))
 
 
 def import_chunks(
-    open_id: str, source: str, chunks: Iterable[str],
+    open_id: str,
+    source: str,
+    chunks: Iterable[str],
 ) -> ImportResult:
     """Bulk import already-chunked text (used by wiki importer)."""
     text = "\n\n".join(chunks)
@@ -330,7 +335,9 @@ def import_chunks(
 
 
 def search(
-    open_id: str, query: str, top_k: Optional[int] = None,
+    open_id: str,
+    query: str,
+    top_k: Optional[int] = None,
 ) -> List[SearchHit]:
     """Return top-k hits for a user. Audit-logged."""
     if not open_id or not query:
@@ -367,11 +374,7 @@ def search(
         method = "bm25"
 
     ranked = sorted(zip(rows, scores), key=lambda t: t[1], reverse=True)
-    hits = [
-        SearchHit(chunk=r.to_chunk(), score=float(s), method=method)
-        for r, s in ranked[:k]
-        if s > 0.0
-    ]
+    hits = [SearchHit(chunk=r.to_chunk(), score=float(s), method=method) for r, s in ranked[:k] if s > 0.0]
     _safe_audit(open_id, query, len(hits), method)
     return hits
 
@@ -384,7 +387,8 @@ def delete_user_kb(open_id: str) -> int:
         conn = _connect()
         try:
             cur = conn.execute(
-                "DELETE FROM coach_chunks WHERE open_id = ?", (open_id,),
+                "DELETE FROM coach_chunks WHERE open_id = ?",
+                (open_id,),
             )
             conn.commit()
             return cur.rowcount or 0
@@ -426,10 +430,7 @@ def list_sources(open_id: str) -> List[dict]:
                 " GROUP BY source ORDER BY last_ts DESC",
                 (open_id,),
             )
-            return [
-                {"source": r[0], "chunks": int(r[1]), "last_ts": int(r[2] or 0)}
-                for r in cur.fetchall()
-            ]
+            return [{"source": r[0], "chunks": int(r[1]), "last_ts": int(r[2] or 0)} for r in cur.fetchall()]
         finally:
             conn.close()
 
@@ -439,7 +440,8 @@ def count_chunks(open_id: str) -> int:
         conn = _connect()
         try:
             cur = conn.execute(
-                "SELECT COUNT(*) FROM coach_chunks WHERE open_id = ?", (open_id,),
+                "SELECT COUNT(*) FROM coach_chunks WHERE open_id = ?",
+                (open_id,),
             )
             row = cur.fetchone()
             return int(row[0]) if row else 0
@@ -448,6 +450,7 @@ def count_chunks(open_id: str) -> int:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class _Row:
@@ -465,8 +468,12 @@ class _Row:
 
     def to_chunk(self) -> Chunk:
         return Chunk(
-            id=self.id, open_id=self.open_id, source=self.source,
-            chunk_idx=self.chunk_idx, text=self.text, ts=self.ts,
+            id=self.id,
+            open_id=self.open_id,
+            source=self.source,
+            chunk_idx=self.chunk_idx,
+            text=self.text,
+            ts=self.ts,
         )
 
 
@@ -481,8 +488,12 @@ def _load_user_chunks(open_id: str) -> List[_Row]:
             )
             return [
                 _Row(
-                    id=r[0], open_id=r[1], source=r[2], chunk_idx=r[3],
-                    text=r[4], embedding=_unpack_vec(r[5]) if r[5] else [],
+                    id=r[0],
+                    open_id=r[1],
+                    source=r[2],
+                    chunk_idx=r[3],
+                    text=r[4],
+                    embedding=_unpack_vec(r[5]) if r[5] else [],
                     ts=r[6],
                 )
                 for r in cur.fetchall()
@@ -508,6 +519,7 @@ def _safe_audit(open_id: str, query: str, hits: int, method: str) -> None:
 
 
 # ── format helper used by all coaches ────────────────────────────────────────
+
 
 def render_citations(hits: List[SearchHit]) -> str:
     """Render hits as a prompt-ready context block with citation tags."""

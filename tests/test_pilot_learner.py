@@ -1,4 +1,5 @@
 """P9 · PilotLearner 学习闭环测试."""
+
 from __future__ import annotations
 
 import pytest
@@ -58,10 +59,15 @@ def test_jaccard_partial():
 
 def _make_task(svc, ctx_svc, intent: str, owner: str = "u1"):
     t = svc.create_task(intent=intent, owner_open_id=owner)
-    cp = ctx_svc.build(ContextBuildOptions(
-        task_id=t.task_id, task_goal=intent, owner_open_id=owner,
-        output_primary="ppt", output_audience="leader",
-    ))
+    cp = ctx_svc.build(
+        ContextBuildOptions(
+            task_id=t.task_id,
+            task_goal=intent,
+            owner_open_id=owner,
+            output_primary="ppt",
+            output_audience="leader",
+        )
+    )
     t.attach_context(cp, confirmed=True)
     ps = PlannerService(planner_factory=False)
     ps.plan_for_task(t)
@@ -93,6 +99,7 @@ def test_learn_three_similar_tasks_generates_skill(learner, tmp_path):
     assert sk.intent_pattern  # 持有 pattern
     # SKILL.md 落盘
     from pathlib import Path
+
     assert Path(sk.md_path).exists()
 
 
@@ -104,6 +111,7 @@ def test_skill_md_contents(learner, tmp_path):
         learner.learn_from_task(t)
     sk = learner.list_skills()[-1]
     from pathlib import Path
+
     md = Path(sk.md_path).read_text(encoding="utf-8")
     assert "Auto-generated" in md
     assert sk.skill_id in md
@@ -159,6 +167,7 @@ def test_event_bus_subscribe_attaches_to_delivery(tmp_path):
     # 注入 default_task_service 以便 event 回调能找到 task
     import core.agent_pilot.application.task_service as ts_mod
     from core.agent_pilot.application.task_service import _default_service
+
     ts_mod._default_service = svc
 
     ctx = ContextService(upload_root=str(tmp_path))

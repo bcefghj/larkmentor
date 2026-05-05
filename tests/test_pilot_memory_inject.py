@@ -1,4 +1,5 @@
 """P15 · 6-tier Memory 真正注入到 Pilot system prompt 的测试."""
+
 from __future__ import annotations
 
 from core.agent_pilot.application import (
@@ -21,6 +22,7 @@ def test_memory_resolver_adapter_reads_markdown(tmp_path, monkeypatch):
     """写入临时 enterprise.md，resolver 应能读到内容."""
     # 临时切换 MEMORY_DIR
     import core.flow_memory.flow_memory_md as fm
+
     backup = fm.MEMORY_DIR
     fm.MEMORY_DIR = tmp_path
     try:
@@ -42,6 +44,7 @@ def test_wrap_llm_with_memory_prepends_context(tmp_path):
         return '{"is_task": false}'
 
     import core.flow_memory.flow_memory_md as fm
+
     backup = fm.MEMORY_DIR
     fm.MEMORY_DIR = tmp_path
     try:
@@ -66,6 +69,7 @@ def test_wrap_llm_no_memory_passes_through(tmp_path):
         return "ok"
 
     import core.flow_memory.flow_memory_md as fm
+
     backup = fm.MEMORY_DIR
     fm.MEMORY_DIR = tmp_path  # empty
     try:
@@ -80,16 +84,18 @@ def test_wrap_llm_no_memory_passes_through(tmp_path):
 def test_context_service_uses_resolver(tmp_path):
     """ContextService.resolve_memory_md 调用注入的 resolver."""
     import core.flow_memory.flow_memory_md as fm
+
     backup = fm.MEMORY_DIR
     fm.MEMORY_DIR = tmp_path
     try:
         wsp = tmp_path / "workspace"
         wsp.mkdir()
         (wsp / "marketing.md").write_text("营销组每周五汇报", encoding="utf-8")
-        svc = ContextService(memory_resolver=make_memory_resolver_adapter(),
-                              upload_root=str(tmp_path / "u"))
+        svc = ContextService(memory_resolver=make_memory_resolver_adapter(), upload_root=str(tmp_path / "u"))
         opts = ContextBuildOptions(
-            task_id="t1", task_goal="x", owner_open_id="u1",
+            task_id="t1",
+            task_goal="x",
+            owner_open_id="u1",
             workspace_id="marketing",
         )
         md = svc.resolve_memory_md(opts)
@@ -108,6 +114,7 @@ def test_attach_memory_to_default_binds_resolver(tmp_path):
     try:
         # reset default service so binding is fresh
         import core.agent_pilot.application.context_service as csm
+
         csm._default_service = None
 
         attach_memory_to_default_services()
@@ -119,7 +126,9 @@ def test_attach_memory_to_default_binds_resolver(tmp_path):
         (ent / "default.md").write_text("我司核心业务", encoding="utf-8")
 
         opts = ContextBuildOptions(
-            task_id="t1", task_goal="x", owner_open_id="u1",
+            task_id="t1",
+            task_goal="x",
+            owner_open_id="u1",
         )
         md = ctx.resolve_memory_md(opts)
         assert "核心业务" in md
@@ -127,12 +136,14 @@ def test_attach_memory_to_default_binds_resolver(tmp_path):
         fm.MEMORY_DIR = backup
         # cleanup default service
         import core.agent_pilot.application.context_service as csm
+
         csm._default_service = None
 
 
 def test_six_tiers_merge_low_overrides_high(tmp_path):
     """6 级合并：低层应该出现在合并 markdown 的下方."""
     import core.flow_memory.flow_memory_md as fm
+
     backup = fm.MEMORY_DIR
     fm.MEMORY_DIR = tmp_path
     try:

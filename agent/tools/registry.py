@@ -24,7 +24,8 @@ _REGISTRY: Dict[str, ToolMeta] = {}
 
 
 def tool(
-    *, name: str,
+    *,
+    name: str,
     description: str = "",
     permission: str = "default",
     team: str = "default",
@@ -41,6 +42,7 @@ def tool(
         )
         fn._tool_name = name  # type: ignore
         return fn
+
     return _wrap
 
 

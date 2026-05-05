@@ -54,14 +54,22 @@ class ApprovalManager:
             logger.debug("approvals load failed: %s", e)
 
     def request(
-        self, tool: str, arguments: Dict[str, Any], *,
-        plan_id: str = "", user_open_id: str = "",
+        self,
+        tool: str,
+        arguments: Dict[str, Any],
+        *,
+        plan_id: str = "",
+        user_open_id: str = "",
         reason: str = "",
     ) -> PendingApproval:
         token = uuid.uuid4().hex[:16]
         p = PendingApproval(
-            token=token, tool=tool, arguments=arguments,
-            plan_id=plan_id, user_open_id=user_open_id, reason=reason,
+            token=token,
+            tool=tool,
+            arguments=arguments,
+            plan_id=plan_id,
+            user_open_id=user_open_id,
+            reason=reason,
         )
         with self._lock:
             self.pending[token] = p
@@ -81,6 +89,7 @@ class ApprovalManager:
         if action == "always_allow":
             try:
                 from .permissions import default_permission_gate
+
                 default_permission_gate().register_always_allow(p.tool)
             except Exception as e:
                 logger.warning("always_allow persist failed: %s", e)

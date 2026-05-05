@@ -14,6 +14,7 @@ def search_wiki(query: str, *, limit: int = 5) -> List[Dict]:
         from lark_oapi.api.wiki.v2 import SearchWikiNodeRequest, SearchWikiNodeRequestBody  # type: ignore
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = (
             SearchWikiNodeRequest.builder()
@@ -26,11 +27,13 @@ def search_wiki(query: str, *, limit: int = 5) -> List[Dict]:
             return []
         out: List[Dict] = []
         for it in resp.data.items[:limit]:
-            out.append({
-                "title": getattr(it, "title", ""),
-                "node_token": getattr(it, "node_token", ""),
-                "url": getattr(it, "url", ""),
-            })
+            out.append(
+                {
+                    "title": getattr(it, "title", ""),
+                    "node_token": getattr(it, "node_token", ""),
+                    "url": getattr(it, "url", ""),
+                }
+            )
         return out
     except Exception as e:
         logger.debug("wiki search err: %s", e)

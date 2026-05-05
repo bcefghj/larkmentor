@@ -51,7 +51,9 @@ class SubagentRunner:
         self._semaphore = asyncio.Semaphore(max_concurrent)
 
     async def spawn(
-        self, spec: SubagentSpec, *,
+        self,
+        spec: SubagentSpec,
+        *,
         executor: Optional[Callable[[SubagentSpec], Dict[str, Any]]] = None,
         depth: int = 0,
     ) -> SubagentResult:
@@ -92,21 +94,29 @@ class SubagentRunner:
             except asyncio.TimeoutError:
                 duration = int((time.time() - start) * 1000)
                 return SubagentResult(
-                    agent_id=agent_id, agent_type=spec.agent_type,
-                    status="timeout", summary="", duration_ms=duration,
+                    agent_id=agent_id,
+                    agent_type=spec.agent_type,
+                    status="timeout",
+                    summary="",
+                    duration_ms=duration,
                     errors=[f"timed out after {spec.timeout_sec}s"],
                 )
             except Exception as e:
                 duration = int((time.time() - start) * 1000)
                 logger.exception("subagent %s failed", agent_id)
                 return SubagentResult(
-                    agent_id=agent_id, agent_type=spec.agent_type,
-                    status="failed", summary="", duration_ms=duration,
+                    agent_id=agent_id,
+                    agent_type=spec.agent_type,
+                    status="failed",
+                    summary="",
+                    duration_ms=duration,
                     errors=[str(e)[:500]],
                 )
 
     async def spawn_parallel(
-        self, specs: List[SubagentSpec], *,
+        self,
+        specs: List[SubagentSpec],
+        *,
         executor: Optional[Callable] = None,
     ) -> List[SubagentResult]:
         """Fan-out pattern: spawn N subagents in parallel, collect all."""
@@ -114,7 +124,9 @@ class SubagentRunner:
         return await asyncio.gather(*tasks)
 
     async def spawn_pipeline(
-        self, stages: List[List[SubagentSpec]], *,
+        self,
+        stages: List[List[SubagentSpec]],
+        *,
         executor: Optional[Callable] = None,
     ) -> List[List[SubagentResult]]:
         """Pipeline pattern: stage i runs in parallel, stage i+1 waits on i."""
@@ -128,6 +140,7 @@ class SubagentRunner:
         """Default: invoke LLM with minimal system prompt + task."""
         try:
             from llm.llm_client import chat as llm_chat
+
             system = spec.instruction or f"You are a specialist subagent: {spec.agent_type}. Return a concise summary."
             user = spec.task
             resp = llm_chat(

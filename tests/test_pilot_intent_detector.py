@@ -6,6 +6,7 @@
 - 冷却 + 忽略
 - 三闸门完整流转：READY / NEEDS_CLARIFY / NOT_INTENT / COOLDOWN / IGNORED
 """
+
 from __future__ import annotations
 
 import json
@@ -89,14 +90,16 @@ def test_rule_keyword_english():
 
 
 def test_parse_llm_clean_json():
-    raw = json.dumps({
-        "is_task": True,
-        "task_type": "ppt",
-        "goal": "活动复盘汇报",
-        "resources": ["历史复盘", "预算表"],
-        "next_step": "确认 owner",
-        "confidence": 0.85,
-    })
+    raw = json.dumps(
+        {
+            "is_task": True,
+            "task_type": "ppt",
+            "goal": "活动复盘汇报",
+            "resources": ["历史复盘", "预算表"],
+            "next_step": "确认 owner",
+            "confidence": 0.85,
+        }
+    )
     j = _parse_llm_response(raw)
     assert j.is_task
     assert j.task_type == "ppt"
@@ -106,14 +109,14 @@ def test_parse_llm_clean_json():
 
 
 def test_parse_llm_with_markdown_fence():
-    raw = "```json\n{\"is_task\": true, \"goal\": \"x\", \"confidence\": 0.7}\n```"
+    raw = '```json\n{"is_task": true, "goal": "x", "confidence": 0.7}\n```'
     j = _parse_llm_response(raw)
     assert j.is_task
     assert j.goal == "x"
 
 
 def test_parse_llm_with_leading_garbage():
-    raw = "Here is the result:\n{\"is_task\": false, \"goal\": \"\", \"confidence\": 0.1}"
+    raw = 'Here is the result:\n{"is_task": false, "goal": "", "confidence": 0.1}'
     j = _parse_llm_response(raw)
     assert not j.is_task
     assert j.confidence == 0.1
@@ -166,26 +169,42 @@ def test_cooldown_reset():
 
 
 def _mock_llm_yes(text: str) -> str:
-    return json.dumps({
-        "is_task": True, "task_type": "ppt",
-        "goal": "活动复盘汇报", "resources": ["数据"],
-        "next_step": "确认", "confidence": 0.88,
-    })
+    return json.dumps(
+        {
+            "is_task": True,
+            "task_type": "ppt",
+            "goal": "活动复盘汇报",
+            "resources": ["数据"],
+            "next_step": "确认",
+            "confidence": 0.88,
+        }
+    )
 
 
 def _mock_llm_no(text: str) -> str:
-    return json.dumps({
-        "is_task": False, "task_type": "other",
-        "goal": "", "resources": [], "next_step": "", "confidence": 0.10,
-    })
+    return json.dumps(
+        {
+            "is_task": False,
+            "task_type": "other",
+            "goal": "",
+            "resources": [],
+            "next_step": "",
+            "confidence": 0.10,
+        }
+    )
 
 
 def _mock_llm_lowconf(text: str) -> str:
-    return json.dumps({
-        "is_task": True, "task_type": "report",
-        "goal": "校园活动", "resources": [],
-        "next_step": "需更多信息", "confidence": 0.30,
-    })
+    return json.dumps(
+        {
+            "is_task": True,
+            "task_type": "report",
+            "goal": "校园活动",
+            "resources": [],
+            "next_step": "需更多信息",
+            "confidence": 0.30,
+        }
+    )
 
 
 def _mock_llm_empty(text: str) -> str:

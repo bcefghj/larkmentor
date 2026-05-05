@@ -46,15 +46,17 @@ class CitationAgent:
         """Extract claims: sentences with specific data, numbers, quotes."""
         claims: List[Claim] = []
         # Split into sentences (rough)
-        for sentence in re.split(r'(?<=[。！？!?.])\s*', text):
+        for sentence in re.split(r"(?<=[。！？!?.])\s*", text):
             sentence = sentence.strip()
             if not sentence or len(sentence) < 15:
                 continue
             # Detect claim candidates
-            has_number = bool(re.search(r'\d+(?:[.,]\d+)?(?:%|次|年|月|人|元|美元|tokens?|ms|s|万|亿|千)?', sentence))
+            has_number = bool(re.search(r"\d+(?:[.,]\d+)?(?:%|次|年|月|人|元|美元|tokens?|ms|s|万|亿|千)?", sentence))
             has_quote = bool(re.search(r'["""「『][^""""」』]+["""」』]', sentence))
-            has_ref = bool(re.search(r'(?:根据|据|参考|参见|来自|based on|according to|per|cite[sd]?)', sentence, re.IGNORECASE))
-            is_definite = bool(re.search(r'(?:是|必须|一定|are|is|must|should|will)\b', sentence))
+            has_ref = bool(
+                re.search(r"(?:根据|据|参考|参见|来自|based on|according to|per|cite[sd]?)", sentence, re.IGNORECASE)
+            )
+            is_definite = bool(re.search(r"(?:是|必须|一定|are|is|must|should|will)\b", sentence))
 
             if has_quote:
                 claims.append(Claim(text=sentence, kind="quote"))
@@ -72,18 +74,21 @@ class CitationAgent:
         """Look up memory + wiki + doc for sources."""
         try:
             from ..memory import default_memory
+
             mem = default_memory()
             # Extract keywords from claim
-            keywords = " ".join(re.findall(r'[\u4e00-\u9fff]{2,}|[a-zA-Z]{3,}', claim.text))[:120]
+            keywords = " ".join(re.findall(r"[\u4e00-\u9fff]{2,}|[a-zA-Z]{3,}", claim.text))[:120]
             if keywords:
                 hits = mem.query(keywords, tenant_id=tenant_id, limit=3)
                 for h in hits:
-                    claim.source_refs.append({
-                        "source": "memory",
-                        "id": str(h.id),
-                        "kind": h.kind,
-                        "snippet": h.content[:140],
-                    })
+                    claim.source_refs.append(
+                        {
+                            "source": "memory",
+                            "id": str(h.id),
+                            "kind": h.kind,
+                            "snippet": h.content[:140],
+                        }
+                    )
                 if claim.source_refs:
                     claim.verified = True
                     claim.confidence = min(1.0, 0.6 + 0.1 * len(claim.source_refs))
@@ -93,15 +98,18 @@ class CitationAgent:
         # Try Feishu wiki (best-effort)
         try:
             from core.feishu_advanced.wiki_search import wiki_search
-            keywords = " ".join(re.findall(r'[\u4e00-\u9fff]{2,}', claim.text))[:60]
+
+            keywords = " ".join(re.findall(r"[\u4e00-\u9fff]{2,}", claim.text))[:60]
             if keywords:
                 wiki_results = wiki_search(keywords, page_size=2)
                 for w in (wiki_results or [])[:2]:
-                    claim.source_refs.append({
-                        "source": "wiki",
-                        "token": w.get("node_token", ""),
-                        "title": w.get("title", ""),
-                    })
+                    claim.source_refs.append(
+                        {
+                            "source": "wiki",
+                            "token": w.get("node_token", ""),
+                            "title": w.get("title", ""),
+                        }
+                    )
                 if claim.source_refs and not claim.verified:
                     claim.verified = True
                     claim.confidence = 0.7

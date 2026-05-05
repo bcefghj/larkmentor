@@ -102,22 +102,30 @@ class BuilderValidator:
 
             build = BuildResult(content=content, iteration=i, duration_ms=build_ms)
             builds.append(build)
-            self._emit({"kind": "build_done", "iteration": i, "chars": len(content),
-                        "duration_ms": build_ms})
+            self._emit({"kind": "build_done", "iteration": i, "chars": len(content), "duration_ms": build_ms})
 
             self._emit({"kind": "validate_start", "iteration": i})
             validation = self._validator_fn(task, content)
             validation.iteration = i
             validations.append(validation)
-            self._emit({"kind": "validate_done", "iteration": i,
-                        "passed": validation.passed, "score": validation.score,
-                        "feedback_count": len(validation.feedback)})
+            self._emit(
+                {
+                    "kind": "validate_done",
+                    "iteration": i,
+                    "passed": validation.passed,
+                    "score": validation.score,
+                    "feedback_count": len(validation.feedback),
+                }
+            )
 
             if validation.passed and validation.score >= self._pass_threshold:
                 total_ms = int((time.time() - start) * 1000)
                 return BuilderValidatorResult(
-                    final_content=content, iterations=i, passed=True,
-                    build_history=builds, validation_history=validations,
+                    final_content=content,
+                    iterations=i,
+                    passed=True,
+                    build_history=builds,
+                    validation_history=validations,
                     total_duration_ms=total_ms,
                 )
 
@@ -144,12 +152,18 @@ class BuilderValidator:
         """Default builder using the provider system."""
         try:
             from agent.providers import default_providers
+
             providers = default_providers()
 
-            messages = [{"role": "system", "content": (
-                "你是一位专业的内容生成专家。请根据用户需求生成高质量内容。"
-                "输出格式为 Markdown。确保内容完整、准确、结构清晰。"
-            )}]
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "你是一位专业的内容生成专家。请根据用户需求生成高质量内容。"
+                        "输出格式为 Markdown。确保内容完整、准确、结构清晰。"
+                    ),
+                }
+            ]
             user_content = task
             if feedback:
                 user_content += "\n\n## 改进要求（来自审稿人）：\n" + "\n".join(f"- {f}" for f in feedback[-5:])
@@ -164,20 +178,23 @@ class BuilderValidator:
         """Default validator using the provider system with a different model."""
         try:
             from agent.providers import default_providers
+
             providers = default_providers()
 
             messages = [
                 {"role": "system", "content": VALIDATION_RUBRIC},
-                {"role": "user", "content": (
-                    f"## 原始需求\n{task[:500]}\n\n"
-                    f"## 待审内容\n{content[:3000]}\n\n"
-                    "请按评分标准审查并返回 JSON。"
-                )},
+                {
+                    "role": "user",
+                    "content": (
+                        f"## 原始需求\n{task[:500]}\n\n## 待审内容\n{content[:3000]}\n\n请按评分标准审查并返回 JSON。"
+                    ),
+                },
             ]
             raw = providers.chat(messages, task_kind="validation", max_tokens=800)
 
             import json
             import re
+
             json_match = re.search(r"\{.*\}", raw, re.DOTALL)
             if json_match:
                 data = json.loads(json_match.group())

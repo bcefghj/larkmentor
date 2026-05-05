@@ -2,6 +2,7 @@
 
 Used in P0 audit and CI smoke. Returns 0 on success.
 """
+
 from __future__ import annotations
 
 import os
@@ -20,6 +21,7 @@ def check_doubao() -> tuple[bool, str, float]:
     """Doubao via OpenAI-compatible API."""
     try:
         from openai import OpenAI
+
         api_key = os.getenv("ARK_API_KEY")
         base_url = os.getenv("ARK_CHAT_URL") or os.getenv("ARK_BASE_URL")
         model = os.getenv("ARK_CHAT_MODEL") or os.getenv("ARK_MODEL", "doubao-seed-2.0-pro")
@@ -44,6 +46,7 @@ def check_minimax() -> tuple[bool, str, float]:
     """MiniMax M2.7 via OpenAI-compatible coding endpoint."""
     try:
         from openai import OpenAI
+
         api_key = os.getenv("MINIMAX_API_KEY")
         if not api_key:
             return False, "missing MINIMAX_API_KEY", 0.0

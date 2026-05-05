@@ -30,8 +30,11 @@ def _generate_advice(stats: dict) -> str:
         return "今天没有使用专注模式，尝试在高效时段开启保护。"
     try:
         prompt = DAILY_ADVICE_PROMPT.format(
-            total=stats["total"], p0=stats["p0"], p1=stats["p1"],
-            p2=stats["p2"], p3=stats["p3"],
+            total=stats["total"],
+            p0=stats["p0"],
+            p1=stats["p1"],
+            p2=stats["p2"],
+            p3=stats["p3"],
             focus_duration=fmt_duration(stats["focus_seconds"]),
             shielded=stats["shielded"],
         )
@@ -49,7 +52,10 @@ def send_daily_report_to_user(user: UserState):
     advice = _generate_advice(stats)
     card = daily_report_card(
         total_interrupts=stats["total"],
-        p0=stats["p0"], p1=stats["p1"], p2=stats["p2"], p3=stats["p3"],
+        p0=stats["p0"],
+        p1=stats["p1"],
+        p2=stats["p2"],
+        p3=stats["p3"],
         focus_seconds=stats["focus_seconds"],
         shielded=stats["shielded"],
         advice=advice,

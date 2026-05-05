@@ -15,6 +15,7 @@
 - 每日自动切文件，自动清理 30 天前的历史文件
 - 零外部依赖，2C2G 服务器友好
 """
+
 from __future__ import annotations
 
 import json

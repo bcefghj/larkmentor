@@ -18,6 +18,7 @@ def reply_in_thread(message_id: str, text: str, *, msg_type: str = "text") -> Di
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         if msg_type == "text":
             content = json.dumps({"text": text}, ensure_ascii=False)
@@ -27,11 +28,7 @@ def reply_in_thread(message_id: str, text: str, *, msg_type: str = "text") -> Di
             ReplyMessageRequest.builder()
             .message_id(message_id)
             .request_body(
-                ReplyMessageRequestBody.builder()
-                .content(content)
-                .msg_type(msg_type)
-                .reply_in_thread(True)
-                .build()
+                ReplyMessageRequestBody.builder().content(content).msg_type(msg_type).reply_in_thread(True).build()
             )
             .build()
         )

@@ -15,6 +15,7 @@ def _make_event(kind="message", offset=0):
 
 def test_working_append_and_save_roundtrip(tmp_path, monkeypatch):
     import core.flow_memory.working as wm_mod
+
     monkeypatch.setattr(wm_mod, "WM_DIR", tmp_path)
     wm = WorkingMemory(open_id="ou_test", capacity=10)
     for i in range(5):
@@ -26,6 +27,7 @@ def test_working_append_and_save_roundtrip(tmp_path, monkeypatch):
 
 def test_working_overflow_spills(tmp_path, monkeypatch):
     import core.flow_memory.working as wm_mod
+
     monkeypatch.setattr(wm_mod, "WM_DIR", tmp_path)
     wm = WorkingMemory(open_id="ou_t2", capacity=8)
     spilled = None
@@ -38,8 +40,7 @@ def test_working_overflow_spills(tmp_path, monkeypatch):
 
 
 def test_micro_compact_counts_kinds():
-    events = [_make_event("message", i) for i in range(10)] + \
-             [_make_event("decision", i) for i in range(3)]
+    events = [_make_event("message", i) for i in range(10)] + [_make_event("decision", i) for i in range(3)]
     res = micro_compact(events)
     assert res.event_count == 13
     assert "message" in res.summary_md
@@ -60,11 +61,12 @@ def test_compact_auto_routes_by_size():
     r1 = compact_session(small, tier="auto", llm_chat=lambda p: "LLM")
     r2 = compact_session(big, tier="auto", llm_chat=lambda p: "LLM")
     assert r1.used_llm is False  # micro path
-    assert r2.used_llm is True   # session path
+    assert r2.used_llm is True  # session path
 
 
 def test_flow_memory_md_resolver(tmp_path, monkeypatch):
     import core.flow_memory.flow_memory_md as md_mod
+
     monkeypatch.setattr(md_mod, "MEMORY_DIR", tmp_path)
     write_tier("user", "ou_demo", "## 我的偏好\n\n上级=老板A")
     write_tier("workspace", "default", "## 工作区规则\n\n禁止发广告")
@@ -76,6 +78,7 @@ def test_flow_memory_md_resolver(tmp_path, monkeypatch):
 
 def test_flow_memory_md_resolver_empty(tmp_path, monkeypatch):
     import core.flow_memory.flow_memory_md as md_mod
+
     monkeypatch.setattr(md_mod, "MEMORY_DIR", tmp_path)
     out = resolve_memory_md()
     assert out == ""

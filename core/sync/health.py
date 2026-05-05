@@ -159,9 +159,7 @@ class _StabilityTracker:
         with self._lock:
             s = self._stats.get(room, _ConnectionStats())
             intervals = s.disconnect_intervals
-            avg_interval = (
-                sum(intervals) / len(intervals) if intervals else 0.0
-            )
+            avg_interval = sum(intervals) / len(intervals) if intervals else 0.0
             return {
                 "total_connects": s.total_connects,
                 "total_disconnects": s.total_disconnects,
@@ -241,9 +239,7 @@ class SyncHealthMonitor:
             resolutions = self._resolution_counts.get(room, 0)
             pending = self._pending_depths.get(room, 0)
 
-        resolution_rate = (
-            round(resolutions / conflicts, 3) if conflicts > 0 else 1.0
-        )
+        resolution_rate = round(resolutions / conflicts, 3) if conflicts > 0 else 1.0
 
         return {
             "room": room,
@@ -284,11 +280,7 @@ class SyncHealthMonitor:
                 "total_conflicts": total_conflicts,
                 "total_resolutions": total_resolutions,
                 "total_pending_depth": total_pending,
-                "resolution_rate": (
-                    round(total_resolutions / total_conflicts, 3)
-                    if total_conflicts > 0
-                    else 1.0
-                ),
+                "resolution_rate": (round(total_resolutions / total_conflicts, 3) if total_conflicts > 0 else 1.0),
             },
             "prometheus_enabled": self._enable_prom,
             "rooms": room_reports,

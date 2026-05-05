@@ -9,10 +9,17 @@ from bot.message_sender import reply_text, send_card, send_text
 logger = logging.getLogger("flowguard.handler.pilot")
 
 # All pilot-related command names
-PILOT_COMMANDS = frozenset({
-    "pilot_help", "pilot_run", "pilot_list", "pilot_plan_mode",
-    "pilot_context", "pilot_skills", "pilot_mcp",
-})
+PILOT_COMMANDS = frozenset(
+    {
+        "pilot_help",
+        "pilot_run",
+        "pilot_list",
+        "pilot_plan_mode",
+        "pilot_context",
+        "pilot_skills",
+        "pilot_mcp",
+    }
+)
 
 
 def pilot_help_text() -> str:
@@ -62,6 +69,7 @@ def handle_group_pilot(sender_open_id: str, message_id: str, intent: str, chat_n
     """Handle /pilot command from a group chat (does NOT require focus mode)."""
     try:
         from core.agent_pilot.service import launch as _pilot_launch
+
         plan = _pilot_launch(
             intent,
             user_open_id=sender_open_id,
@@ -80,6 +88,7 @@ def handle_group_pilot(sender_open_id: str, message_id: str, intent: str, chat_n
 
 # ── Individual command handlers ──
 
+
 def _cmd_pilot_help(args, open_id, user, text):
     send_text(open_id, pilot_help_text())
 
@@ -91,16 +100,14 @@ def _cmd_pilot_run(args, open_id, user, text):
         return
     try:
         from core.agent_pilot.service import launch as _pilot_launch
-        plan = _pilot_launch(intent, user_open_id=open_id,
-                             meta={"source": "feishu_p2p"}, async_run=True)
+
+        plan = _pilot_launch(intent, user_open_id=open_id, meta={"source": "feishu_p2p"}, async_run=True)
     except Exception as e:
         logger.exception("pilot_run error: %s", e)
         send_text(open_id, f"Agent-Pilot 启动失败：{e}")
         return
     wm_append(open_id, "pilot_launched", {"plan_id": plan.plan_id, "intent": intent[:80]})
-    step_preview = "\n".join(
-        f"  {i+1}. [{s.tool}] {s.description}" for i, s in enumerate(plan.steps[:6])
-    )
+    step_preview = "\n".join(f"  {i + 1}. [{s.tool}] {s.description}" for i, s in enumerate(plan.steps[:6]))
     send_text(
         open_id,
         "🛫 **Agent-Pilot 已启动**\n"
@@ -108,7 +115,7 @@ def _cmd_pilot_run(args, open_id, user, text):
         f"意图：{intent[:80]}\n\n"
         f"📋 计划（共 {len(plan.steps)} 步）：\n{step_preview}\n\n"
         f"实时进度：http://118.178.242.26/dashboard/pilot?plan_id={plan.plan_id}\n"
-        f"Flutter/Web 客户端会自动刷新。完成后我会再发一条汇总。"
+        f"Flutter/Web 客户端会自动刷新。完成后我会再发一条汇总。",
     )
     _schedule_completion_notify(open_id, plan)
 
@@ -116,6 +123,7 @@ def _cmd_pilot_run(args, open_id, user, text):
 def _cmd_pilot_list(args, open_id, user, text):
     try:
         from core.agent_pilot.service import list_plans as _list_plans
+
         rows = _list_plans(user_open_id=open_id, limit=8)
     except Exception as e:
         send_text(open_id, f"获取 Pilot 列表失败：{e}")
@@ -125,11 +133,10 @@ def _cmd_pilot_list(args, open_id, user, text):
         return
     lines = ["🛫 **最近 Pilot 运行**\n"]
     import time as _t
+
     for r in rows:
         ts = _t.strftime("%m-%d %H:%M", _t.localtime(r.get("created_ts", 0)))
-        lines.append(
-            f"- [{ts}] `{r['plan_id']}` {r['done_steps']}/{r['total_steps']} 完成 · {r['intent']}"
-        )
+        lines.append(f"- [{ts}] `{r['plan_id']}` {r['done_steps']}/{r['total_steps']} 完成 · {r['intent']}")
     lines.append("\n详情请访问 Dashboard：http://118.178.242.26/dashboard/pilot")
     send_text(open_id, "\n".join(lines))
 
@@ -141,17 +148,22 @@ def _cmd_pilot_plan_mode(args, open_id, user, text):
         return
     try:
         from core.agent_pilot.service import launch as _pl
-        plan = _pl(intent, user_open_id=open_id,
-                   meta={"source": "feishu_p2p", "plan_mode": True,
-                         "permission_mode": "plan"},
-                   async_run=False, execute=False)
-        steps = "\n".join(f"  {i+1}. [{s.tool}] {s.description}"
-                          for i, s in enumerate(plan.steps[:12]))
-        send_text(open_id,
-                  "📝 **Plan Mode（只规划不执行）**\n"
-                  f"Plan: `{plan.plan_id}`\n意图：{intent[:80]}\n\n"
-                  f"共 {len(plan.steps)} 步：\n{steps}\n\n"
-                  "确认执行请发 `/pilot " + intent[:40] + "`；调整请重新描述。")
+
+        plan = _pl(
+            intent,
+            user_open_id=open_id,
+            meta={"source": "feishu_p2p", "plan_mode": True, "permission_mode": "plan"},
+            async_run=False,
+            execute=False,
+        )
+        steps = "\n".join(f"  {i + 1}. [{s.tool}] {s.description}" for i, s in enumerate(plan.steps[:12]))
+        send_text(
+            open_id,
+            "📝 **Plan Mode（只规划不执行）**\n"
+            f"Plan: `{plan.plan_id}`\n意图：{intent[:80]}\n\n"
+            f"共 {len(plan.steps)} 步：\n{steps}\n\n"
+            "确认执行请发 `/pilot " + intent[:40] + "`；调整请重新描述。",
+        )
     except Exception as _e:
         send_text(open_id, f"Plan Mode 失败：{_e}")
 
@@ -159,6 +171,7 @@ def _cmd_pilot_plan_mode(args, open_id, user, text):
 def _cmd_pilot_context(args, open_id, user, text):
     try:
         from core.agent_pilot.harness import default_orchestrator
+
         orch = default_orchestrator()
         lines = ["🧠 **Context 快照**", ""]
         lines.append(f"工具：{len(orch.tools.names())} 个 — {', '.join(orch.tools.names()[:8])}…")
@@ -176,10 +189,11 @@ def _cmd_pilot_skills(args, open_id, user, text):
     try:
         from bot.card_v2 import skills_list_card
         from core.agent_pilot.harness import default_skills
-        skills = [{"name": s.name, "description": s.description,
-                   "source": s.source, "version": s.version,
-                   "path": s.path}
-                  for s in default_skills().list()]
+
+        skills = [
+            {"name": s.name, "description": s.description, "source": s.source, "version": s.version, "path": s.path}
+            for s in default_skills().list()
+        ]
         send_card(open_id, skills_list_card(skills))
     except Exception as _e:
         send_text(open_id, f"skills 查询失败：{_e}")
@@ -188,18 +202,19 @@ def _cmd_pilot_skills(args, open_id, user, text):
 def _cmd_pilot_mcp(args, open_id, user, text):
     try:
         from core.agent_pilot.harness import default_mcp_manager
+
         mgr = default_mcp_manager()
         aliases = mgr.list_aliases() or ["(无)"]
         tools = mgr.list_tools()
-        send_text(open_id,
-                  "🔌 **MCP Servers**\n" +
-                  "\n".join(f"- `{a}`" for a in aliases) +
-                  f"\n\n总工具数：{len(tools)}")
+        send_text(
+            open_id, "🔌 **MCP Servers**\n" + "\n".join(f"- `{a}`" for a in aliases) + f"\n\n总工具数：{len(tools)}"
+        )
     except Exception as _e:
         send_text(open_id, f"mcp 查询失败：{_e}")
 
 
 # ── Helpers ──
+
 
 def _schedule_completion_notify(open_id: str, plan):
     """Fire-and-forget thread that polls for plan completion and sends summary."""
@@ -209,6 +224,7 @@ def _schedule_completion_notify(open_id: str, plan):
         def _notify_when_done():
             import time as _t2
             from core.agent_pilot.service import get_plan as _gp
+
             start = _t2.time()
             while _t2.time() - start < 180:
                 _t2.sleep(3)
@@ -240,6 +256,7 @@ def _schedule_completion_notify(open_id: str, plan):
                     except Exception:
                         pass
                     return
+
         _th.Thread(target=_notify_when_done, daemon=True).start()
     except Exception:
         pass

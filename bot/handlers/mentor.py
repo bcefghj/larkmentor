@@ -25,15 +25,32 @@ from memory.user_state import add_org_doc
 logger = logging.getLogger("flowguard.handler.mentor")
 
 # All mentor-related command names
-MENTOR_COMMANDS = frozenset({
-    "start_rookie", "stop_rookie", "rookie_review", "rookie_task", "rookie_weekly",
-    "kb_import", "kb_import_wiki", "kb_search", "kb_list", "kb_delete_source",
-    "mentor_route", "proactive_on", "proactive_off",
-    "show_growth", "show_growth_week",
-    "weekly_report", "monthly_wrapped", "show_memory", "delete_my_data",
-    "onboard_reset", "onboard_show",
-    "learn_doc",
-})
+MENTOR_COMMANDS = frozenset(
+    {
+        "start_rookie",
+        "stop_rookie",
+        "rookie_review",
+        "rookie_task",
+        "rookie_weekly",
+        "kb_import",
+        "kb_import_wiki",
+        "kb_search",
+        "kb_list",
+        "kb_delete_source",
+        "mentor_route",
+        "proactive_on",
+        "proactive_off",
+        "show_growth",
+        "show_growth_week",
+        "weekly_report",
+        "monthly_wrapped",
+        "show_memory",
+        "delete_my_data",
+        "onboard_reset",
+        "onboard_show",
+        "learn_doc",
+    }
+)
 
 
 def handle_mentor_command(command: str, args: dict, open_id: str, user, text: str) -> bool:
@@ -64,20 +81,20 @@ def handle_onboarding_in_progress(open_id: str, text: str) -> bool:
             open_id,
             "🎉 **MentorOnboard 完成**\n\n"
             + mentor_onboard.render_summary(sess)
-            + "\n\n这些信息已自动入库，后续 Mentor 出手会优先参考。"
+            + "\n\n这些信息已自动入库，后续 Mentor 出手会优先参考。",
         )
     else:
         q = sess.next_question
         if q is not None:
             send_text(
                 open_id,
-                f"✓ 已记录\n\n🤝 **MentorOnboard（{sess.progress}）**\n"
-                f"[{q['dim']}] {q['label']}",
+                f"✓ 已记录\n\n🤝 **MentorOnboard（{sess.progress}）**\n[{q['dim']}] {q['label']}",
             )
     return True
 
 
 # ── Individual command handlers ──
+
 
 def _cmd_start_rookie(args, open_id, user, text):
     user.rookie_mode = True
@@ -93,7 +110,7 @@ def _cmd_start_rookie(args, open_id, user, text):
         "📚 `导入文档：xxx` · 入库到组织 RAG（自动 PII 扫描）\n"
         "🔍 `查询知识：xxx` · 验证 RAG 召回\n"
         "🛎 `开启主动建议` / `关闭主动建议`\n"
-        "📓 `我的成长档案` · 拿 Docx 链接 · `我的入职信息` 看 onboarding"
+        "📓 `我的成长档案` · 拿 Docx 链接 · `我的入职信息` 看 onboarding",
     )
     try:
         token = v4_growth.ensure_growth_doc(open_id)
@@ -111,7 +128,7 @@ def _cmd_start_rookie(args, open_id, user, text):
                         open_id,
                         f"🤝 **MentorOnboard 团队融入流（{sess.progress}）**\n\n"
                         f"[{q['dim']}] {q['label']}\n\n"
-                        f"（直接回复你的答案即可；不想做发 `跳过入职` 退出）"
+                        f"（直接回复你的答案即可；不想做发 `跳过入职` 退出）",
                     )
     except Exception as e:
         logger.debug("onboard_start_skipped err=%s", e)
@@ -131,7 +148,9 @@ def _cmd_rookie_review(args, open_id, user, text):
     send_card(open_id, mentor_review_card(review.to_dict()))
     try:
         v4_growth.append_entry(
-            open_id, kind="writing", original=msg,
+            open_id,
+            kind="writing",
+            original=msg,
             improved=review.three_versions.get("neutral", msg),
             citations=review.citations,
         )
@@ -153,8 +172,11 @@ def _cmd_rookie_task(args, open_id, user, text):
             else f"{clarif.task_understanding} | {clarif.delivery_plan}"
         )
         v4_growth.append_entry(
-            open_id, kind="task", original=task,
-            improved=improved, citations=clarif.citations,
+            open_id,
+            kind="task",
+            original=task,
+            improved=improved,
+            citations=clarif.citations,
         )
     except Exception:
         pass
@@ -178,8 +200,7 @@ def _cmd_kb_import(args, open_id, user, text):
         if res.rejected_reason == "pii_detected":
             send_text(
                 open_id,
-                f"⚠️ 检测到敏感信息（{', '.join(res.pii_kinds)}），未入库。"
-                "请手动去敏后再试。",
+                f"⚠️ 检测到敏感信息（{', '.join(res.pii_kinds)}），未入库。请手动去敏后再试。",
             )
         else:
             send_text(open_id, f"导入失败：{res.rejected_reason}")
@@ -191,7 +212,7 @@ def _cmd_kb_import_wiki(args, open_id, user, text):
         open_id,
         f"📚 正在尝试拉取 wiki：{url}\n\n"
         "⚠️ 飞书 Wiki API 权限需企业管理员审批，目前 v4 提供降级路径："
-        "请用 `导入文档：内容` 手动粘贴文档内容。"
+        "请用 `导入文档：内容` 手动粘贴文档内容。",
     )
 
 
@@ -253,7 +274,7 @@ def _cmd_mentor_route(args, open_id, user, text):
             open_id,
             f"Mentor 路由：{decision.role}（{decision.method}/{decision.confidence:.2f}）\n"
             f"理由：{decision.why}\n\n"
-            "如需具体能力，请直接发：`帮我看看:` / `任务确认:` / `写周报:`"
+            "如需具体能力，请直接发：`帮我看看:` / `任务确认:` / `写周报:`",
         )
 
 
@@ -269,18 +290,25 @@ def _cmd_proactive_off(args, open_id, user, text):
 
 def _cmd_show_growth(args, open_id, user, text):
     from core.mentor.growth_doc import load_entries
+
     week = load_entries(open_id, since_ts=int(_time.time()) - 7 * 86400)
     total = load_entries(open_id)
     doc_url = ""
     if user.growth_doc_token:
         doc_url = f"https://feishu.cn/docx/{user.growth_doc_token}"
-    send_card(open_id, mentor_growth_card(
-        week_count=len(week), total_count=len(total), doc_url=doc_url,
-    ))
+    send_card(
+        open_id,
+        mentor_growth_card(
+            week_count=len(week),
+            total_count=len(total),
+            doc_url=doc_url,
+        ),
+    )
 
 
 def _cmd_show_growth_week(args, open_id, user, text):
     from core.mentor.growth_doc import load_entries
+
     week = load_entries(open_id, since_ts=int(_time.time()) - 7 * 86400)
     if not week:
         send_text(open_id, "本周暂无 Mentor 出手记录。")
@@ -296,6 +324,7 @@ def _cmd_weekly_report(args, open_id, user, text):
     send_text(open_id, "正在基于你的工作记忆生成本周周报，请稍候...")
     try:
         from core.work_review.weekly_report import generate_weekly_report as gen_weekly
+
         report = gen_weekly(open_id, publish=True)
         header = (
             f"📋 **本周周报**（{report.stats.get('focus_count', 0)} 次专注 · "
@@ -311,6 +340,7 @@ def _cmd_monthly_wrapped(args, open_id, user, text):
     send_text(open_id, "正在生成月度 Wrapped 卡片...")
     try:
         from core.work_review.monthly_wrapped import generate_monthly_wrapped
+
         card_data = generate_monthly_wrapped(open_id, days=30)
         lines = [f"🎵 **{card_data.headline}**\n"]
         for b in card_data.bullets:
@@ -328,6 +358,7 @@ def _cmd_show_memory(args, open_id, user, text):
     try:
         from core.flow_memory.archival import query_archival
         from core.flow_memory.working import WorkingMemory
+
         wm = WorkingMemory.load(open_id)
         recent_events = wm.recent(n=10)
         archived = query_archival(open_id, limit=5)
@@ -359,8 +390,7 @@ def _cmd_show_memory(args, open_id, user, text):
 def _cmd_delete_my_data(args, open_id, user, text):
     send_text(
         open_id,
-        "⚠️ 确认删除你的所有数据？包括工作记忆、归档摘要、发送方画像。\n\n"
-        "请在 30 秒内回复 `确认删除` 执行操作。"
+        "⚠️ 确认删除你的所有数据？包括工作记忆、归档摘要、发送方画像。\n\n请在 30 秒内回复 `确认删除` 执行操作。",
     )
 
 

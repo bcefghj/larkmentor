@@ -27,6 +27,7 @@ default ``batch_interval=0.3s`` yields ~3.3 updates/s, leaving headroom.
 If a PATCH returns HTTP 429, the writer backs off exponentially (capped
 at 5 s) before retrying up to ``max_retries`` times.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,6 +49,7 @@ logger = logging.getLogger("bot.streaming")
 @dataclass
 class _StreamState:
     """Mutable internal state guarded by CardStreamWriter._lock."""
+
     message_id: str = ""
     chat_id: str = ""
     title: str = ""
@@ -295,6 +297,7 @@ class CardStreamWriter:
                 CreateMessageRequest,
                 CreateMessageRequestBody,
             )
+
             body = (
                 CreateMessageRequestBody.builder()
                 .receive_id(chat_id)
@@ -302,19 +305,12 @@ class CardStreamWriter:
                 .msg_type("interactive")
                 .build()
             )
-            req = (
-                CreateMessageRequest.builder()
-                .receive_id_type(self._id_type)
-                .request_body(body)
-                .build()
-            )
+            req = CreateMessageRequest.builder().receive_id_type(self._id_type).request_body(body).build()
             resp = client.im.v1.message.create(req)
             if resp.success() and resp.data and resp.data.message_id:
                 logger.debug("initial card sent, message_id=%s", resp.data.message_id)
                 return resp.data.message_id
-            logger.error(
-                "initial card send failed: code=%d msg=%s", resp.code, resp.msg
-            )
+            logger.error("initial card send failed: code=%d msg=%s", resp.code, resp.msg)
         except Exception:
             logger.exception("initial card send exception")
 
@@ -330,7 +326,10 @@ class CardStreamWriter:
             if attempt < self._max_retries:
                 logger.info(
                     "patch retry %d/%d after %.1fs backoff (msg=%s)",
-                    attempt, self._max_retries, backoff, message_id,
+                    attempt,
+                    self._max_retries,
+                    backoff,
+                    message_id,
                 )
                 time.sleep(backoff)
                 backoff = min(5.0, backoff * 2)

@@ -52,6 +52,7 @@ app = FastAPI(
 # P5.1: Prometheus /metrics + OpenTelemetry tracing; both optional.
 try:
     from core.observability import install_fastapi as _install_obs
+
     _install_obs(app)
 except Exception as _e_obs:  # noqa: BLE001
     pass
@@ -59,9 +60,11 @@ except Exception as _e_obs:  # noqa: BLE001
 # P10/v7: Pilot 三视角驾驶舱（任务列表 / 6 级 Memory / 三线雷达）
 try:
     from dashboard.api_v7 import install_v7_routes
+
     install_v7_routes(app)
 except Exception as _e_v7:  # noqa: BLE001
     import logging as _lg
+
     _lg.getLogger("dashboard.server").debug("v7 routes not mounted: %s", _e_v7)
 
 # ----- runtime state -----
@@ -92,6 +95,7 @@ def _user_states() -> Dict[str, Any]:
 
 # ----- demo data generator -----
 
+
 def _demo_overview() -> Dict[str, Any]:
     return {
         "decisions_today": 142,
@@ -113,12 +117,28 @@ def _demo_overview() -> Dict[str, Any]:
 
 
 def _demo_decisions(limit: int = 30) -> List[Dict[str, Any]]:
-    senders = ["陈总监", "李 PM", "王同事", "TestBot", "财务系统",
-               "客户张总", "运营小赵", "上级 CTO", "陌生人 X", "HR 系统"]
+    senders = [
+        "陈总监",
+        "李 PM",
+        "王同事",
+        "TestBot",
+        "财务系统",
+        "客户张总",
+        "运营小赵",
+        "上级 CTO",
+        "陌生人 X",
+        "HR 系统",
+    ]
     summaries = [
-        "线上故障 RCA 立刻处理", "今天会议改时间", "Q3 方案数据怎么取",
-        "周报记得交", "今天天气真好", "明天面试时间确认",
-        "增长方案第二版出了", "本周市场周报", "请教 SQL 写法",
+        "线上故障 RCA 立刻处理",
+        "今天会议改时间",
+        "Q3 方案数据怎么取",
+        "周报记得交",
+        "今天天气真好",
+        "明天面试时间确认",
+        "增长方案第二版出了",
+        "本周市场周报",
+        "请教 SQL 写法",
         "30 分钟内能给答复吗",
     ]
     levels = ["P0"] * 1 + ["P1"] * 3 + ["P2"] * 5 + ["P3"] * 8
@@ -126,31 +146,45 @@ def _demo_decisions(limit: int = 30) -> List[Dict[str, Any]]:
     now = int(time.time())
     for i in range(limit):
         lv = random.choice(levels)
-        out.append({
-            "decision_id": f"dec_{i:08x}",
-            "sender_name": random.choice(senders),
-            "level": lv,
-            "score": round(random.uniform(0.05, 0.95), 3),
-            "summary": random.choice(summaries),
-            "ts": now - i * random.randint(60, 300),
-            "rolled_back": random.random() < 0.05,
-        })
+        out.append(
+            {
+                "decision_id": f"dec_{i:08x}",
+                "sender_name": random.choice(senders),
+                "level": lv,
+                "score": round(random.uniform(0.05, 0.95), 3),
+                "summary": random.choice(summaries),
+                "ts": now - i * random.randint(60, 300),
+                "rolled_back": random.random() < 0.05,
+            }
+        )
     return out
 
 
 def _demo_profiles(limit: int = 10) -> List[Dict[str, Any]]:
     out = []
     for i in range(limit):
-        out.append({
-            "sender_id": f"u_{i:06x}",
-            "sender_name": ["陈总监", "李 PM", "王同事", "财务", "客户张总",
-                            "运营小赵", "上级 CTO", "HR", "TestBot", "陌生人 X"][i],
-            "identity_tag": random.choice(["superior", "peer", "vip", "occasional", "bot"]),
-            "relation_strength": round(random.uniform(0.1, 0.95), 2),
-            "msg_count_total": random.randint(10, 500),
-            "user_responded_count": random.randint(0, 50),
-            "importance_bias": round(random.uniform(-0.2, 0.3), 2),
-        })
+        out.append(
+            {
+                "sender_id": f"u_{i:06x}",
+                "sender_name": [
+                    "陈总监",
+                    "李 PM",
+                    "王同事",
+                    "财务",
+                    "客户张总",
+                    "运营小赵",
+                    "上级 CTO",
+                    "HR",
+                    "TestBot",
+                    "陌生人 X",
+                ][i],
+                "identity_tag": random.choice(["superior", "peer", "vip", "occasional", "bot"]),
+                "relation_strength": round(random.uniform(0.1, 0.95), 2),
+                "msg_count_total": random.randint(10, 500),
+                "user_responded_count": random.randint(0, 50),
+                "importance_bias": round(random.uniform(-0.2, 0.3), 2),
+            }
+        )
     return out
 
 
@@ -170,6 +204,7 @@ def _demo_heatmap() -> List[List[int]]:
 
 
 # ----- aggregation from real data -----
+
 
 def _real_overview() -> Dict[str, Any]:
     decisions = _decisions() if isinstance(_decisions(), list) else []
@@ -225,6 +260,7 @@ def _real_heatmap() -> List[List[int]]:
 
 # ----- routes -----
 
+
 @app.on_event("startup")
 async def _startup():
     app.state.start_ts = time.time()
@@ -276,15 +312,17 @@ async def profiles(limit: int = Query(10, ge=1, le=100)):
     for sid, p in raw.items():
         if not isinstance(p, dict):
             continue
-        items.append({
-            "sender_id": sid,
-            "sender_name": p.get("name", sid[-8:]),
-            "identity_tag": p.get("identity_tag", "unknown"),
-            "relation_strength": round(p.get("relation_strength", 0.0), 2),
-            "msg_count_total": p.get("msg_count_total", 0),
-            "user_responded_count": p.get("user_responded_count", 0),
-            "importance_bias": round(p.get("importance_bias", 0.0), 2),
-        })
+        items.append(
+            {
+                "sender_id": sid,
+                "sender_name": p.get("name", sid[-8:]),
+                "identity_tag": p.get("identity_tag", "unknown"),
+                "relation_strength": round(p.get("relation_strength", 0.0), 2),
+                "msg_count_total": p.get("msg_count_total", 0),
+                "user_responded_count": p.get("user_responded_count", 0),
+                "importance_bias": round(p.get("importance_bias", 0.0), 2),
+            }
+        )
     items.sort(key=lambda x: x["msg_count_total"], reverse=True)
     return items[:limit]
 
@@ -297,13 +335,16 @@ async def heatmap():
 @app.get("/api/users")
 async def users():
     if DEMO_MODE:
-        return [{
-            "user_id": f"u_demo_{i}",
-            "name": ["李洁盈", "戴尚好", "评委 A", "评委 B", "测试用户"][i],
-            "in_focus": i % 2 == 0,
-            "tasks": random.randint(0, 4),
-            "pending_msgs": random.randint(0, 12),
-        } for i in range(5)]
+        return [
+            {
+                "user_id": f"u_demo_{i}",
+                "name": ["李洁盈", "戴尚好", "评委 A", "评委 B", "测试用户"][i],
+                "in_focus": i % 2 == 0,
+                "tasks": random.randint(0, 4),
+                "pending_msgs": random.randint(0, 12),
+            }
+            for i in range(5)
+        ]
     raw_states = _user_states()
     states = raw_states if isinstance(raw_states, dict) else {}
     out = []
@@ -311,13 +352,15 @@ async def users():
         if not isinstance(s, dict):
             continue
         fm = s.get("focus_mode", {}) if isinstance(s.get("focus_mode"), dict) else {}
-        out.append({
-            "user_id": uid,
-            "name": s.get("name", uid[-8:]),
-            "in_focus": fm.get("enabled", False),
-            "tasks": len(s.get("tasks", [])),
-            "pending_msgs": len(s.get("pending_msgs", [])),
-        })
+        out.append(
+            {
+                "user_id": uid,
+                "name": s.get("name", uid[-8:]),
+                "in_focus": fm.get("enabled", False),
+                "tasks": len(s.get("tasks", [])),
+                "pending_msgs": len(s.get("pending_msgs", [])),
+            }
+        )
     return out
 
 
@@ -370,10 +413,12 @@ async def _broadcast_loop():
 
 # ----- v3 endpoints: weekly/monthly/audit/team -----
 
+
 @app.get("/api/v3/weekly")
 async def v3_weekly(open_id: str = Query(..., min_length=4)):
     try:
         from core.work_review.weekly_report import generate_weekly_report
+
         report = generate_weekly_report(open_id, publish=False)
         return {
             "open_id": open_id,
@@ -388,10 +433,10 @@ async def v3_weekly(open_id: str = Query(..., min_length=4)):
 
 
 @app.get("/api/v3/wrapped")
-async def v3_wrapped(open_id: str = Query(..., min_length=4),
-                     days: int = Query(30, ge=7, le=120)):
+async def v3_wrapped(open_id: str = Query(..., min_length=4), days: int = Query(30, ge=7, le=120)):
     try:
         from core.work_review.monthly_wrapped import generate_monthly_wrapped
+
         card = generate_monthly_wrapped(open_id, days=days)
         return {
             "open_id": open_id,
@@ -406,11 +451,10 @@ async def v3_wrapped(open_id: str = Query(..., min_length=4),
 
 
 @app.get("/api/v3/audit")
-async def v3_audit(limit: int = Query(50, ge=1, le=500),
-                   actor: str = Query(""),
-                   severity: str = Query("")):
+async def v3_audit(limit: int = Query(50, ge=1, le=500), actor: str = Query(""), severity: str = Query("")):
     try:
         from core.security.audit_log import query_audit
+
         kwargs = {"limit": limit}
         if actor:
             kwargs["actor"] = actor
@@ -419,9 +463,13 @@ async def v3_audit(limit: int = Query(50, ge=1, le=500),
         items = query_audit(**kwargs)
         return [
             {
-                "ts": i.ts, "actor": i.actor[-8:], "action": i.action,
-                "resource": i.resource[-12:], "outcome": i.outcome,
-                "severity": i.severity, "meta": i.meta,
+                "ts": i.ts,
+                "actor": i.actor[-8:],
+                "action": i.action,
+                "resource": i.resource[-12:],
+                "outcome": i.outcome,
+                "severity": i.severity,
+                "meta": i.meta,
             }
             for i in items
         ]
@@ -443,9 +491,9 @@ async def v3_team_insights():
         uid = (d.get("user_open_id") or "")[-8:] or "anon"
         by_user[uid] = by_user.get(uid, 0) + 1
     in_focus = sum(
-        1 for u in states.values()
-        if isinstance(u, dict) and isinstance(u.get("focus_mode"), dict)
-        and u["focus_mode"].get("enabled")
+        1
+        for u in states.values()
+        if isinstance(u, dict) and isinstance(u.get("focus_mode"), dict) and u["focus_mode"].get("enabled")
     )
     top_users = sorted(by_user.items(), key=lambda t: t[1], reverse=True)[:8]
     return {
@@ -459,17 +507,15 @@ async def v3_team_insights():
 
 
 @app.get("/api/v3/memory")
-async def v3_memory(open_id: str = Query(..., min_length=4),
-                    limit: int = Query(20, ge=1, le=100),
-                    kind: str = Query("")):
+async def v3_memory(
+    open_id: str = Query(..., min_length=4), limit: int = Query(20, ge=1, le=100), kind: str = Query("")
+):
     try:
         from core.flow_memory.archival import query_archival
+
         kinds = [kind] if kind else None
         items = query_archival(open_id, kinds=kinds, limit=limit)
-        return [
-            {"ts": i.ts, "kind": i.kind, "summary_md": i.summary_md, "meta": i.meta}
-            for i in items
-        ]
+        return [{"ts": i.ts, "kind": i.kind, "summary_md": i.summary_md, "meta": i.meta} for i in items]
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -493,10 +539,10 @@ except Exception as _e:  # noqa: BLE001
 
 # ── LarkMentor v2: Agent-Pilot endpoints ──
 @app.get("/api/pilot/plans")
-async def pilot_plans(limit: int = Query(20, ge=1, le=100),
-                      open_id: str = Query("")):
+async def pilot_plans(limit: int = Query(20, ge=1, le=100), open_id: str = Query("")):
     try:
         from core.agent_pilot.service import list_plans
+
         return list_plans(user_open_id=open_id, limit=limit)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -511,9 +557,11 @@ async def pilot_plan_detail(plan_id: str, sig: str = Query("")):
         secret = os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", "")
         if secret:
             from core.agent_pilot.share_sig import verify as _verify
+
             if not _verify(plan_id, sig, secret=secret):
                 return JSONResponse({"error": "invalid_or_expired_signature"}, status_code=403)
         from core.agent_pilot.service import get_plan
+
         plan = get_plan(plan_id)
         if not plan:
             return JSONResponse({"error": "not_found"}, status_code=404)
@@ -527,6 +575,7 @@ async def pilot_sign(plan_id: str, ttl: int = Query(7 * 86400, ge=60, le=30 * 86
     """Generate a signed share URL (used by share cards / AppLinks)."""
     try:
         from core.agent_pilot.share_sig import sign_url
+
         base = os.getenv("LARKMENTOR_DASHBOARD_URL", "")
         return sign_url(plan_id, base_path=f"{base}/pilot/{plan_id}", ttl_sec=ttl)
     except Exception as e:
@@ -542,6 +591,7 @@ async def pilot_context():
     """
     try:
         from core.agent_pilot.harness import default_orchestrator
+
         orch = default_orchestrator()
         return {
             "tools": orch.tools.names(),
@@ -558,10 +608,16 @@ async def pilot_context():
 async def pilot_skills():
     try:
         from core.agent_pilot.harness import default_skills
+
         return [
-            {"name": s.name, "description": s.description,
-             "source": s.source, "version": s.version, "path": s.path,
-             "when_to_use": s.when_to_use}
+            {
+                "name": s.name,
+                "description": s.description,
+                "source": s.source,
+                "version": s.version,
+                "path": s.path,
+                "when_to_use": s.when_to_use,
+            }
             for s in default_skills().list()
         ]
     except Exception as e:
@@ -572,12 +628,14 @@ async def pilot_skills():
 async def pilot_mcp_servers():
     try:
         from core.agent_pilot.harness import default_mcp_manager
+
         mgr = default_mcp_manager()
         return {
             "aliases": mgr.list_aliases(),
-            "tools": [{"alias": a, "tool": t.get("name"),
-                       "desc": (t.get("description") or "")[:120]}
-                      for a, t in mgr.list_tools()],
+            "tools": [
+                {"alias": a, "tool": t.get("name"), "desc": (t.get("description") or "")[:120]}
+                for a, t in mgr.list_tools()
+            ],
         }
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -602,19 +660,26 @@ async def pilot_bitable_hook(body: Dict[str, Any]):
             build_intent_from_fields,
             writeback_ai_result,
         )
+
         data = body or {}
         intent = build_intent_from_fields(data.get("fields") or {}, data.get("intent_template", ""))
         if not intent:
             return JSONResponse({"error": "empty intent"}, status_code=400)
-        plan = launch(intent, user_open_id=data.get("user_open_id", ""),
-                      meta={"bitable_hook": True,
-                            "app_token": data.get("app_token", ""),
-                            "table_id": data.get("table_id", ""),
-                            "record_id": data.get("record_id", "")},
-                      async_run=True)
+        plan = launch(
+            intent,
+            user_open_id=data.get("user_open_id", ""),
+            meta={
+                "bitable_hook": True,
+                "app_token": data.get("app_token", ""),
+                "table_id": data.get("table_id", ""),
+                "record_id": data.get("record_id", ""),
+            },
+            async_run=True,
+        )
         if data.get("app_token") and data.get("table_id") and data.get("record_id"):
             writeback_ai_result(
-                app_token=data["app_token"], table_id=data["table_id"],
+                app_token=data["app_token"],
+                table_id=data["table_id"],
                 record_id=data["record_id"],
                 ai_field_name=data.get("ai_field_name", "AI 结果"),
                 verdict="处理中",
@@ -629,9 +694,9 @@ async def pilot_bitable_hook(body: Dict[str, Any]):
 async def pilot_scenarios():
     try:
         from core.agent_pilot.scenarios import ScenarioRegistry
+
         return [
-            {"key": s.key, "name": s.name, "description": s.description,
-             "entry_tools": s.entry_tools}
+            {"key": s.key, "name": s.name, "description": s.description, "entry_tools": s.entry_tools}
             for s in ScenarioRegistry.all()
         ]
     except Exception as e:
@@ -642,6 +707,7 @@ async def pilot_scenarios():
 async def pilot_launch(body: Dict[str, Any]):
     try:
         from core.agent_pilot.service import launch
+
         intent = (body or {}).get("intent", "").strip()
         if not intent:
             return JSONResponse({"error": "intent required"}, status_code=400)
@@ -683,6 +749,7 @@ async def pilot_v7_dashboard():
 
 # ── Advanced Agent endpoints (clarify / summarise / recommend) ──
 
+
 @app.post("/api/pilot/clarify")
 async def pilot_clarify(body: Dict[str, Any]):
     """Mentor.clarify pre-flight check. Returns the same ClarifyDecision
@@ -692,6 +759,7 @@ async def pilot_clarify(body: Dict[str, Any]):
     """
     try:
         from core.agent_pilot.advanced import diagnose_intent
+
         intent = (body or {}).get("intent", "").strip()
         if not intent:
             return JSONResponse({"error": "intent required"}, status_code=400)
@@ -710,6 +778,7 @@ async def pilot_clarify(body: Dict[str, Any]):
 async def pilot_summarise(body: Dict[str, Any]):
     try:
         from core.agent_pilot.advanced import summarise_messages
+
         msgs = (body or {}).get("messages") or []
         return {"summary": summarise_messages(msgs)}
     except Exception as e:
@@ -721,11 +790,11 @@ async def pilot_recommend(plan_id: str):
     try:
         from core.agent_pilot.advanced import recommend_next_steps
         from core.agent_pilot.service import get_plan
+
         plan = get_plan(plan_id)
         if not plan:
             return JSONResponse({"error": "not_found"}, status_code=404)
-        return {"plan_id": plan_id,
-                "next_steps": recommend_next_steps(plan.to_dict())}
+        return {"plan_id": plan_id, "next_steps": recommend_next_steps(plan.to_dict())}
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -763,18 +832,19 @@ async def pilot_voice_transcribe(
             args["file_path"] = tmp.name
 
         step = PlanStep(step_id="http", tool="voice.transcribe", description="http")
-        return voice_transcribe(step, {"resolved_args": args, "plan_id": "",
-                                       "step_results": {}})
+        return voice_transcribe(step, {"resolved_args": args, "plan_id": "", "step_results": {}})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ── Offline merge reconciliation ──
 
+
 @app.get("/api/sync/reconcile/{room}")
 async def sync_reconcile(room: str):
     try:
         from core.sync.offline_merge import reconcile
+
         return reconcile(room)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -783,6 +853,7 @@ async def sync_reconcile(room: str):
 # ── Mount CRDT sync WebSocket ──
 try:
     from core.sync.ws_server import router as _sync_router
+
     if _sync_router is not None:
         app.include_router(_sync_router)
 except Exception as _e_sync:  # noqa: BLE001

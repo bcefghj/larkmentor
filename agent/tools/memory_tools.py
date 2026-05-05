@@ -15,13 +15,21 @@ from .registry import tool
 )
 def query_memory(q: str = "", tenant_id: str = "default", kind: str = "", limit: int = 10) -> Dict[str, Any]:
     from ..memory import default_memory
+
     mem = default_memory()
     results = mem.query(q, tenant_id=tenant_id, kind=kind or None, limit=limit)
     return {
-        "ok": True, "count": len(results),
+        "ok": True,
+        "count": len(results),
         "items": [
-            {"id": r.id, "kind": r.kind, "content": r.content[:300],
-             "ts": r.ts, "user_id": r.user_id, "session_id": r.session_id}
+            {
+                "id": r.id,
+                "kind": r.kind,
+                "content": r.content[:300],
+                "ts": r.ts,
+                "user_id": r.user_id,
+                "session_id": r.session_id,
+            }
             for r in results
         ],
     }
@@ -34,11 +42,14 @@ def query_memory(q: str = "", tenant_id: str = "default", kind: str = "", limit:
     team="any",
 )
 def upsert_memory(
-    content: str = "", kind: str = "fact",
-    user_id: str = "", session_id: str = "",
+    content: str = "",
+    kind: str = "fact",
+    user_id: str = "",
+    session_id: str = "",
     tenant_id: str = "default",
 ) -> Dict[str, Any]:
     from ..memory import default_memory
+
     mem = default_memory()
     mid = mem.upsert(content=content, kind=kind, user_id=user_id, session_id=session_id, tenant_id=tenant_id)
     return {"ok": True, "id": mid}
@@ -54,6 +65,7 @@ def auto_write(kind: str = "learnings", text: str = "", tenant_id: str = "defaul
     if kind not in {"decisions", "patterns", "learnings", "followups"}:
         return {"ok": False, "error": f"invalid kind: {kind}"}
     from ..memory import default_memory
+
     mem = default_memory()
     mem.append_auto(kind, text, tenant_id=tenant_id)
     return {"ok": True, "kind": kind}
@@ -67,6 +79,7 @@ def auto_write(kind: str = "learnings", text: str = "", tenant_id: str = "defaul
 )
 def auto_read(kind: str = "decisions", tenant_id: str = "default", limit: int = 20) -> Dict[str, Any]:
     from ..memory import default_memory
+
     mem = default_memory()
     lines = mem.read_auto(kind, tenant_id=tenant_id, limit=limit)
     return {"ok": True, "kind": kind, "lines": lines}

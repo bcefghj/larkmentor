@@ -67,6 +67,7 @@ logger = logging.getLogger("flowguard.handler")
 
 # ── Public API ──
 
+
 def set_scheduler(sched):
     """Set the APScheduler instance for focus expiry jobs."""
     _set_scheduler(sched)
@@ -79,6 +80,7 @@ def on_message_receive(data: lark.im.v1.P2ImMessageReceiveV1) -> None:
 
 
 # ── Internal routing ──
+
 
 def _handle_in_thread(data):
     try:
@@ -116,8 +118,10 @@ def _do_handle(data):
         _pilot_cmd = parse_command(text)
         if _pilot_cmd.get("command") == "pilot_run":
             handle_group_pilot(
-                sender_open_id, message_id,
-                _pilot_cmd["args"].get("intent", ""), chat_name,
+                sender_open_id,
+                message_id,
+                _pilot_cmd["args"].get("intent", ""),
+                chat_name,
             )
             return
 
@@ -151,7 +155,10 @@ def _do_handle(data):
 
     # Route: Unknown DM in rookie mode
     if user.rookie_mode:
-        send_text(open_id, f"收到消息。发送 `帮助` 查看所有指令。\n\n新人模式已开启，试试 `帮我看看：{text[:20]}` 来审核你的消息。")
+        send_text(
+            open_id,
+            f"收到消息。发送 `帮助` 查看所有指令。\n\n新人模式已开启，试试 `帮我看看：{text[:20]}` 来审核你的消息。",
+        )
         return
 
     # Route: Not focusing → welcome card
@@ -185,15 +192,20 @@ def _handle_core_command(command: str, args: dict, open_id: str, user, text: str
         recovery_text = generate_recovery(user, stats)
         card = recovery_card(stats, recovery_text)
         send_card(open_id, card)
-        wm_append(open_id, "focus_end", {
-            "duration_min": stats.get("duration_sec", 0) // 60,
-            "total_messages": stats.get("total_messages", 0),
-            "p0_count": stats.get("p0_count", 0),
-        })
+        wm_append(
+            open_id,
+            "focus_end",
+            {
+                "duration_min": stats.get("duration_sec", 0) // 60,
+                "total_messages": stats.get("total_messages", 0),
+                "p0_count": stats.get("p0_count", 0),
+            },
+        )
         try:
             ws = get_workspace(open_id)
             if ws.recovery_doc_token:
                 from core.feishu_workspace_init import append_recovery_card
+
                 append_recovery_card(open_id, recovery_text)
         except Exception:
             pass
@@ -270,12 +282,15 @@ def _handle_core_command(command: str, args: dict, open_id: str, user, text: str
         try:
             ws = ensure_workspace(open_id, force=False)
             summary = workspace_summary_for_card(ws)
-            send_card(open_id, workspace_welcome_card(
-                bitable_url=summary["bitable_url"],
-                onboarding_url=summary["onboarding_url"],
-                recovery_url=summary["recovery_url"],
-                complete=summary["complete"],
-            ))
+            send_card(
+                open_id,
+                workspace_welcome_card(
+                    bitable_url=summary["bitable_url"],
+                    onboarding_url=summary["onboarding_url"],
+                    recovery_url=summary["recovery_url"],
+                    complete=summary["complete"],
+                ),
+            )
         except Exception as e:
             logger.exception("Workspace provisioning error: %s", e)
             send_text(open_id, f"工作台开通失败：{e}\n\n请联系管理员检查应用权限（bitable:app / docx:document）。")
@@ -287,12 +302,15 @@ def _handle_core_command(command: str, args: dict, open_id: str, user, text: str
             send_text(open_id, "你还没有工作台。发送 `演示工作台` 立即创建。")
             return True
         summary = workspace_summary_for_card(ws)
-        send_card(open_id, workspace_welcome_card(
-            bitable_url=summary["bitable_url"],
-            onboarding_url=summary["onboarding_url"],
-            recovery_url=summary["recovery_url"],
-            complete=True,
-        ))
+        send_card(
+            open_id,
+            workspace_welcome_card(
+                bitable_url=summary["bitable_url"],
+                onboarding_url=summary["onboarding_url"],
+                recovery_url=summary["recovery_url"],
+                complete=True,
+            ),
+        )
         return True
 
     # Decisions
@@ -331,7 +349,7 @@ def _handle_core_command(command: str, args: dict, open_id: str, user, text: str
         send_text(
             open_id,
             f"已将决策 `{decision_id}` 从 {rec.classification_level} 回滚为 {new_level}。\n\n"
-            f"你的反馈已写入发送者画像，下次类似消息会更准确。"
+            f"你的反馈已写入发送者画像，下次类似消息会更准确。",
         )
         return True
 

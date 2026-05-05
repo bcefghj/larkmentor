@@ -7,6 +7,7 @@
    下游订阅者：sync hub、audit log、learner 学习闭环、dashboard SSE
 4. 不引入 redis/kafka，2C2G 服务器友好
 """
+
 from __future__ import annotations
 
 import threading
@@ -19,9 +20,9 @@ from typing import Any, Callable, Dict, List, Optional
 class DomainEvent:
     """领域事件不可变基础结构."""
 
-    event_kind: str             # "task_created" / "task_assigned" / "task_state_changed" / ...
+    event_kind: str  # "task_created" / "task_assigned" / "task_state_changed" / ...
     task_id: str
-    actor_open_id: str = ""     # 触发事件的 user (空 = 系统触发)
+    actor_open_id: str = ""  # 触发事件的 user (空 = 系统触发)
     data: Dict[str, Any] = field(default_factory=dict)
     ts: int = 0
 
@@ -68,8 +69,9 @@ class EventBus:
                 # subscriber 内部错误隔离；audit_log 自身也有异常处理
                 pass
 
-    def history(self, *, task_id: Optional[str] = None, kind: Optional[str] = None,
-                limit: int = 100) -> List[DomainEvent]:
+    def history(
+        self, *, task_id: Optional[str] = None, kind: Optional[str] = None, limit: int = 100
+    ) -> List[DomainEvent]:
         with self._lock:
             evs = list(self._history)
         if task_id:
@@ -106,9 +108,9 @@ EVT_TASK_FAILED = "task_failed"
 EVT_TASK_IGNORED = "task_ignored"
 
 
-def make_event(kind: str, task_id: str, *, actor_open_id: str = "",
-               data: Optional[Dict[str, Any]] = None,
-               ts: Optional[int] = None) -> DomainEvent:
+def make_event(
+    kind: str, task_id: str, *, actor_open_id: str = "", data: Optional[Dict[str, Any]] = None, ts: Optional[int] = None
+) -> DomainEvent:
     return DomainEvent(
         event_kind=kind,
         task_id=task_id,

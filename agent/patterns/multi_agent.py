@@ -17,7 +17,8 @@ from ..subagent import SubagentResult, SubagentRunner, SubagentSpec, default_sub
 
 
 async def fan_out(
-    specs: List[SubagentSpec], *,
+    specs: List[SubagentSpec],
+    *,
     runner: Optional[SubagentRunner] = None,
     aggregator: Optional[Callable[[List[SubagentResult]], str]] = None,
 ) -> Dict[str, Any]:
@@ -27,9 +28,7 @@ async def fan_out(
     if aggregator:
         summary = aggregator(results)
     else:
-        summary = "\n\n".join(
-            f"[{r.agent_type} / {r.status}]\n{r.summary}" for r in results
-        )
+        summary = "\n\n".join(f"[{r.agent_type} / {r.status}]\n{r.summary}" for r in results)
     return {
         "pattern": "fan_out",
         "results": [r.__dict__ for r in results],
@@ -40,7 +39,8 @@ async def fan_out(
 
 
 async def pipeline(
-    stages: List[List[SubagentSpec]], *,
+    stages: List[List[SubagentSpec]],
+    *,
     runner: Optional[SubagentRunner] = None,
 ) -> Dict[str, Any]:
     """Pattern 2: Pipeline. Stages are sequential; within a stage, specs run parallel."""
@@ -58,15 +58,14 @@ async def pipeline(
         total_duration += max((r.duration_ms for r in results), default=0)
     return {
         "pattern": "pipeline",
-        "stages": [
-            [r.__dict__ for r in stage] for stage in all_stage_results
-        ],
+        "stages": [[r.__dict__ for r in stage] for stage in all_stage_results],
         "total_duration_ms": total_duration,
     }
 
 
 async def map_reduce(
-    items: List[Any], *,
+    items: List[Any],
+    *,
     map_instruction: str,
     reduce_instruction: str,
     runner: Optional[SubagentRunner] = None,
@@ -76,7 +75,7 @@ async def map_reduce(
     """Pattern 3: Map-Reduce. Split items into chunks, map in parallel, then reduce."""
     runner = runner or default_subagent_runner()
     # Chunk
-    chunks = [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+    chunks = [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
     # Map
     map_specs = [
@@ -108,7 +107,8 @@ async def map_reduce(
 
 
 async def specialist_delegation(
-    task: str, *,
+    task: str,
+    *,
     specialists: Dict[str, str],  # {role: instruction}
     runner: Optional[SubagentRunner] = None,
 ) -> Dict[str, Any]:
@@ -127,13 +127,12 @@ async def specialist_delegation(
         "pattern": "specialist_delegation",
         "specialists": list(specialists.keys()),
         "results": [r.__dict__ for r in results],
-        "combined_summary": "\n---\n".join(
-            f"# {r.agent_type}\n{r.summary}" for r in results if r.status == "ok"
-        ),
+        "combined_summary": "\n---\n".join(f"# {r.agent_type}\n{r.summary}" for r in results if r.status == "ok"),
     }
 
 
 # ─── Sync wrappers for non-async callers ───
+
 
 def sync_fan_out(specs: List[SubagentSpec], **kwargs) -> Dict[str, Any]:
     loop = asyncio.new_event_loop()
@@ -154,9 +153,9 @@ def sync_pipeline(stages: List[List[SubagentSpec]], **kwargs) -> Dict[str, Any]:
 def sync_map_reduce(items: List[Any], *, map_instruction: str, reduce_instruction: str, **kwargs) -> Dict[str, Any]:
     loop = asyncio.new_event_loop()
     try:
-        return loop.run_until_complete(map_reduce(
-            items, map_instruction=map_instruction, reduce_instruction=reduce_instruction, **kwargs
-        ))
+        return loop.run_until_complete(
+            map_reduce(items, map_instruction=map_instruction, reduce_instruction=reduce_instruction, **kwargs)
+        )
     finally:
         loop.close()
 

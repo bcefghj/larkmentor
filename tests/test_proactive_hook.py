@@ -55,8 +55,11 @@ def hook(monkeypatch):
 def test_fires_for_p0(hook):
     u = FakeUser()
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="项目群", message="紧急：方案有问题需要立刻确认",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="项目群",
+        message="紧急：方案有问题需要立刻确认",
         level="P0",
     )
     assert decision.fired is True
@@ -66,8 +69,11 @@ def test_fires_for_p0(hook):
 def test_skips_for_p2(hook):
     u = FakeUser()
     decision = hook.maybe_suggest(
-        u, sender_name="同事", sender_role="peer",
-        chat_name="闲聊", message="今天午饭吃啥",
+        u,
+        sender_name="同事",
+        sender_role="peer",
+        chat_name="闲聊",
+        message="今天午饭吃啥",
         level="P2",
     )
     assert decision.fired is False
@@ -77,8 +83,12 @@ def test_skips_for_p2(hook):
 def test_blocked_when_user_disabled(hook):
     u = FakeUser(proactive_enabled=False)
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="x", message="紧急", level="P0",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="x",
+        message="紧急",
+        level="P0",
     )
     assert decision.fired is False
     assert decision.reason == "user_disabled"
@@ -87,8 +97,12 @@ def test_blocked_when_user_disabled(hook):
 def test_blocked_when_rookie_mode_off(hook):
     u = FakeUser(rookie_mode=False)
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="x", message="紧急", level="P0",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="x",
+        message="紧急",
+        level="P0",
     )
     assert decision.fired is False
     assert decision.reason == "rookie_mode_off"
@@ -97,8 +111,12 @@ def test_blocked_when_rookie_mode_off(hook):
 def test_cooldown_blocks_within_5min(hook):
     u = FakeUser(last_proactive_ts=int(time.time()) - 60)  # 1 minute ago
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="x", message="紧急", level="P0",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="x",
+        message="紧急",
+        level="P0",
     )
     assert decision.fired is False
     assert "cooldown" in decision.reason
@@ -107,8 +125,12 @@ def test_cooldown_blocks_within_5min(hook):
 def test_cooldown_passes_after_5min(hook):
     u = FakeUser(last_proactive_ts=int(time.time()) - 600)  # 10 min ago
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="x", message="紧急", level="P0",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="x",
+        message="紧急",
+        level="P0",
     )
     assert decision.fired is True
 
@@ -118,8 +140,12 @@ def test_24h_cap(hook):
     # Already 3 fires within last 24h
     u = FakeUser(proactive_log_24h=[now - 7200, now - 3600, now - 1800])
     decision = hook.maybe_suggest(
-        u, sender_name="老板", sender_role="leader",
-        chat_name="x", message="紧急", level="P0",
+        u,
+        sender_name="老板",
+        sender_role="leader",
+        chat_name="x",
+        message="紧急",
+        level="P0",
     )
     assert decision.fired is False
     assert "daily_cap" in decision.reason

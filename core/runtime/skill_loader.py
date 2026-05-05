@@ -81,8 +81,10 @@ class SkillLoader:
         self._skills[manifest.name] = manifest
         logger.info(
             "skill registered: %s v%s [%d tools, %d triggers]",
-            manifest.name, manifest.version,
-            len(manifest.tools), len(manifest.triggers),
+            manifest.name,
+            manifest.version,
+            len(manifest.tools),
+            len(manifest.triggers),
         )
 
     def load_from_dict(self, d: Dict[str, Any]) -> SkillManifest:

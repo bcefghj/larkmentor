@@ -87,7 +87,9 @@ BYPASS_IMMUNE_PATHS: List[str] = [
     r"\.larkmentor/",
     r"\.claude/",
     r"\.ssh/",
-    r"\.bashrc", r"\.zshrc", r"\.profile",
+    r"\.bashrc",
+    r"\.zshrc",
+    r"\.profile",
     r"settings\.json",
     r"/etc/",
 ]
@@ -157,6 +159,7 @@ TOOL_RISK_LEVELS: Dict[str, str] = {
 @dataclass
 class PermissionGate:
     """Central permission gate: 7 layers of check."""
+
     mode: PermissionMode = PermissionMode.DEFAULT
     deny_rules: List[str] = field(default_factory=lambda: list(DEFAULT_DENY_RULES))
     ask_rules: List[str] = field(default_factory=lambda: list(DEFAULT_ASK_RULES))
@@ -196,8 +199,11 @@ class PermissionGate:
         for pattern in BYPASS_IMMUNE_PATHS:
             if re.search(pattern, input_repr, re.IGNORECASE):
                 return PermissionDecision(
-                    Decision.ASK, tool, layer="L5_fs_protection", matched_rule=pattern,
-                    reason="bypass-immune path accessed"
+                    Decision.ASK,
+                    tool,
+                    layer="L5_fs_protection",
+                    matched_rule=pattern,
+                    reason="bypass-immune path accessed",
                 )
         return None
 
@@ -207,8 +213,7 @@ class PermissionGate:
         for name, pat in SECRET_PATTERNS:
             if re.search(pat, input_repr):
                 return PermissionDecision(
-                    Decision.DENY, tool, layer="L6_secret", matched_rule=name,
-                    reason=f"secret pattern detected: {name}"
+                    Decision.DENY, tool, layer="L6_secret", matched_rule=name, reason=f"secret pattern detected: {name}"
                 )
         return None
 
@@ -238,14 +243,20 @@ class PermissionGate:
         # Tool risk level classification (safe/confirm/dangerous)
         risk = TOOL_RISK_LEVELS.get(tool)
         if risk == "safe":
-            return PermissionDecision(Decision.ALLOW, tool, layer="risk_level_safe",
-                                      reason="tool classified as safe (read-only)")
+            return PermissionDecision(
+                Decision.ALLOW, tool, layer="risk_level_safe", reason="tool classified as safe (read-only)"
+            )
         if risk == "dangerous":
-            return PermissionDecision(Decision.ASK, tool, layer="risk_level_dangerous",
-                                      reason="tool classified as dangerous (requires admin / double confirmation)")
+            return PermissionDecision(
+                Decision.ASK,
+                tool,
+                layer="risk_level_dangerous",
+                reason="tool classified as dangerous (requires admin / double confirmation)",
+            )
         if risk == "confirm" and dec1.decision == Decision.PASSTHROUGH:
-            dec1 = PermissionDecision(Decision.ASK, tool, layer="risk_level_confirm",
-                                      reason="tool classified as confirm (write operation)")
+            dec1 = PermissionDecision(
+                Decision.ASK, tool, layer="risk_level_confirm", reason="tool classified as confirm (write operation)"
+            )
 
         # L4: bash safety
         dec4 = self._tier4_bash(tool, input_repr)
@@ -268,11 +279,18 @@ class PermissionGate:
                 return PermissionDecision(Decision.ALLOW, dec.tool, layer=f"{dec.layer}_bypass")
         if self.mode == PermissionMode.DONT_ASK:
             if dec.decision == Decision.ASK:
-                return PermissionDecision(Decision.DENY, dec.tool, layer=f"{dec.layer}_dontAsk", reason="dontAsk mode silently denies")
+                return PermissionDecision(
+                    Decision.DENY, dec.tool, layer=f"{dec.layer}_dontAsk", reason="dontAsk mode silently denies"
+                )
         if self.mode == PermissionMode.PLAN:
             # Plan mode: only readonly tools allowed; write tools → deny with "plan mode, not executing" message
             if dec.decision in (Decision.PASSTHROUGH, Decision.ALLOW) and not self._is_readonly(dec.tool):
-                return PermissionDecision(Decision.DENY, dec.tool, layer="plan_mode", reason="plan mode: write tools blocked; only shown in /plan output")
+                return PermissionDecision(
+                    Decision.DENY,
+                    dec.tool,
+                    layer="plan_mode",
+                    reason="plan mode: write tools blocked; only shown in /plan output",
+                )
         if self.mode == PermissionMode.ACCEPT_EDITS:
             if dec.decision == Decision.ASK and self._is_edit(dec.tool):
                 return PermissionDecision(Decision.ALLOW, dec.tool, layer=f"{dec.layer}_acceptEdits")
@@ -282,7 +300,17 @@ class PermissionGate:
         return dec
 
     def _is_readonly(self, tool: str) -> bool:
-        readonly_prefixes = ("im.triage", "memory.query", "doc.get", "doc.search", "wiki.search", "im.get", "bitable.v1.appTableRecord.search", "calendar.v4.freebusy", "docx.v1.document.rawContent")
+        readonly_prefixes = (
+            "im.triage",
+            "memory.query",
+            "doc.get",
+            "doc.search",
+            "wiki.search",
+            "im.get",
+            "bitable.v1.appTableRecord.search",
+            "calendar.v4.freebusy",
+            "docx.v1.document.rawContent",
+        )
         return any(tool.startswith(p) for p in readonly_prefixes)
 
     def _is_edit(self, tool: str) -> bool:
@@ -293,7 +321,11 @@ class PermissionGate:
         self.consecutive_denies += 1
         self.total_denies += 1
         if self.consecutive_denies >= 3:
-            logger.warning("Deny tracking: 3 consecutive denies for tool=%s (total=%d), consider user review", tool, self.total_denies)
+            logger.warning(
+                "Deny tracking: 3 consecutive denies for tool=%s (total=%d), consider user review",
+                tool,
+                self.total_denies,
+            )
 
     def on_allowed(self) -> None:
         self.consecutive_denies = 0
@@ -305,6 +337,7 @@ class PermissionGate:
             home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
             home.mkdir(parents=True, exist_ok=True)
             import json
+
             path = home / "approvals.json"
             cur: Dict[str, bool] = {}
             if path.exists():
@@ -349,6 +382,7 @@ def default_permission_gate() -> PermissionGate:
             approvals = home / "approvals.json"
             if approvals.exists():
                 import json
+
                 cur = json.loads(approvals.read_text())
                 _singleton._persistent_allows = {k: bool(v) for k, v in cur.items()}
         except Exception:

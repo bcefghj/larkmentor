@@ -15,6 +15,7 @@ All external dependencies are **optional**. When a package is absent the
 corresponding functionality degrades to silent no-ops so that tests, offline
 demos, and minimal deployments keep running without modification.
 """
+
 from __future__ import annotations
 
 import functools
@@ -53,11 +54,10 @@ try:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
                 OTLPSpanExporter,
             )
+
             endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
             if endpoint:
-                provider.add_span_processor(
-                    BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint))
-                )
+                provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
         except Exception:
             pass
         trace.set_tracer_provider(provider)
@@ -105,29 +105,44 @@ try:
 
     # Legacy metrics kept for backward compatibility
     _metrics["plan_started"] = Counter(
-        "lm_plan_started_total", "Plans launched", ["source"],
+        "lm_plan_started_total",
+        "Plans launched",
+        ["source"],
     )
     _metrics["plan_completed"] = Counter(
-        "lm_plan_completed_total", "Plans finished", ["status"],
+        "lm_plan_completed_total",
+        "Plans finished",
+        ["status"],
     )
     _metrics["tool_latency"] = Histogram(
-        "lm_tool_latency_seconds", "Tool call latency",
-        ["tool"], buckets=(0.05, 0.1, 0.3, 0.5, 1, 2, 5, 10, 30, 60),
+        "lm_tool_latency_seconds",
+        "Tool call latency",
+        ["tool"],
+        buckets=(0.05, 0.1, 0.3, 0.5, 1, 2, 5, 10, 30, 60),
     )
     _metrics["tool_errors"] = Counter(
-        "lm_tool_errors_total", "Tool failures", ["tool", "error_type"],
+        "lm_tool_errors_total",
+        "Tool failures",
+        ["tool", "error_type"],
     )
     _metrics["llm_tokens"] = Counter(
-        "lm_llm_tokens_total", "LLM token usage", ["model", "kind"],
+        "lm_llm_tokens_total",
+        "LLM token usage",
+        ["model", "kind"],
     )
     _metrics["llm_cost_usd"] = Counter(
-        "lm_llm_cost_usd_total", "LLM cost in USD", ["model"],
+        "lm_llm_cost_usd_total",
+        "LLM cost in USD",
+        ["model"],
     )
     _metrics["ws_connections"] = Gauge(
-        "lm_ws_connections", "Currently connected sync clients",
+        "lm_ws_connections",
+        "Currently connected sync clients",
     )
     _metrics["hook_fires"] = Counter(
-        "lm_hook_fires_total", "Lifecycle hook invocations", ["event"],
+        "lm_hook_fires_total",
+        "Lifecycle hook invocations",
+        ["event"],
     )
 
     _prom_available = True
@@ -205,6 +220,7 @@ def trace_id() -> str:
     """Return the current OpenTelemetry trace ID as a hex string, or ``""``."""
     try:
         from opentelemetry import trace as _t
+
         ctx = _t.get_current_span().get_span_context()
         if ctx and ctx.trace_id:
             return f"{ctx.trace_id:032x}"
@@ -227,6 +243,7 @@ def traced(name: Optional[str] = None) -> Callable[[F], F]:
     Span attributes automatically recorded: ``func``, ``duration_ms``,
     ``success``, ``error_type`` (on exception).
     """
+
     def decorator(fn: F) -> F:
         span_name = name or f"{fn.__module__}.{fn.__qualname__}"
 
@@ -269,6 +286,7 @@ def traced(name: Optional[str] = None) -> Callable[[F], F]:
                     sp.set_attribute("duration_ms", round((time.perf_counter() - t0) * 1000, 2))
 
         import asyncio
+
         if asyncio.iscoroutinefunction(fn):
             return async_wrapper  # type: ignore[return-value]
         return wrapper  # type: ignore[return-value]
@@ -372,9 +390,7 @@ def slog() -> Any:
 # Audit JSONL writer
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_AUDIT_PATH = os.path.expanduser(
-    os.getenv("LARKMENTOR_AUDIT_LOG", os.path.join("~", ".larkmentor", "audit.jsonl"))
-)
+_AUDIT_PATH = os.path.expanduser(os.getenv("LARKMENTOR_AUDIT_LOG", os.path.join("~", ".larkmentor", "audit.jsonl")))
 
 
 def audit(event_type: str, **kwargs: Any) -> None:
@@ -415,6 +431,7 @@ def install_fastapi(app: Any) -> None:
     if _prom_available:
         try:
             from prometheus_client import make_asgi_app
+
             app.mount("/metrics", make_asgi_app())
             logger.info("prometheus /metrics mounted")
         except Exception as exc:
@@ -423,6 +440,7 @@ def install_fastapi(app: Any) -> None:
     if _otel_available:
         try:
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
             FastAPIInstrumentor.instrument_app(app)
             logger.info("OpenTelemetry FastAPI instrumented")
         except Exception as exc:

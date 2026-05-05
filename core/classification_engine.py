@@ -47,24 +47,66 @@ CHANNEL_UNKNOWN = 0.4
 
 # ── Content signal patterns ──
 URGENT_PATTERNS = [
-    r"紧急", r"urgent", r"ASAP", r"马上", r"立刻", r"立即",
-    r"线上故障", r"P0", r"生产事故", r"严重\s*bug", r"阻塞",
-    r"immediately", r"critical", r"blocking", r"事故", r"宕机", r"挂了",
+    r"紧急",
+    r"urgent",
+    r"ASAP",
+    r"马上",
+    r"立刻",
+    r"立即",
+    r"线上故障",
+    r"P0",
+    r"生产事故",
+    r"严重\s*bug",
+    r"阻塞",
+    r"immediately",
+    r"critical",
+    r"blocking",
+    r"事故",
+    r"宕机",
+    r"挂了",
 ]
 
 DECISION_PATTERNS = [
-    r"决定", r"批准", r"通过", r"拒绝", r"确认",
-    r"approve", r"reject", r"confirm", r"decide", r"sign[- ]?off",
+    r"决定",
+    r"批准",
+    r"通过",
+    r"拒绝",
+    r"确认",
+    r"approve",
+    r"reject",
+    r"confirm",
+    r"decide",
+    r"sign[- ]?off",
 ]
 
 QUESTION_PATTERNS = [
-    r"\?", r"？", r"怎么", r"如何", r"为什么", r"是不是", r"能否",
-    r"可以吗", r"行吗", r"how to", r"why ", r"can you",
+    r"\?",
+    r"？",
+    r"怎么",
+    r"如何",
+    r"为什么",
+    r"是不是",
+    r"能否",
+    r"可以吗",
+    r"行吗",
+    r"how to",
+    r"why ",
+    r"can you",
 ]
 
 CHITCHAT_PATTERNS = [
-    r"哈哈", r"嘿嘿", r"早", r"晚安", r"午饭", r"奶茶", r"好的",
-    r"收到$", r"^OK", r"thx", r"thanks", r"嗯嗯",
+    r"哈哈",
+    r"嘿嘿",
+    r"早",
+    r"晚安",
+    r"午饭",
+    r"奶茶",
+    r"好的",
+    r"收到$",
+    r"^OK",
+    r"thx",
+    r"thanks",
+    r"嗯嗯",
 ]
 
 
@@ -84,17 +126,20 @@ class ClassificationResult:
 
 # ─── Dimension 1: Identity ────────────────────────────────────────
 
+
 def score_identity(sender_profile: SenderProfile) -> float:
     return sender_profile.identity_score()
 
 
 # ─── Dimension 2: Relation strength ──────────────────────────────
 
+
 def score_relation(sender_profile: SenderProfile) -> float:
     return sender_profile.relation_strength()
 
 
 # ─── Dimension 3: Content signals ─────────────────────────────────
+
 
 def score_content(text: str) -> float:
     if not text:
@@ -129,6 +174,7 @@ def score_content(text: str) -> float:
 
 # ─── Dimension 4: Task relation ───────────────────────────────────
 
+
 def _keyword_overlap(a: str, b: str) -> float:
     if not a or not b:
         return 0.0
@@ -153,6 +199,7 @@ def score_task_relation(message_text: str, user_context: str, task_names) -> flo
 
 # ─── Dimension 5: Time sensitivity ────────────────────────────────
 
+
 def score_time(text: str) -> float:
     if not text:
         return 0.15
@@ -168,6 +215,7 @@ def score_time(text: str) -> float:
 
 
 # ─── Dimension 6: Channel ─────────────────────────────────────────
+
 
 def score_channel(chat_type: str, member_count: Optional[int] = None) -> float:
     if chat_type == "p2p":
@@ -186,6 +234,7 @@ def score_channel(chat_type: str, member_count: Optional[int] = None) -> float:
 
 
 # ─── Main classifier ──────────────────────────────────────────────
+
 
 def _contains_urgent_keyword(text: str) -> bool:
     lower = text.lower()
@@ -262,8 +311,7 @@ def classify(
     if sender_profile.identity_tag == "bot" and d_content <= 0.55:
         score = min(score, 0.18)
     # Big group / broadcast (channel <= 0.4) + low content + non-superior + no time
-    if (d_channel <= 0.4 and d_content <= 0.45 and d_identity <= 0.55
-            and d_time <= 0.30 and d_task <= 0.30):
+    if d_channel <= 0.4 and d_content <= 0.45 and d_identity <= 0.55 and d_time <= 0.30 and d_task <= 0.30:
         score = min(score, 0.20)
 
     # Apply user-feedback bias

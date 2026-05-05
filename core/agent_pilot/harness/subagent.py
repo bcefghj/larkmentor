@@ -76,19 +76,28 @@ class SubagentRunner:
         self._results: Dict[str, SubagentResult] = {}
         self._lock = threading.RLock()
 
-    def spawn(self, prompt: str, *, role: str = "explorer",
-              allowed_tools: Optional[List[str]] = None,
-              extra_ctx: Optional[Dict[str, Any]] = None) -> str:
+    def spawn(
+        self,
+        prompt: str,
+        *,
+        role: str = "explorer",
+        allowed_tools: Optional[List[str]] = None,
+        extra_ctx: Optional[Dict[str, Any]] = None,
+    ) -> str:
         """Spawn a subagent (synchronous convenience: blocks until done)."""
         sub_id = f"sub_{uuid.uuid4().hex[:8]}"
         extra = dict(extra_ctx or {})
-        extra.update({"subagent_id": sub_id, "subagent_role": role,
-                      "allowed_tools": allowed_tools})
+        extra.update({"subagent_id": sub_id, "subagent_role": role, "allowed_tools": allowed_tools})
         return self._run_one(sub_id, prompt, extra)
 
-    def spawn_many(self, prompts: List[str], *, role: str = "explorer",
-                   allowed_tools: Optional[List[str]] = None,
-                   extra_ctx: Optional[Dict[str, Any]] = None) -> List[SubagentResult]:
+    def spawn_many(
+        self,
+        prompts: List[str],
+        *,
+        role: str = "explorer",
+        allowed_tools: Optional[List[str]] = None,
+        extra_ctx: Optional[Dict[str, Any]] = None,
+    ) -> List[SubagentResult]:
         """Spawn several subagents concurrently; return list of results."""
         results: List[SubagentResult] = []
         with cf.ThreadPoolExecutor(max_workers=min(self._max, max(1, len(prompts)))) as pool:
@@ -96,18 +105,21 @@ class SubagentRunner:
             for p in prompts:
                 sub_id = f"sub_{uuid.uuid4().hex[:8]}"
                 extra = dict(extra_ctx or {})
-                extra.update({"subagent_id": sub_id, "subagent_role": role,
-                              "allowed_tools": allowed_tools})
+                extra.update({"subagent_id": sub_id, "subagent_role": role, "allowed_tools": allowed_tools})
                 fut = pool.submit(self._run_one_returning, sub_id, p, extra)
                 futures[fut] = sub_id
             for fut in cf.as_completed(futures):
                 try:
                     results.append(fut.result())
                 except Exception as exc:
-                    results.append(SubagentResult(
-                        subagent_id=futures[fut], prompt="",
-                        summary="", error=f"runner exception: {exc}",
-                    ))
+                    results.append(
+                        SubagentResult(
+                            subagent_id=futures[fut],
+                            prompt="",
+                            summary="",
+                            error=f"runner exception: {exc}",
+                        )
+                    )
         return results
 
     def get(self, sub_id: str) -> Optional[SubagentResult]:
@@ -127,7 +139,9 @@ class SubagentRunner:
     def _run_one_returning(self, sub_id: str, prompt: str, ctx: Dict[str, Any]) -> SubagentResult:
         started = int(time.time())
         result = SubagentResult(
-            subagent_id=sub_id, prompt=prompt, summary="",
+            subagent_id=sub_id,
+            prompt=prompt,
+            summary="",
             started_ts=started,
         )
         try:

@@ -1,4 +1,5 @@
 """P5 · PlannerService + OrchestratorService 测试."""
+
 from __future__ import annotations
 
 import pytest
@@ -26,16 +27,21 @@ def task_with_ctx(tmp_path):
     svc = TaskService(repository=TaskRepository(root=str(tmp_path)))
     ctx_svc = ContextService(upload_root=str(tmp_path))
 
-    def make(intent: str, primary: str = "doc", style: str = "",
-              must_validate: bool = False):
+    def make(intent: str, primary: str = "doc", style: str = "", must_validate: bool = False):
         t = svc.create_task(intent=intent, owner_open_id="u1")
-        cp = ctx_svc.build(ContextBuildOptions(
-            task_id=t.task_id, task_goal=intent, owner_open_id="u1",
-            output_primary=primary, output_style=style,
-            must_validate=must_validate,
-        ))
+        cp = ctx_svc.build(
+            ContextBuildOptions(
+                task_id=t.task_id,
+                task_goal=intent,
+                owner_open_id="u1",
+                output_primary=primary,
+                output_style=style,
+                must_validate=must_validate,
+            )
+        )
         t.attach_context(cp, confirmed=True)
         return t
+
     return make
 
 
@@ -149,12 +155,14 @@ def test_orchestrator_runs_doc_plan(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1")
     assert t.state == TaskState.PLANNING
 
-    orch = OrchestratorService(tools={
-        "im.fetch_thread": _ok_tool,
-        "doc.create": _doc_create_tool,
-        "doc.append": _doc_append_tool,
-        "archive.bundle": _ok_tool,
-    })
+    orch = OrchestratorService(
+        tools={
+            "im.fetch_thread": _ok_tool,
+            "doc.create": _doc_create_tool,
+            "doc.append": _doc_append_tool,
+            "archive.bundle": _ok_tool,
+        }
+    )
     orch.run(t)
     # 全部步骤跑完
     assert all(s.status == "done" for s in t.plan.steps)
@@ -183,10 +191,12 @@ def test_orchestrator_records_failed_step(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM, actor_open_id="u1")
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1")
 
-    orch = OrchestratorService(tools={
-        "im.fetch_thread": _ok_tool,
-        "doc.create": _failing_tool,
-    })
+    orch = OrchestratorService(
+        tools={
+            "im.fetch_thread": _ok_tool,
+            "doc.create": _failing_tool,
+        }
+    )
     orch.run(t)
     failed = [s for s in t.plan.steps if s.status == "failed"]
     assert len(failed) == 1
@@ -200,12 +210,14 @@ def test_orchestrator_resolves_placeholders(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM, actor_open_id="u1")
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1")
 
-    orch = OrchestratorService(tools={
-        "im.fetch_thread": _ok_tool,
-        "doc.create": _doc_create_tool,
-        "doc.append": _doc_append_tool,
-        "archive.bundle": _ok_tool,
-    })
+    orch = OrchestratorService(
+        tools={
+            "im.fetch_thread": _ok_tool,
+            "doc.create": _doc_create_tool,
+            "doc.append": _doc_append_tool,
+            "archive.bundle": _ok_tool,
+        }
+    )
     orch.run(t)
     # doc.append 应该 resolve 到 DOC123
     append_step = next(s for s in t.plan.steps if s.tool == "doc.append")
@@ -214,6 +226,7 @@ def test_orchestrator_resolves_placeholders(task_with_ctx):
 
 def test_orchestrator_event_bus_emits_events(task_with_ctx):
     from core.agent_pilot.domain import EventBus
+
     bus = EventBus()
     received = []
     bus.subscribe(received.append)
@@ -224,12 +237,15 @@ def test_orchestrator_event_bus_emits_events(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM, actor_open_id="u1", event_bus=bus)
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1", event_bus=bus)
 
-    orch = OrchestratorService(tools={
-        "im.fetch_thread": _ok_tool,
-        "doc.create": _doc_create_tool,
-        "doc.append": _doc_append_tool,
-        "archive.bundle": _ok_tool,
-    }, event_bus=bus)
+    orch = OrchestratorService(
+        tools={
+            "im.fetch_thread": _ok_tool,
+            "doc.create": _doc_create_tool,
+            "doc.append": _doc_append_tool,
+            "archive.bundle": _ok_tool,
+        },
+        event_bus=bus,
+    )
     orch.run(t)
     kinds = {e.event_kind for e in received}
     assert "plan_created" in kinds
@@ -244,11 +260,13 @@ def test_orchestrator_advance_state_disabled(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM, actor_open_id="u1")
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1")
 
-    orch = OrchestratorService(tools={
-        "im.fetch_thread": _ok_tool,
-        "doc.create": _doc_create_tool,
-        "doc.append": _doc_append_tool,
-        "archive.bundle": _ok_tool,
-    })
+    orch = OrchestratorService(
+        tools={
+            "im.fetch_thread": _ok_tool,
+            "doc.create": _doc_create_tool,
+            "doc.append": _doc_append_tool,
+            "archive.bundle": _ok_tool,
+        }
+    )
     orch.run(t, advance_state=False)
     assert t.state == TaskState.PLANNING  # 没有自动推进

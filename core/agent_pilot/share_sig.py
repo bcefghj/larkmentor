@@ -49,8 +49,7 @@ def verify(plan_id: str, sig: str, *, secret: str = "") -> bool:
     return hmac.compare_digest(expected, encoded)
 
 
-def sign_url(plan_id: str, *, base_path: str = "", ttl_sec: int = 7 * 86400,
-             secret: str = "") -> Dict[str, str]:
+def sign_url(plan_id: str, *, base_path: str = "", ttl_sec: int = 7 * 86400, secret: str = "") -> Dict[str, str]:
     """Generate a full URL with sig=<mac>.<exp_ts>."""
     exp_ts = int(time.time()) + ttl_sec
     mac = sign(plan_id, exp_ts=exp_ts, secret=secret)

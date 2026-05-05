@@ -9,6 +9,7 @@
 
 产物的 ``Plan`` 与 ``Task.plan`` 字段对齐，下游 ``OrchestratorService`` 直接消费。
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,11 +35,11 @@ logger = logging.getLogger("pilot.application.planner_service")
 class ReasoningPattern(str, Enum):
     """5 推理模式（README 中 5 patterns 真实落地）."""
 
-    REACT = "react"             # 简单·单步推理（默认 fast path）
-    COT = "cot"                 # Chain-of-Thought · 中等单轮
-    REFLECTION = "reflection"   # 含 Builder-Validator 反思
-    DEBATE = "debate"           # 双方辩论收敛
-    TOT = "tot"                 # Tree-of-Thoughts · 探索多分支
+    REACT = "react"  # 简单·单步推理（默认 fast path）
+    COT = "cot"  # Chain-of-Thought · 中等单轮
+    REFLECTION = "reflection"  # 含 Builder-Validator 反思
+    DEBATE = "debate"  # 双方辩论收敛
+    TOT = "tot"  # Tree-of-Thoughts · 探索多分支
 
 
 @dataclass
@@ -57,9 +58,9 @@ _REFLECT_KEYWORDS = ("校核", "审查", "审稿", "评审", "复审", "review")
 _FANOUT_KEYWORDS = ("并行", "同时", "三种风格", "多个版本", "几个版本")
 
 
-def select_reasoning_pattern(task: Task, ctx: ContextPack,
-                              *, default: ReasoningPattern = ReasoningPattern.COT
-                              ) -> PatternSelection:
+def select_reasoning_pattern(
+    task: Task, ctx: ContextPack, *, default: ReasoningPattern = ReasoningPattern.COT
+) -> PatternSelection:
     """规则化选择 5 推理模式之一.
 
     策略：
@@ -73,20 +74,16 @@ def select_reasoning_pattern(task: Task, ctx: ContextPack,
     text_lower = text.lower()
 
     if any(k in text for k in _TOT_KEYWORDS) or any(k in text_lower for k in ("explore", "branch")):
-        return PatternSelection(ReasoningPattern.TOT,
-                                reason="意图含探索/分支语义")
+        return PatternSelection(ReasoningPattern.TOT, reason="意图含探索/分支语义")
 
     if any(k in text for k in _DEBATE_KEYWORDS) or any(k in text_lower for k in ("debate", "vs ")):
-        return PatternSelection(ReasoningPattern.DEBATE,
-                                reason="意图含辩论/决策语义")
+        return PatternSelection(ReasoningPattern.DEBATE, reason="意图含辩论/决策语义")
 
     if any(k in text for k in _REFLECT_KEYWORDS) or ctx.constraints.must_validate:
-        return PatternSelection(ReasoningPattern.REFLECTION,
-                                reason="must_validate=True · Builder-Validator 强制启用")
+        return PatternSelection(ReasoningPattern.REFLECTION, reason="must_validate=True · Builder-Validator 强制启用")
 
     if len(task.intent or "") < 25 and not any(k in text for k in _FANOUT_KEYWORDS):
-        return PatternSelection(ReasoningPattern.REACT,
-                                reason="短指令 + 单一明确动作")
+        return PatternSelection(ReasoningPattern.REACT, reason="短指令 + 单一明确动作")
 
     # Context complexity analysis
     cp = task.context_pack if hasattr(task, "context_pack") else ctx
@@ -95,12 +92,12 @@ def select_reasoning_pattern(task: Task, ctx: ContextPack,
     total_context = source_count + material_count
 
     if total_context > 15:
-        return PatternSelection(ReasoningPattern.REFLECTION,
-                                reason=f"上下文复杂度高 ({total_context} 条资料)，启用 Builder-Validator")
+        return PatternSelection(
+            ReasoningPattern.REFLECTION, reason=f"上下文复杂度高 ({total_context} 条资料)，启用 Builder-Validator"
+        )
 
     if total_context > 8 and any(k in text for k in _FANOUT_KEYWORDS):
-        return PatternSelection(ReasoningPattern.TOT,
-                                reason="中等复杂度 + 并行语义，启用 Tree-of-Thoughts")
+        return PatternSelection(ReasoningPattern.TOT, reason="中等复杂度 + 并行语义，启用 Tree-of-Thoughts")
 
     return PatternSelection(default, reason="默认中等单轮 CoT")
 
@@ -124,6 +121,7 @@ class PlannerService:
             return self._planner_factory
         try:
             from ..planner import PilotPlanner
+
             return PilotPlanner()
         except Exception:
             return None
@@ -134,8 +132,9 @@ class PlannerService:
             raise ValueError("Task.context_pack must be set before planning")
 
         sel = select_reasoning_pattern(task, task.context_pack)
-        task.log(agent="@pilot", kind="thought",
-                  content=f"select_reasoning_pattern → {sel.pattern.value} ({sel.reason})")
+        task.log(
+            agent="@pilot", kind="thought", content=f"select_reasoning_pattern → {sel.pattern.value} ({sel.reason})"
+        )
 
         backend = self._backend_planner()
         steps: List[DomainPlanStep] = []
@@ -146,22 +145,26 @@ class PlannerService:
                 plan = backend.plan(
                     task.intent,
                     user_open_id=task.owner_lock.owner_open_id,
-                    meta={"task_id": task.task_id,
-                          "reasoning_pattern": sel.pattern.value,
-                          "ctx_pack_id": task.context_pack.pack_id},
+                    meta={
+                        "task_id": task.task_id,
+                        "reasoning_pattern": sel.pattern.value,
+                        "ctx_pack_id": task.context_pack.pack_id,
+                    },
                     allow_clarify=allow_clarify,
                 )
                 # 把现有 PlanStep 适配到 DomainPlanStep
                 for ps in plan.steps:
-                    steps.append(DomainPlanStep(
-                        step_id=ps.step_id,
-                        tool=ps.tool,
-                        description=ps.description,
-                        args=ps.args,
-                        depends_on=list(ps.depends_on),
-                        parallel_group=ps.parallel_group or "",
-                        status=getattr(ps, "status", "pending"),
-                    ))
+                    steps.append(
+                        DomainPlanStep(
+                            step_id=ps.step_id,
+                            tool=ps.tool,
+                            description=ps.description,
+                            args=ps.args,
+                            depends_on=list(ps.depends_on),
+                            parallel_group=ps.parallel_group or "",
+                            status=getattr(ps, "status", "pending"),
+                        )
+                    )
             except Exception as e:
                 logger.warning("backend planner failed, falling back to heuristic: %s", e)
 
@@ -187,51 +190,71 @@ class PlannerService:
         primary = (cp.output_requirements.primary or "doc") if cp else "doc"
 
         steps: List[DomainPlanStep] = []
-        steps.append(DomainPlanStep(
-            step_id="s1", tool="im.fetch_thread",
-            description="拉取 IM 上下文（已包含在 ContextPack 中）",
-            args={"limit": 50},
-        ))
+        steps.append(
+            DomainPlanStep(
+                step_id="s1",
+                tool="im.fetch_thread",
+                description="拉取 IM 上下文（已包含在 ContextPack 中）",
+                args={"limit": 50},
+            )
+        )
         if primary == "ppt":
-            steps.append(DomainPlanStep(
-                step_id="s2", tool="doc.create",
-                description="先生成文档大纲",
-                args={"title": task.title or task.intent[:30]},
-                depends_on=["s1"],
-            ))
-            steps.append(DomainPlanStep(
-                step_id="s3", tool="slide.generate",
-                description="基于文档生成 PPT",
-                args={"outline_from": "s2"},
-                depends_on=["s2"],
-            ))
+            steps.append(
+                DomainPlanStep(
+                    step_id="s2",
+                    tool="doc.create",
+                    description="先生成文档大纲",
+                    args={"title": task.title or task.intent[:30]},
+                    depends_on=["s1"],
+                )
+            )
+            steps.append(
+                DomainPlanStep(
+                    step_id="s3",
+                    tool="slide.generate",
+                    description="基于文档生成 PPT",
+                    args={"outline_from": "s2"},
+                    depends_on=["s2"],
+                )
+            )
         elif primary == "canvas":
-            steps.append(DomainPlanStep(
-                step_id="s2", tool="canvas.create",
-                description="创建画板",
-                args={"title": task.title or task.intent[:30]},
-                depends_on=["s1"],
-            ))
+            steps.append(
+                DomainPlanStep(
+                    step_id="s2",
+                    tool="canvas.create",
+                    description="创建画板",
+                    args={"title": task.title or task.intent[:30]},
+                    depends_on=["s1"],
+                )
+            )
         else:
-            steps.append(DomainPlanStep(
-                step_id="s2", tool="doc.create",
-                description="创建飞书 Docx",
-                args={"title": task.title or task.intent[:30]},
-                depends_on=["s1"],
-            ))
-            steps.append(DomainPlanStep(
-                step_id="s3", tool="doc.append",
-                description="写入大纲与正文",
-                args={"doc_token": "${s2.doc_token}"},
-                depends_on=["s2"],
-            ))
-        steps.append(DomainPlanStep(
-            step_id=f"s{len(steps)+1}",
-            tool="archive.bundle",
-            description="汇总产出 + 分享链接",
-            args={},
-            depends_on=[steps[-1].step_id],
-        ))
+            steps.append(
+                DomainPlanStep(
+                    step_id="s2",
+                    tool="doc.create",
+                    description="创建飞书 Docx",
+                    args={"title": task.title or task.intent[:30]},
+                    depends_on=["s1"],
+                )
+            )
+            steps.append(
+                DomainPlanStep(
+                    step_id="s3",
+                    tool="doc.append",
+                    description="写入大纲与正文",
+                    args={"doc_token": "${s2.doc_token}"},
+                    depends_on=["s2"],
+                )
+            )
+        steps.append(
+            DomainPlanStep(
+                step_id=f"s{len(steps) + 1}",
+                tool="archive.bundle",
+                description="汇总产出 + 分享链接",
+                args={},
+                depends_on=[steps[-1].step_id],
+            )
+        )
         return steps
 
 

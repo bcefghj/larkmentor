@@ -16,8 +16,14 @@ def _send(message_id: str, open_ids: List[str], kind: str, *, actor: str) -> Dic
     tool = f"shield.urgent_{kind}"
     decision = default_manager().check(tool=tool, user_open_id=actor)
     if not decision.allowed:
-        audit(actor=actor, action=tool, resource=message_id, outcome="deny",
-              severity="WARN", meta={"reason": decision.reason, "kind": kind})
+        audit(
+            actor=actor,
+            action=tool,
+            resource=message_id,
+            outcome="deny",
+            severity="WARN",
+            meta={"reason": decision.reason, "kind": kind},
+        )
         return {"ok": False, "reason": decision.reason}
 
     try:
@@ -31,11 +37,13 @@ def _send(message_id: str, open_ids: List[str], kind: str, *, actor: str) -> Dic
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         if kind == "app":
             req = (
                 UrgentAppMessageRequest.builder()
-                .message_id(message_id).user_id_type("open_id")
+                .message_id(message_id)
+                .user_id_type("open_id")
                 .request_body(UrgentAppMessageRequestBody.builder().user_id_list(open_ids).build())
                 .build()
             )
@@ -43,7 +51,8 @@ def _send(message_id: str, open_ids: List[str], kind: str, *, actor: str) -> Dic
         elif kind == "sms":
             req = (
                 UrgentSmsMessageRequest.builder()
-                .message_id(message_id).user_id_type("open_id")
+                .message_id(message_id)
+                .user_id_type("open_id")
                 .request_body(UrgentSmsMessageRequestBody.builder().user_id_list(open_ids).build())
                 .build()
             )
@@ -51,21 +60,25 @@ def _send(message_id: str, open_ids: List[str], kind: str, *, actor: str) -> Dic
         else:  # phone
             req = (
                 UrgentPhoneMessageRequest.builder()
-                .message_id(message_id).user_id_type("open_id")
+                .message_id(message_id)
+                .user_id_type("open_id")
                 .request_body(UrgentPhoneMessageRequestBody.builder().user_id_list(open_ids).build())
                 .build()
             )
             resp = client.im.v1.message.urgent_phone(req)
         ok = resp.success()
-        audit(actor=actor, action=tool, resource=message_id,
-              outcome="allow" if ok else "error",
-              severity="HIGH" if kind == "phone" else "WARN",
-              meta={"kind": kind, "targets": ",".join(o[-6:] for o in open_ids)})
+        audit(
+            actor=actor,
+            action=tool,
+            resource=message_id,
+            outcome="allow" if ok else "error",
+            severity="HIGH" if kind == "phone" else "WARN",
+            meta={"kind": kind, "targets": ",".join(o[-6:] for o in open_ids)},
+        )
         return {"ok": ok, "code": getattr(resp, "code", None), "msg": getattr(resp, "msg", None)}
     except Exception as e:
         logger.warning("urgent_%s error: %s", kind, e)
-        audit(actor=actor, action=tool, resource=message_id, outcome="error",
-              severity="WARN", meta={"error": str(e)})
+        audit(actor=actor, action=tool, resource=message_id, outcome="error", severity="WARN", meta={"error": str(e)})
         return {"ok": False, "error": str(e)}
 
 

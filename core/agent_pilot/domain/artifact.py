@@ -9,6 +9,7 @@
 
 每个 Artifact 持有：访问 URL / 本地路径 / 摘要 / 元数据。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -33,9 +34,9 @@ class Artifact:
     kind: ArtifactKind
     title: str = ""
     summary: str = ""
-    feishu_url: str = ""        # 飞书 Doc / Slide URL
-    local_path: str = ""        # 本地 fallback 路径
-    share_url: str = ""         # 公开分享链接
+    feishu_url: str = ""  # 飞书 Doc / Slide URL
+    local_path: str = ""  # 本地 fallback 路径
+    share_url: str = ""  # 公开分享链接
     file_size_bytes: int = 0
     page_count: int = 0
     word_count: int = 0

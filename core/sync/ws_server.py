@@ -41,6 +41,7 @@ logger = logging.getLogger("pilot.sync.ws")
 
 try:
     from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
     _FASTAPI = True
 except Exception:  # pragma: no cover
     APIRouter = None  # type: ignore
@@ -129,14 +130,27 @@ if _FASTAPI:
                     await ws.send_text(json.dumps({"kind": "pong"}))
                 elif op == "join" and room:
                     history = hub.join(client_id, room)
-                    await ws.send_text(json.dumps({
-                        "kind": "history", "room": room, "items": history,
-                    }, ensure_ascii=False))
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "kind": "history",
+                                "room": room,
+                                "items": history,
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
                     snap = hub.snapshot(room)
                     if snap:
-                        await ws.send_text(json.dumps({
-                            "kind": "snapshot", "room": room, "update_b64": snap,
-                        }))
+                        await ws.send_text(
+                            json.dumps(
+                                {
+                                    "kind": "snapshot",
+                                    "room": room,
+                                    "update_b64": snap,
+                                }
+                            )
+                        )
                 elif op == "leave" and room:
                     hub.leave(client_id, room)
                 elif op == "state" and room:

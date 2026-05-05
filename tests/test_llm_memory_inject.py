@@ -11,7 +11,8 @@ import pytest
 
 
 class _FakeChoice:
-    def __init__(self, content): self.message = type("m", (), {"content": content})
+    def __init__(self, content):
+        self.message = type("m", (), {"content": content})
 
 
 class _FakeCompletion:
@@ -21,9 +22,7 @@ class _FakeCompletion:
 
 class _FakeChat:
     def __init__(self, captured):
-        self.completions = type("comp", (), {
-            "create": lambda **kw: (captured.update(kw) or _FakeCompletion("ok"))
-        })
+        self.completions = type("comp", (), {"create": lambda **kw: captured.update(kw) or _FakeCompletion("ok")})
 
 
 class _FakeClient:

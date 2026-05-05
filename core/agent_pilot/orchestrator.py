@@ -47,7 +47,7 @@ class ToolNotRegisteredError(RuntimeError):
 class ExecutionEvent:
     event_id: str
     plan_id: str
-    kind: str                  # plan_started / step_started / step_done / step_failed / plan_done
+    kind: str  # plan_started / step_started / step_done / step_failed / plan_done
     step_id: str = ""
     payload: Dict[str, Any] = field(default_factory=dict)
     ts: int = 0
@@ -60,7 +60,6 @@ ToolFn = Callable[[PlanStep, Dict[str, Any]], Dict[str, Any]]
 
 
 class PilotOrchestrator:
-
     def __init__(
         self,
         *,
@@ -106,13 +105,15 @@ class PilotOrchestrator:
         ctx.setdefault("user_open_id", plan.user_open_id)
         ctx.setdefault("step_results", {})  # step_id -> dict
 
-        self._emit(ExecutionEvent(
-            event_id=f"ev_{int(time.time()*1000)}",
-            plan_id=plan.plan_id,
-            kind="plan_started",
-            payload={"intent": plan.intent, "total_steps": len(plan.steps)},
-            ts=int(time.time()),
-        ))
+        self._emit(
+            ExecutionEvent(
+                event_id=f"ev_{int(time.time() * 1000)}",
+                plan_id=plan.plan_id,
+                kind="plan_started",
+                payload={"intent": plan.intent, "total_steps": len(plan.steps)},
+                ts=int(time.time()),
+            )
+        )
 
         # Main loop: repeatedly pick ready steps and run them, parallel when possible.
         while True:
@@ -148,17 +149,19 @@ class PilotOrchestrator:
                 logger.warning("orchestrator stuck, bailing out")
                 break
 
-        self._emit(ExecutionEvent(
-            event_id=f"ev_{int(time.time()*1000)}",
-            plan_id=plan.plan_id,
-            kind="plan_done",
-            payload={
-                "total": len(plan.steps),
-                "done": sum(1 for s in plan.steps if s.status == "done"),
-                "failed": sum(1 for s in plan.steps if s.status == "failed"),
-            },
-            ts=int(time.time()),
-        ))
+        self._emit(
+            ExecutionEvent(
+                event_id=f"ev_{int(time.time() * 1000)}",
+                plan_id=plan.plan_id,
+                kind="plan_done",
+                payload={
+                    "total": len(plan.steps),
+                    "done": sum(1 for s in plan.steps if s.status == "done"),
+                    "failed": sum(1 for s in plan.steps if s.status == "failed"),
+                },
+                ts=int(time.time()),
+            )
+        )
         return plan
 
     # ── Single step ──
@@ -166,14 +169,16 @@ class PilotOrchestrator:
     def _run_step(self, step: PlanStep, plan: Plan, ctx: Dict[str, Any]) -> None:
         step.status = "running"
         step.started_ts = int(time.time())
-        self._emit(ExecutionEvent(
-            event_id=f"ev_{int(time.time()*1000)}",
-            plan_id=plan.plan_id,
-            kind="step_started",
-            step_id=step.step_id,
-            payload={"tool": step.tool, "description": step.description},
-            ts=step.started_ts,
-        ))
+        self._emit(
+            ExecutionEvent(
+                event_id=f"ev_{int(time.time() * 1000)}",
+                plan_id=plan.plan_id,
+                kind="step_started",
+                step_id=step.step_id,
+                payload={"tool": step.tool, "description": step.description},
+                ts=step.started_ts,
+            )
+        )
 
         # Resolve ${s1.key} placeholders in args using previous results
         args = _resolve_args(step.args or {}, ctx["step_results"])
@@ -184,8 +189,7 @@ class PilotOrchestrator:
                 # P1.1: No silent simulation. Missing tools MUST raise so the
                 # upper layer records a failure and triggers verify → replan.
                 raise ToolNotRegisteredError(
-                    f"tool not registered: {step.tool}. "
-                    f"Register it in core/agent_pilot/tools or via harness MCPClient."
+                    f"tool not registered: {step.tool}. Register it in core/agent_pilot/tools or via harness MCPClient."
                 )
             result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
             step.result = result
@@ -199,19 +203,21 @@ class PilotOrchestrator:
         step.finished_ts = int(time.time())
         ctx["step_results"][step.step_id] = step.result or {}
 
-        self._emit(ExecutionEvent(
-            event_id=f"ev_{int(time.time()*1000)}",
-            plan_id=plan.plan_id,
-            kind="step_done" if step.status == "done" else "step_failed",
-            step_id=step.step_id,
-            payload={
-                "tool": step.tool,
-                "result": step.result,
-                "duration_ms": (step.finished_ts - step.started_ts) * 1000,
-                "error": step.error,
-            },
-            ts=step.finished_ts,
-        ))
+        self._emit(
+            ExecutionEvent(
+                event_id=f"ev_{int(time.time() * 1000)}",
+                plan_id=plan.plan_id,
+                kind="step_done" if step.status == "done" else "step_failed",
+                step_id=step.step_id,
+                payload={
+                    "tool": step.tool,
+                    "result": step.result,
+                    "duration_ms": (step.finished_ts - step.started_ts) * 1000,
+                    "error": step.error,
+                },
+                ts=step.finished_ts,
+            )
+        )
 
 
 def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
@@ -223,6 +229,7 @@ def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]])
       {{s3.doc_token}}          → step_results["s3"]["doc_token"]
     """
     import re
+
     _PLACEHOLDER = re.compile(r"^\$\{(.+?)\}$|^\{\{(.+?)\}\}$")
 
     out: Dict[str, Any] = {}
@@ -244,4 +251,3 @@ def _resolve_args(args: Dict[str, Any], step_results: Dict[str, Dict[str, Any]])
 # P1.1: the legacy _simulate_tool fallback has been removed on purpose.
 # All failures now propagate as ToolNotRegisteredError and the orchestrator
 # (or the new ConversationOrchestrator) classifies them for verify/replan.
-

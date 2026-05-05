@@ -123,7 +123,9 @@ class _RedisBackend:
             return False
         try:
             self._client = _redis_lib.Redis.from_url(
-                self._url, decode_responses=True, socket_connect_timeout=3,
+                self._url,
+                decode_responses=True,
+                socket_connect_timeout=3,
             )
             self._client.ping()
             self._connected = True
@@ -154,7 +156,9 @@ class _RedisBackend:
             return False
 
     def subscribe_room(
-        self, room: str, callback: Callable[[Dict[str, Any]], None],
+        self,
+        room: str,
+        callback: Callable[[Dict[str, Any]], None],
     ) -> bool:
         if not self.available:
             return False
@@ -181,7 +185,9 @@ class _RedisBackend:
             if self._listener_thread is not None and self._listener_thread.is_alive():
                 return
             self._listener_thread = threading.Thread(
-                target=self._listen_loop, daemon=True, name="redis-sync-listener",
+                target=self._listen_loop,
+                daemon=True,
+                name="redis-sync-listener",
             )
             self._listener_thread.start()
 
@@ -253,7 +259,10 @@ class _RedisBackend:
             return False
 
     def replay_stream(
-        self, room: str, since_ms: int = 0, count: int = 500,
+        self,
+        room: str,
+        since_ms: int = 0,
+        count: int = 500,
     ) -> List[Dict[str, Any]]:
         """Return events from the Redis stream for *room* since *since_ms*."""
         if not self.available:
@@ -329,7 +338,6 @@ class Subscriber:
 
 
 class CrdtHub:
-
     def __init__(
         self,
         history_size: int = 200,
@@ -373,7 +381,9 @@ class CrdtHub:
         # Heartbeat reaper daemon
         self._reaper_stop = threading.Event()
         self._reaper_thread = threading.Thread(
-            target=self._reaper_loop, daemon=True, name="crdt-heartbeat-reaper",
+            target=self._reaper_loop,
+            daemon=True,
+            name="crdt-heartbeat-reaper",
         )
         self._reaper_thread.start()
 
@@ -384,7 +394,9 @@ class CrdtHub:
     # ── Subscriptions ──
 
     def subscribe(
-        self, client_id: str, send_fn: Callable[[Dict[str, Any]], None],
+        self,
+        client_id: str,
+        send_fn: Callable[[Dict[str, Any]], None],
     ) -> Subscriber:
         with self._lock:
             sub = Subscriber(client_id, send_fn)
@@ -434,7 +446,10 @@ class CrdtHub:
         return history
 
     def join_with_replay(
-        self, client_id: str, room: str, since_ms: int = 0,
+        self,
+        client_id: str,
+        room: str,
+        since_ms: int = 0,
     ) -> List[Dict[str, Any]]:
         """Join a room and replay missed events from the Redis stream.
 
@@ -521,11 +536,7 @@ class CrdtHub:
         # ── Conflict detection ──
         with self._lock:
             pending = self._pending_updates[room]
-            conflicting_clients = [
-                cid
-                for cid, ts in pending.items()
-                if cid != sender_id and (now - ts) < 2.0
-            ]
+            conflicting_clients = [cid for cid, ts in pending.items() if cid != sender_id and (now - ts) < 2.0]
             pending[sender_id] = now
 
         if conflicting_clients:
@@ -615,14 +626,11 @@ class CrdtHub:
             info.user_id = user_info.get("user_id", info.user_id)
             info.name = user_info.get("name", info.name)
             info.cursor_position = user_info.get(
-                "cursor_position", info.cursor_position,
+                "cursor_position",
+                info.cursor_position,
             )
             info.last_active_ts = now
-            info.extra = {
-                k: v
-                for k, v in user_info.items()
-                if k not in ("user_id", "name", "cursor_position")
-            }
+            info.extra = {k: v for k, v in user_info.items() if k not in ("user_id", "name", "cursor_position")}
             self._last_ping[client_id] = now
 
     def get_presence(self, room: str) -> List[Dict[str, Any]]:

@@ -16,13 +16,16 @@ def classify(prompt: str, options=None, context=None):
     """promptfoo will call us with the rendered prompt as the first arg."""
     verdict = classify_transcript(prompt)
     return {
-        "output": json.dumps({
-            "action": verdict.action.value,
-            "score": verdict.score,
-            "reason": verdict.reason,
-            "tags": verdict.tags,
-            "used_llm": verdict.used_llm,
-        }, ensure_ascii=False),
+        "output": json.dumps(
+            {
+                "action": verdict.action.value,
+                "score": verdict.score,
+                "reason": verdict.reason,
+                "tags": verdict.tags,
+                "used_llm": verdict.used_llm,
+            },
+            ensure_ascii=False,
+        ),
     }
 
 

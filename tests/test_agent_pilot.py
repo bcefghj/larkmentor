@@ -17,10 +17,10 @@ from core.agent_pilot.tools import build_default_registry
 
 # ─────────────────────────── Planner ────────────────────────────
 
+
 def test_planner_heuristic_produces_doc_slide_dag_when_no_llm():
     planner = PilotPlanner(chat_json_fn=lambda *a, **k: {})  # force fallback
-    plan = planner.plan("把本周讨论做成产品方案和评审 PPT",
-                        user_open_id="ou_demo_xxx")
+    plan = planner.plan("把本周讨论做成产品方案和评审 PPT", user_open_id="ou_demo_xxx")
     assert plan.plan_id.startswith("plan_")
     assert plan.user_open_id == "ou_demo_xxx"
     tools = [s.tool for s in plan.steps]
@@ -43,20 +43,15 @@ def test_planner_heuristic_adds_canvas_when_user_asks_for_architecture_image():
 def test_planner_accepts_llm_output():
     fake = {
         "steps": [
-            {"step_id": "s1", "tool": "im.fetch_thread",
-             "description": "pull context", "args": {"limit": 10}},
-            {"step_id": "s2", "tool": "doc.create",
-             "description": "make doc", "depends_on": ["s1"]},
-            {"step_id": "s3", "tool": "archive.bundle",
-             "description": "bundle", "depends_on": ["s2"]},
+            {"step_id": "s1", "tool": "im.fetch_thread", "description": "pull context", "args": {"limit": 10}},
+            {"step_id": "s2", "tool": "doc.create", "description": "make doc", "depends_on": ["s1"]},
+            {"step_id": "s3", "tool": "archive.bundle", "description": "bundle", "depends_on": ["s2"]},
         ]
     }
     planner = PilotPlanner(chat_json_fn=lambda *a, **k: fake)
     # Disable the advanced-clarify prepend so we only test the LLM path
     plan = planner.plan("帮我起草需求文档", allow_clarify=False)
-    assert [s.tool for s in plan.steps] == [
-        "im.fetch_thread", "doc.create", "archive.bundle"
-    ]
+    assert [s.tool for s in plan.steps] == ["im.fetch_thread", "doc.create", "archive.bundle"]
 
 
 def test_planner_filters_unknown_tools_from_llm():
@@ -80,6 +75,7 @@ def test_planner_rejects_empty_intent():
 
 # ─────────────────────────── Orchestrator ───────────────────────
 
+
 def test_orchestrator_runs_simulated_steps_in_topological_order():
     planner = PilotPlanner(chat_json_fn=lambda *a, **k: {})
     plan = planner.plan("起草需求并生成 PPT", user_open_id="ou_demo")
@@ -90,9 +86,7 @@ def test_orchestrator_runs_simulated_steps_in_topological_order():
     orch.set_broadcaster(lambda ev: captured.append(ev))
     orch.run(plan)
 
-    assert all(s.status == "done" for s in plan.steps), [
-        (s.step_id, s.status, s.error) for s in plan.steps
-    ]
+    assert all(s.status == "done" for s in plan.steps), [(s.step_id, s.status, s.error) for s in plan.steps]
     done_ts = {s.step_id: s.finished_ts for s in plan.steps}
     for s in plan.steps:
         for dep in s.depends_on:
@@ -123,8 +117,7 @@ def test_orchestrator_uses_real_registered_tool():
 
     def my_slide_gen(step, ctx):
         called["count"] += 1
-        return {"slide_id": "real_slide_1", "pptx_url": "/real/path.pptx",
-                "pdf_url": "/real/path.pdf", "pages": 5}
+        return {"slide_id": "real_slide_1", "pptx_url": "/real/path.pptx", "pdf_url": "/real/path.pdf", "pages": 5}
 
     registry = build_default_registry()
     registry["slide.generate"] = my_slide_gen
@@ -142,10 +135,10 @@ def test_plan_from_intent_convenience_wrapper_returns_plan():
 
 # ─────────────────────────── Scenarios ───────────────────────
 
+
 def test_scenario_registry_has_all_six_scenarios():
     keys = {s.key for s in ScenarioRegistry.all()}
-    assert keys == {"A_intent", "B_planner", "C_doc_canvas",
-                    "D_slide", "E_sync", "F_delivery"}
+    assert keys == {"A_intent", "B_planner", "C_doc_canvas", "D_slide", "E_sync", "F_delivery"}
 
 
 def test_scenario_registry_lookup():
@@ -157,37 +150,55 @@ def test_scenario_registry_lookup():
 
 # ─────────────────────────── Slide tool robustness ───────────────────────────
 
+
 def test_slide_generate_accepts_outline_as_list_of_strings():
     """Regression: LLM Planner may emit outline as ['page 1', 'page 2', ...].
     The tool must not crash with AttributeError."""
     from core.agent_pilot.tools.slide_tool import slide_generate
+
     step = PlanStep(step_id="s1", tool="slide.generate", description="")
-    result = slide_generate(step, {
-        "resolved_args": {"outline": ["封面", "目标", "方案", "结束语"]},
-        "plan_id": "t", "step_results": {},
-    })
+    result = slide_generate(
+        step,
+        {
+            "resolved_args": {"outline": ["封面", "目标", "方案", "结束语"]},
+            "plan_id": "t",
+            "step_results": {},
+        },
+    )
     assert result["pages"] == 4
     assert result["slide_id"].startswith("slide_")
 
 
 def test_slide_generate_accepts_outline_as_list_of_dicts():
     from core.agent_pilot.tools.slide_tool import slide_generate
+
     step = PlanStep(step_id="s1", tool="slide.generate", description="")
-    result = slide_generate(step, {
-        "resolved_args": {"outline": [
-            {"title": "A", "bullets": ["x", "y"]},
-            {"title": "B", "bullets": []},
-        ]},
-        "plan_id": "t2", "step_results": {},
-    })
+    result = slide_generate(
+        step,
+        {
+            "resolved_args": {
+                "outline": [
+                    {"title": "A", "bullets": ["x", "y"]},
+                    {"title": "B", "bullets": []},
+                ]
+            },
+            "plan_id": "t2",
+            "step_results": {},
+        },
+    )
     assert result["pages"] == 2
 
 
 def test_slide_generate_accepts_empty_outline_and_falls_back_to_default():
     from core.agent_pilot.tools.slide_tool import slide_generate
+
     step = PlanStep(step_id="s1", tool="slide.generate", description="")
-    result = slide_generate(step, {
-        "resolved_args": {},
-        "plan_id": "t3", "step_results": {},
-    })
+    result = slide_generate(
+        step,
+        {
+            "resolved_args": {},
+            "plan_id": "t3",
+            "step_results": {},
+        },
+    )
     assert result["pages"] >= 4

@@ -3,6 +3,7 @@
 These are raised by the domain layer; the application layer catches and
 translates into user-facing card responses.
 """
+
 from __future__ import annotations
 
 
@@ -39,10 +40,7 @@ class OwnerLockedError(DomainError):
         self.owner = owner
         self.actor = actor
         self.action = action
-        super().__init__(
-            f"OwnerLocked: task={task_id} action={action} "
-            f"actor={actor} owner={owner}"
-        )
+        super().__init__(f"OwnerLocked: task={task_id} action={action} actor={actor} owner={owner}")
 
 
 class ContextNotReadyError(DomainError):
@@ -54,6 +52,4 @@ class ContextNotReadyError(DomainError):
     def __init__(self, *, task_id: str, missing: list[str]) -> None:
         self.task_id = task_id
         self.missing = missing
-        super().__init__(
-            f"ContextNotReady: task={task_id} missing={missing}"
-        )
+        super().__init__(f"ContextNotReady: task={task_id} missing={missing}")

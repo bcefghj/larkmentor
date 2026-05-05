@@ -23,7 +23,8 @@ logger = logging.getLogger("pilot.tool.doc")
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "data", "pilot_artifacts",
+    "data",
+    "pilot_artifacts",
 )
 
 
@@ -32,6 +33,7 @@ def _ensure_dir():
 
 
 # ── Public tool functions ──
+
 
 def doc_create(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
@@ -85,26 +87,28 @@ def doc_append(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 # ── Feishu Docx integration ──
 
+
 def _try_create_feishu_doc(title: str) -> Dict[str, Any]:
     try:
         from config import Config
+
         if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
             return {}
         import lark_oapi.api.docx.v1 as docx_api
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = (
             docx_api.CreateDocumentRequest.builder()
-            .request_body(
-                docx_api.CreateDocumentRequestBody.builder().title(title).build()
-            )
+            .request_body(docx_api.CreateDocumentRequestBody.builder().title(title).build())
             .build()
         )
         resp = client.docx.v1.document.create(req)
         if not resp.success() or not resp.data or not resp.data.document:
-            logger.warning("doc.create feishu api failed code=%s msg=%s",
-                           getattr(resp, "code", "?"), getattr(resp, "msg", "?"))
+            logger.warning(
+                "doc.create feishu api failed code=%s msg=%s", getattr(resp, "code", "?"), getattr(resp, "msg", "?")
+            )
             return {}
         doc_token = resp.data.document.document_id
         return {
@@ -131,6 +135,7 @@ def _try_append_feishu_blocks(doc_token: str, markdown: str) -> int:
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         blocks = _markdown_to_blocks(markdown)
         if not blocks:
@@ -139,18 +144,15 @@ def _try_append_feishu_blocks(doc_token: str, markdown: str) -> int:
             CreateDocumentBlockChildrenRequest.builder()
             .document_id(doc_token)
             .block_id(doc_token)  # append at root
-            .request_body(
-                CreateDocumentBlockChildrenRequestBody.builder()
-                .children(blocks)
-                .build()
-            )
+            .request_body(CreateDocumentBlockChildrenRequestBody.builder().children(blocks).build())
             .build()
         )
         resp = client.docx.v1.document_block_children.create(req)
         if resp.success():
             return len(blocks)
-        logger.warning("doc.append feishu api failed code=%s msg=%s",
-                       getattr(resp, "code", "?"), getattr(resp, "msg", "?"))
+        logger.warning(
+            "doc.append feishu api failed code=%s msg=%s", getattr(resp, "code", "?"), getattr(resp, "msg", "?")
+        )
         return 0
     except Exception as e:
         logger.debug("doc.append feishu fallback: %s", e)
@@ -210,16 +212,11 @@ def _default_markdown_from_intent(ctx: Dict[str, Any]) -> str:
             thread_msgs = result["messages"]
             break
 
-    lines = ["## 背景与目标",
-             "", f"Agent-Pilot 计划 `{plan_id}` 自动生成的需求文档。",
-             "", "## 上下文摘要"]
+    lines = ["## 背景与目标", "", f"Agent-Pilot 计划 `{plan_id}` 自动生成的需求文档。", "", "## 上下文摘要"]
     if thread_msgs:
         for m in thread_msgs[-6:]:
-            lines.append(f"- **{m.get('sender','?')}**：{m.get('text','')[:80]}")
+            lines.append(f"- **{m.get('sender', '?')}**：{m.get('text', '')[:80]}")
     else:
         lines.append("- 暂无群聊历史（离线 demo）")
-    lines += ["", "## 下一步行动",
-              "- [ ] 明确验收标准",
-              "- [ ] 指派负责人",
-              "- [ ] 5 月 7 日前交付初版"]
+    lines += ["", "## 下一步行动", "- [ ] 明确验收标准", "- [ ] 指派负责人", "- [ ] 5 月 7 日前交付初版"]
     return "\n".join(lines)

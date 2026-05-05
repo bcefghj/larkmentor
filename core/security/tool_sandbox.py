@@ -168,14 +168,18 @@ class ToolSandbox:
         prof = self._profiles.get(tool)
         if prof is None:
             return SandboxDecision(
-                allowed=False, tool=tool, api=api,
+                allowed=False,
+                tool=tool,
+                api=api,
                 reason="no_profile_fail_closed",
             )
         allowed_set = prof.feishu_api if channel == "feishu_api" else prof.external
         if api in allowed_set:
             return SandboxDecision(allowed=True, tool=tool, api=api, reason="ok")
         return SandboxDecision(
-            allowed=False, tool=tool, api=api,
+            allowed=False,
+            tool=tool,
+            api=api,
             reason=f"{channel}_not_in_allowlist",
         )
 

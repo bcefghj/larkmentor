@@ -41,6 +41,7 @@ def _try_doubao(audio_url: str) -> str:
         return ""
     try:
         import os
+
         if not os.getenv("ARK_ASR_MODEL"):
             return ""
         # Placeholder: the Doubao ASR HTTP call
@@ -60,6 +61,7 @@ def _try_feishu_minutes(file_key: str) -> str:
         return ""
     try:
         from core.feishu_advanced.minutes_fetch import fetch_minutes  # type: ignore
+
         r = fetch_minutes(file_key, need_speaker=True, need_timestamp=True) or {}
         if not r.get("ok"):
             return ""
@@ -67,8 +69,7 @@ def _try_feishu_minutes(file_key: str) -> str:
         segs = r.get("segments") or []
         if segs:
             return "\n".join(
-                f"[{s.get('speaker') or '?'} @ {int(s.get('ts_ms', 0)) // 1000}s] {s.get('text', '')}"
-                for s in segs
+                f"[{s.get('speaker') or '?'} @ {int(s.get('ts_ms', 0)) // 1000}s] {s.get('text', '')}" for s in segs
             )
         return r.get("text", "")
     except Exception as e:

@@ -61,7 +61,10 @@ def micro_compact(events: List[WorkingEvent]) -> CompactionResult:
     parts = [f"- **{k}**: {v} 条" for k, v in sorted(by_kind.items())]
     md = "## 自动汇总（无 LLM）\n\n" + "\n".join(parts)
     return CompactionResult(
-        summary_md=md, event_count=len(events), span_seconds=span, used_llm=False,
+        summary_md=md,
+        event_count=len(events),
+        span_seconds=span,
+        used_llm=False,
     )
 
 
@@ -115,7 +118,10 @@ def session_compact(
 
 
 def compact_session(
-    events: List[WorkingEvent], *, tier: str = "auto", llm_chat=None,
+    events: List[WorkingEvent],
+    *,
+    tier: str = "auto",
+    llm_chat=None,
 ) -> CompactionResult:
     """Public entry point. tier ∈ {micro, session, auto}.
 

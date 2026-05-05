@@ -31,6 +31,7 @@ logger = logging.getLogger("agent.memory")
 
 # ── File locations ──
 
+
 def _enterprise_paths() -> List[Path]:
     return [
         Path("/etc/larkmentor/LARKMENTOR.md"),
@@ -160,15 +161,19 @@ class MemoryLayer:
     # ── SQLite FTS5 ──
 
     def upsert(
-        self, content: str, *, kind: str = "fact",
-        user_id: str = "", session_id: str = "",
+        self,
+        content: str,
+        *,
+        kind: str = "fact",
+        user_id: str = "",
+        session_id: str = "",
         tenant_id: str = "default",
     ) -> int:
         with self._lock:
             conn = sqlite3.connect(str(self.db_path))
             cur = conn.execute(
                 "INSERT INTO memories (tenant_id, user_id, session_id, kind, content, ts) VALUES (?, ?, ?, ?, ?, ?)",
-                (tenant_id, user_id, session_id, kind, content[:20_000], int(time.time()))
+                (tenant_id, user_id, session_id, kind, content[:20_000], int(time.time())),
             )
             conn.commit()
             mid = cur.lastrowid
@@ -176,15 +181,19 @@ class MemoryLayer:
             return mid
 
     def query(
-        self, q: str, *, tenant_id: str = "default",
-        kind: Optional[str] = None, limit: int = 10,
+        self,
+        q: str,
+        *,
+        tenant_id: str = "default",
+        kind: Optional[str] = None,
+        limit: int = 10,
     ) -> List[MemoryEntry]:
         """FTS5 full-text search."""
         with self._lock:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
             try:
-                safe_q = q.replace('"', '').strip()
+                safe_q = q.replace('"', "").strip()
                 if not safe_q:
                     rows = conn.execute(
                         "SELECT * FROM memories WHERE tenant_id=? ORDER BY ts DESC LIMIT ?",
@@ -196,7 +205,8 @@ class MemoryLayer:
                         SELECT m.* FROM memories_fts f JOIN memories m ON f.rowid = m.id
                         WHERE f.content MATCH ? AND m.tenant_id = ? AND m.kind = ?
                         ORDER BY m.ts DESC LIMIT ?
-                        """, (safe_q, tenant_id, kind, limit)
+                        """,
+                        (safe_q, tenant_id, kind, limit),
                     ).fetchall()
                 else:
                     rows = conn.execute(
@@ -204,7 +214,8 @@ class MemoryLayer:
                         SELECT m.* FROM memories_fts f JOIN memories m ON f.rowid = m.id
                         WHERE f.content MATCH ? AND m.tenant_id = ?
                         ORDER BY m.ts DESC LIMIT ?
-                        """, (safe_q, tenant_id, limit)
+                        """,
+                        (safe_q, tenant_id, limit),
                     ).fetchall()
             except sqlite3.OperationalError as e:
                 logger.warning("FTS5 query fallback (%s)", e)
@@ -215,11 +226,17 @@ class MemoryLayer:
             conn.close()
         out: List[MemoryEntry] = []
         for row in rows:
-            out.append(MemoryEntry(
-                id=row["id"], tenant_id=row["tenant_id"], user_id=row["user_id"],
-                session_id=row["session_id"], kind=row["kind"],
-                content=row["content"], ts=row["ts"],
-            ))
+            out.append(
+                MemoryEntry(
+                    id=row["id"],
+                    tenant_id=row["tenant_id"],
+                    user_id=row["user_id"],
+                    session_id=row["session_id"],
+                    kind=row["kind"],
+                    content=row["content"],
+                    ts=row["ts"],
+                )
+            )
         return out
 
     def recent(self, *, tenant_id: str = "default", limit: int = 10) -> List[MemoryEntry]:

@@ -28,7 +28,9 @@ class ContentCritic:
     """Independent critic agent - never does writing, only reviews."""
 
     def review(
-        self, content: str, *,
+        self,
+        content: str,
+        *,
         task: str = "",
         rubric: Optional[List[str]] = None,
     ) -> CritiqueReport:
@@ -51,6 +53,7 @@ class ContentCritic:
         )
         try:
             from ..providers import default_providers
+
             out = default_providers().chat(
                 messages=[{"role": "user", "content": prompt}],
                 task_kind="critique",
@@ -75,10 +78,13 @@ class ContentCritic:
         except Exception as e:
             logger.debug("critic JSON parse failed: %s", e)
             # Fallback: heuristic score
-            has_issue_words = len(re.findall(r'(?:issue|problem|错误|不足|缺少|missing)', out, re.IGNORECASE))
+            has_issue_words = len(re.findall(r"(?:issue|problem|错误|不足|缺少|missing)", out, re.IGNORECASE))
             score = max(0.0, 1.0 - 0.15 * has_issue_words)
             return CritiqueReport(
-                score=score, issues=[out[:200]], improvements=[], strengths=[],
+                score=score,
+                issues=[out[:200]],
+                improvements=[],
+                strengths=[],
                 verdict="pass" if score > 0.7 else "minor_issues",
                 raw=raw,
             )

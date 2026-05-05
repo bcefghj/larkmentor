@@ -37,12 +37,14 @@ def focus_started_card(duration_min: int = 0) -> dict:
     dur_text = f"（时长：{duration_min}分钟）" if duration_min else "（无限时长）"
     card = _header("勿扰模式已开启", "blue")
     card["elements"] = [
-        _md(f"LarkMentor 已进入消息守护{dur_text}\n\n"
+        _md(
+            f"LarkMentor 已进入消息守护{dur_text}\n\n"
             "**消息处理策略：**\n"
             "- P0 紧急消息 - 立即推送\n"
             "- P1 重要消息 - 攒批提醒\n"
             "- P2 一般消息 - 智能代回复\n"
-            "- P3 闲聊广播 - 静默归档"),
+            "- P3 闲聊广播 - 静默归档"
+        ),
         _divider(),
         _buttons(
             _btn("专注关", {"action": "end_focus"}, "danger"),
@@ -55,8 +57,7 @@ def focus_started_card(duration_min: int = 0) -> dict:
 def urgent_alert_card(sender: str, content: str, chat_name: str) -> dict:
     card = _header("紧急消息", "red")
     card["elements"] = [
-        _md(f"**来自：** {sender}\n**频道：** {chat_name}\n\n"
-            f"**内容：**\n{content[:200]}"),
+        _md(f"**来自：** {sender}\n**频道：** {chat_name}\n\n**内容：**\n{content[:200]}"),
         _divider(),
         _md("此消息被判定为 P0 紧急级别，已突破保护模式推送。"),
     ]
@@ -86,12 +87,14 @@ def recovery_card(stats: dict, recovery_text: str) -> dict:
 
     card = _header("工作恢复提示", "green")
     card["elements"] = [
-        _md(f"**专注时长：** {dur}\n"
+        _md(
+            f"**专注时长：** {dur}\n"
             f"**期间消息：** 共 {total} 条\n"
             f"- 紧急已推送：{p0} 条\n"
             f"- 待查看：{p1} 条\n"
             f"- 已代回复：{p2} 条\n"
-            f"- 已归档：{p3} 条"),
+            f"- 已归档：{p3} 条"
+        ),
         _divider(),
         _md(f"**恢复建议：**\n{recovery_text}"),
         _divider(),
@@ -105,7 +108,10 @@ def recovery_card(stats: dict, recovery_text: str) -> dict:
 
 def daily_report_card(
     total_interrupts: int,
-    p0: int, p1: int, p2: int, p3: int,
+    p0: int,
+    p1: int,
+    p2: int,
+    p3: int,
     focus_seconds: int,
     shielded: int,
     advice: str = "",
@@ -115,19 +121,22 @@ def daily_report_card(
 
     card = _header("LarkMentor 今日简报", "purple")
     card["elements"] = [
-        _md(f"**今日消息统计：**\n"
+        _md(
+            f"**今日消息统计：**\n"
             f"- 总消息数：{total_interrupts}\n"
             f"- P0 紧急：{p0}\n"
             f"- P1 重要：{p1}\n"
             f"- P2 代回复：{p2}\n"
-            f"- P3 归档：{p3}"),
+            f"- P3 归档：{p3}"
+        ),
         _divider(),
-        _md(f"**深度工作时长：** {focus_dur}\n"
+        _md(
+            f"**深度工作时长：** {focus_dur}\n"
             f"**LarkMentor 帮你拦截：** {shielded} 条消息\n"
-            f"**预估节省：** 约 {saved_min} 分钟注意力恢复时间"),
+            f"**预估节省：** 约 {saved_min} 分钟注意力恢复时间"
+        ),
         _divider(),
-        _md(f"**建议：** {advice}" if advice else
-            "**建议：** 尝试在下午 2-4 点设置专注时段，减少深度工作被切碎。"),
+        _md(f"**建议：** {advice}" if advice else "**建议：** 尝试在下午 2-4 点设置专注时段，减少深度工作被切碎。"),
     ]
     return card
 
@@ -135,42 +144,55 @@ def daily_report_card(
 def help_card() -> dict:
     card = _header("LarkMentor 使用指南", "indigo")
     card["elements"] = [
-        _md("**消息守护（Smart Shield）**\n"
+        _md(
+            "**消息守护（Smart Shield）**\n"
             "- `专注开` / `专注 90 分钟` — 进入勿扰，消息分级拦截\n"
             "- `专注关` — 退出勿扰，弹出 Recovery Card\n"
-            "- `状态` — 查看当前守护状态"),
+            "- `状态` — 查看当前守护状态"
+        ),
         _divider(),
-        _md("**表达引导（Mentor）**\n"
+        _md(
+            "**表达引导（Mentor）**\n"
             "- `@Mentor 你的问题` — 写作、任务、复盘等表达建议\n"
             "- `帮我看看：消息` — 消息措辞审核\n"
             "- `写周报：内容` — 生成 STAR 格式周报草稿\n"
-            "- 所有 AI 输出均为草稿，需确认后发送"),
+            "- 所有 AI 输出均为草稿，需确认后发送"
+        ),
         _divider(),
-        _md("**简报 & 记忆**\n"
-            "- `日报` — 今日守护与协作摘要\n"
-            "- `周报` — 周度复盘简报\n"
-            "- `记忆` — 查看组织语境与工作记忆"),
+        _md(
+            "**简报 & 记忆**\n- `日报` — 今日守护与协作摘要\n- `周报` — 周度复盘简报\n- `记忆` — 查看组织语境与工作记忆"
+        ),
         _divider(),
-        _md("**白名单管理**\n"
+        _md(
+            "**白名单管理**\n"
             "- `白名单 张三` — 添加（勿扰时该联系人消息直通）\n"
             "- `移除白名单 张三` — 移除\n"
-            "- `白名单列表` — 查看"),
+            "- `白名单列表` — 查看"
+        ),
         _divider(),
-        _md("**知识库 & 组织学习**\n"
+        _md(
+            "**知识库 & 组织学习**\n"
             "- `导入文档：内容` — 导入组织知识供 Mentor 引用\n"
             "- `查询知识：关键词` — 检索知识库\n"
-            "- `知识库列表` — 查看已有知识"),
+            "- `知识库列表` — 查看已有知识"
+        ),
         _divider(),
-        _md("**其他**\n"
+        _md(
+            "**其他**\n"
             "- `添加任务：任务名` / `切换任务：任务名` / `任务列表`\n"
             "- `删除我的数据` — 清除所有个人数据\n"
-            "- `最近决策` — 查看 AI 决策记录"),
+            "- `最近决策` — 查看 AI 决策记录"
+        ),
     ]
     return card
 
 
 def rookie_review_card(
-    original: str, risk_level: str, risk_desc: str, improved: str, explanation: str,
+    original: str,
+    risk_level: str,
+    risk_desc: str,
+    improved: str,
+    explanation: str,
 ) -> dict:
     color_map = {"low": "green", "medium": "orange", "high": "red"}
     level_text = {"low": "低风险", "medium": "中风险", "high": "高风险"}
@@ -181,14 +203,16 @@ def rookie_review_card(
     ]
     if risk_desc:
         card["elements"].append(_md(f"**问题：** {risk_desc}"))
-    card["elements"].extend([
-        _divider(),
-        _md(f"**原文：**\n{original}"),
-        _divider(),
-        _md(f"**优化版本：**\n{improved}"),
-        _divider(),
-        _md(explanation),
-    ])
+    card["elements"].extend(
+        [
+            _divider(),
+            _md(f"**原文：**\n{original}"),
+            _divider(),
+            _md(f"**优化版本：**\n{improved}"),
+            _divider(),
+            _md(explanation),
+        ]
+    )
     return card
 
 
@@ -294,27 +318,25 @@ def mentor_review_card(review_dict: dict, draft_id: str = "") -> dict:
     nvc = review_dict.get("nvc_diagnosis") or {}
     citations = review_dict.get("citations") or []
 
-    risk_block = (
-        f"**风险**：{_risk_bar(risk)}\n"
-        + (f"**问题**：{review_dict.get('risk_description','')}\n"
-           if review_dict.get("risk_description") else "")
+    risk_block = f"**风险**：{_risk_bar(risk)}\n" + (
+        f"**问题**：{review_dict.get('risk_description', '')}\n" if review_dict.get("risk_description") else ""
     )
 
     nvc_block = ""
     if any(nvc.values()):
         nvc_block = (
             "\n**NVC 诊断**\n"
-            f"- 事实：{nvc.get('observation','')[:80]}\n"
-            f"- 感受：{nvc.get('feeling','')[:80]}\n"
-            f"- 需求：{nvc.get('need','')[:80]}\n"
-            f"- 请求：{nvc.get('request','')[:80]}\n"
+            f"- 事实：{nvc.get('observation', '')[:80]}\n"
+            f"- 感受：{nvc.get('feeling', '')[:80]}\n"
+            f"- 需求：{nvc.get('need', '')[:80]}\n"
+            f"- 请求：{nvc.get('request', '')[:80]}\n"
         )
 
     versions_block = (
         "\n**3 版改写**\n"
-        f"🔵 **保守版**\n{versions.get('conservative','')}\n\n"
-        f"🟢 **中性版**\n{versions.get('neutral','')}\n\n"
-        f"🟠 **直接版**\n{versions.get('direct','')}\n"
+        f"🔵 **保守版**\n{versions.get('conservative', '')}\n\n"
+        f"🟢 **中性版**\n{versions.get('neutral', '')}\n\n"
+        f"🟠 **直接版**\n{versions.get('direct', '')}\n"
     )
 
     why = review_dict.get("explanation", "")
@@ -347,16 +369,11 @@ def mentor_clarify_card(task_dict: dict, draft_id: str = "") -> dict:
     missing = task_dict.get("missing_dims") or []
     missing_text = "、".join(missing) if missing else "无"
 
-    head = (
-        f"**模糊度**：{bar} {ambiguity:.2f}\n"
-        f"**缺失维度**：{missing_text}\n"
-    )
+    head = f"**模糊度**：{bar} {ambiguity:.2f}\n**缺失维度**：{missing_text}\n"
 
     if needs:
         questions = task_dict.get("suggested_questions") or []
-        body = "\n**建议先问对方**\n" + "\n".join(
-            f"{i+1}. {q}" for i, q in enumerate(questions[:2])
-        )
+        body = "\n**建议先问对方**\n" + "\n".join(f"{i + 1}. {q}" for i, q in enumerate(questions[:2]))
         actions = _buttons(
             _btn("我已确认", {"action": "mentor_clarified", "id": draft_id}, "primary"),
             _btn("不需要澄清", {"action": "mentor_skip_clarify", "id": draft_id}),
@@ -365,10 +382,7 @@ def mentor_clarify_card(task_dict: dict, draft_id: str = "") -> dict:
         understanding = task_dict.get("task_understanding", "")
         plan = task_dict.get("delivery_plan", "")
         risks = task_dict.get("risks") or []
-        body = (
-            f"\n**我的理解**\n{understanding}\n\n"
-            f"**交付计划**\n{plan}\n"
-        )
+        body = f"\n**我的理解**\n{understanding}\n\n**交付计划**\n{plan}\n"
         if risks:
             body += "\n**风险点**\n" + "\n".join(f"- {r}" for r in risks[:3])
         actions = _buttons(
@@ -458,9 +472,9 @@ def mentor_proactive_card(suggestion: dict, draft_id: str = "") -> dict:
         f"**来自**：{sender} · {chat_name}\n"
         f"**原文**：{original}\n\n"
         "🤖 **Mentor 起草了 3 版回复**（你点确认才会发出，LarkMentor 不会替你发）：\n\n"
-        f"🔵 **保守版**\n{versions.get('conservative','')}\n\n"
-        f"🟢 **中性版**\n{versions.get('neutral','')}\n\n"
-        f"🟠 **直接版**\n{versions.get('direct','')}\n"
+        f"🔵 **保守版**\n{versions.get('conservative', '')}\n\n"
+        f"🟢 **中性版**\n{versions.get('neutral', '')}\n\n"
+        f"🟠 **直接版**\n{versions.get('direct', '')}\n"
     )
 
     if explain:

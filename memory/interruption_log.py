@@ -12,8 +12,8 @@ class InterruptionEvent:
     user_open_id: str
     sender: str
     chat_name: str
-    level: str          # P0-P3
-    action: str         # forwarded / queued / auto_replied / archived
+    level: str  # P0-P3
+    action: str  # forwarded / queued / auto_replied / archived
     was_focusing: bool
 
 
@@ -30,7 +30,8 @@ def log_event(event: InterruptionEvent):
 def get_today_events(user_open_id: str) -> List[InterruptionEvent]:
     today_str = fmt_time()[:10]  # "YYYY-MM-DD"
     return [
-        e for e in _logs.get(user_open_id, [])
+        e
+        for e in _logs.get(user_open_id, [])
         if fmt_time(None)[:10] == today_str  # simplified; works for same-day
     ]
 

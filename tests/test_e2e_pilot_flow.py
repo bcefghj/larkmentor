@@ -12,6 +12,7 @@ def test_full_pilot_flow_explicit_command():
     from bot.pilot_router import PilotRouter
 
     sent_cards = []
+
     def mock_sender(target, card, *, scope="user"):
         sent_cards.append({"target": target, "card": card, "scope": scope})
         return f"msg-{len(sent_cards)}"
@@ -35,6 +36,7 @@ def test_full_pilot_flow_semantic_detection():
     from bot.pilot_router import PilotRouter
 
     sent_cards = []
+
     def mock_sender(target, card, *, scope="user"):
         sent_cards.append({"target": target, "card": card, "scope": scope})
         return f"msg-{len(sent_cards)}"
@@ -67,6 +69,7 @@ def test_card_confirm_and_context_flow():
     from bot.pilot_router import PilotRouter
 
     sent_cards = []
+
     def mock_sender(target, card, *, scope="user"):
         sent_cards.append({"target": target, "card": card, "scope": scope})
         return f"msg-{len(sent_cards)}"
@@ -107,6 +110,7 @@ def test_task_assignment_flow():
     from bot.pilot_router import PilotRouter
 
     sent_cards = []
+
     def mock_sender(target, card, *, scope="user"):
         sent_cards.append({"target": target, "card": card, "scope": scope})
         return f"msg-{len(sent_cards)}"
@@ -188,17 +192,17 @@ def test_orchestrator_with_default_tools():
 
     # Create a minimal plan
     from core.agent_pilot.domain import Plan, PlanStep
+
     plan = Plan(
         plan_id="test-plan-001",
         task_id=task.task_id,
         owner_open_id="user_001",
         intent="生成技术方案",
         steps=[
-            PlanStep(step_id="s1", tool="im.fetch_thread",
-                     description="拉取上下文", args={"limit": 5}),
-            PlanStep(step_id="s2", tool="doc.create",
-                     description="创建文档", args={"title": "技术方案"},
-                     depends_on=["s1"]),
+            PlanStep(step_id="s1", tool="im.fetch_thread", description="拉取上下文", args={"limit": 5}),
+            PlanStep(
+                step_id="s2", tool="doc.create", description="创建文档", args={"title": "技术方案"}, depends_on=["s1"]
+            ),
         ],
     )
     task.plan = plan
@@ -284,10 +288,14 @@ def test_intent_detector_three_gates():
 
     detector = IntentDetector()
     msgs = [
-        ChatMessage(sender_open_id="user_a", text="这个方案需要做个 PPT 汇报",
-                    chat_id="chat_001", msg_id="m1", ts=int(time.time())),
+        ChatMessage(
+            sender_open_id="user_a",
+            text="这个方案需要做个 PPT 汇报",
+            chat_id="chat_001",
+            msg_id="m1",
+            ts=int(time.time()),
+        ),
     ]
     candidate = detector.detect(msgs)
     assert candidate is not None
-    assert candidate.verdict in (IntentVerdict.READY, IntentVerdict.NEEDS_CLARIFY,
-                                  IntentVerdict.NOT_INTENT)
+    assert candidate.verdict in (IntentVerdict.READY, IntentVerdict.NEEDS_CLARIFY, IntentVerdict.NOT_INTENT)

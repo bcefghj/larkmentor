@@ -30,11 +30,12 @@ logger = logging.getLogger("agent.context")
 
 # ── Token counting ───────────────────────────────────────
 
+
 def _estimate_tokens(text: str) -> int:
     """Rough estimate: 1 token ≈ 4 chars (English) or 1.5 chars (Chinese)."""
     if not text:
         return 0
-    chinese = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    chinese = sum(1 for c in text if "\u4e00" <= c <= "\u9fff")
     other = len(text) - chinese
     return int(chinese / 1.5 + other / 4)
 
@@ -141,7 +142,10 @@ class ContextManager:
             content = msg.get("content", "")
             if isinstance(content, str) and _estimate_tokens(content) > self.single_result_cap:
                 char_cap = self.single_result_cap * 4
-                msg["content"] = content[:char_cap] + f"\n\n[...truncated by L1 budget ({_estimate_tokens(content)} → {self.single_result_cap} tokens)]"
+                msg["content"] = (
+                    content[:char_cap]
+                    + f"\n\n[...truncated by L1 budget ({_estimate_tokens(content)} → {self.single_result_cap} tokens)]"
+                )
                 affected += 1
         after = self._total_tokens(messages)
         if affected == 0:
@@ -155,10 +159,7 @@ class ContextManager:
         non_system = [m for m in messages if m.get("role") != "system"]
         if len(non_system) <= self.hot_tail_size + protected_tail:
             return messages, None
-        tool_msgs_in_cold = [
-            i for i, m in enumerate(non_system[:-self.hot_tail_size])
-            if m.get("role") == "tool"
-        ]
+        tool_msgs_in_cold = [i for i, m in enumerate(non_system[: -self.hot_tail_size]) if m.get("role") == "tool"]
         if not tool_msgs_in_cold:
             return messages, None
         new_non_system = list(non_system)
@@ -166,7 +167,9 @@ class ContextManager:
             del new_non_system[idx]
         new_messages = system + new_non_system
         after = self._total_tokens(new_messages)
-        return new_messages, CompactionEvent("snip", before, after, len(tool_msgs_in_cold), reason="budget>40%, drop cold tool results")
+        return new_messages, CompactionEvent(
+            "snip", before, after, len(tool_msgs_in_cold), reason="budget>40%, drop cold tool results"
+        )
 
     def _microcompact(self, messages: List[Dict], protected_tail: int) -> Tuple[List[Dict], Optional[CompactionEvent]]:
         """L3: old tool results → disk reference."""
@@ -180,8 +183,7 @@ class ContextManager:
                 ts = int(time.time() * 1000)
                 artifact_path = self.artifacts_dir / f"{ts}_{affected}.json"
                 artifact_path.write_text(
-                    json.dumps({"role": "tool", "content": content}, ensure_ascii=False),
-                    encoding="utf-8"
+                    json.dumps({"role": "tool", "content": content}, ensure_ascii=False), encoding="utf-8"
                 )
                 msg["content"] = f"[stored on disk, retrievable by path: {artifact_path}]\n\nHead: {content[:200]}..."
                 msg["_ref"] = str(artifact_path)
@@ -191,7 +193,9 @@ class ContextManager:
             return messages, None
         return messages, CompactionEvent("microcompact", before, after, affected, reason="budget>60%, offload to disk")
 
-    def _context_collapse(self, messages: List[Dict], protected_tail: int) -> Tuple[List[Dict], Optional[CompactionEvent]]:
+    def _context_collapse(
+        self, messages: List[Dict], protected_tail: int
+    ) -> Tuple[List[Dict], Optional[CompactionEvent]]:
         """L4: collapse middle chunk into git-log style summary (read-time projection)."""
         before = self._total_tokens(messages)
         if len(messages) < protected_tail + 10:
@@ -199,8 +203,8 @@ class ContextManager:
         system = [m for m in messages if m.get("role") == "system"]
         non_system = [m for m in messages if m.get("role") != "system"]
         head = non_system[:2]
-        tail = non_system[-(self.hot_tail_size):]
-        middle = non_system[2:-self.hot_tail_size] if len(non_system) > self.hot_tail_size + 2 else []
+        tail = non_system[-(self.hot_tail_size) :]
+        middle = non_system[2 : -self.hot_tail_size] if len(non_system) > self.hot_tail_size + 2 else []
         if not middle:
             return messages, None
         summary_lines = []
@@ -213,11 +217,13 @@ class ContextManager:
                 summary_lines.append(f"- [{role}] <structured>")
         collapsed = {
             "role": "system",
-            "content": f"=== Context Collapse ({len(middle)} messages) ===\n" + "\n".join(summary_lines[:30])
+            "content": f"=== Context Collapse ({len(middle)} messages) ===\n" + "\n".join(summary_lines[:30]),
         }
         new_messages = system + head + [collapsed] + tail
         after = self._total_tokens(new_messages)
-        return new_messages, CompactionEvent("collapse", before, after, len(middle), reason="budget>78%, collapse middle to summary")
+        return new_messages, CompactionEvent(
+            "collapse", before, after, len(middle), reason="budget>78%, collapse middle to summary"
+        )
 
     def _auto_compact(self, messages: List[Dict], protected_tail: int) -> Tuple[List[Dict], Optional[CompactionEvent]]:
         """L5: fork subagent to write structured 9-section working-state summary.
@@ -256,20 +262,22 @@ class ContextManager:
 
         summary = {
             "role": "system",
-            "content": "=== AUTO-COMPACT (9-section structured working state) ===\n" +
-                       json.dumps(sections, ensure_ascii=False, indent=2)
+            "content": "=== AUTO-COMPACT (9-section structured working state) ===\n"
+            + json.dumps(sections, ensure_ascii=False, indent=2),
         }
         system = [m for m in messages if m.get("role") == "system"]
         tail = [m for m in messages if m.get("role") != "system"][-protected_tail:]
         new_messages = system + [summary] + tail
         after = self._total_tokens(new_messages)
-        return new_messages, CompactionEvent("autocompact", before, after, len(messages) - len(new_messages), reason="budget>92%, 9-section rewrite")
+        return new_messages, CompactionEvent(
+            "autocompact", before, after, len(messages) - len(new_messages), reason="budget>92%, 9-section rewrite"
+        )
 
     # ── Prompt Cache ───────────────────────────────────
 
-    def build_cached_messages(self, messages: List[Dict[str, Any]], *,
-                               project_rules: str = "",
-                               env_state: str = "") -> List[Dict[str, Any]]:
+    def build_cached_messages(
+        self, messages: List[Dict[str, Any]], *, project_rules: str = "", env_state: str = ""
+    ) -> List[Dict[str, Any]]:
         """Build messages with 3-tier cache breakpoints (inspired by Claude Code).
 
         L1: System prompt + tool schema (nearly immutable)
@@ -291,20 +299,25 @@ class ContextManager:
                 result.append(msg)
 
         if project_rules:
-            result.insert(1, {
-                "role": "system",
-                "content": f"=== PROJECT RULES (L2 cache) ===\n{project_rules}",
-                "_cache_tier": "L2",
-                "_cache_hint": "session_stable",
-            })
+            result.insert(
+                1,
+                {
+                    "role": "system",
+                    "content": f"=== PROJECT RULES (L2 cache) ===\n{project_rules}",
+                    "_cache_tier": "L2",
+                    "_cache_hint": "session_stable",
+                },
+            )
 
         if env_state:
-            result.append({
-                "role": "system",
-                "content": f"=== ENVIRONMENT STATE (L3 cache) ===\n{env_state}",
-                "_cache_tier": "L3",
-                "_cache_hint": "per_turn",
-            })
+            result.append(
+                {
+                    "role": "system",
+                    "content": f"=== ENVIRONMENT STATE (L3 cache) ===\n{env_state}",
+                    "_cache_tier": "L3",
+                    "_cache_hint": "per_turn",
+                }
+            )
 
         return result
 

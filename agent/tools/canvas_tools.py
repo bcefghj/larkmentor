@@ -21,6 +21,7 @@ logger = logging.getLogger("agent.tools.canvas")
 def create_board(title: str = "") -> Dict[str, Any]:
     try:
         from core.feishu_advanced.board_api import create_board as _create
+
         return {"ok": True, **(_create(title=title) or {})}
     except Exception as e:
         logger.debug("create_board fallback: %s", e)
@@ -34,12 +35,17 @@ def create_board(title: str = "") -> Dict[str, Any]:
     team="any",
 )
 def add_node(
-    board_token: str = "", kind: str = "rect",
-    text: str = "", x: int = 0, y: int = 0,
-    width: int = 160, height: int = 80,
+    board_token: str = "",
+    kind: str = "rect",
+    text: str = "",
+    x: int = 0,
+    y: int = 0,
+    width: int = 160,
+    height: int = 80,
 ) -> Dict[str, Any]:
     try:
         from core.feishu_advanced.board_api import add_node as _add
+
         return {"ok": True, **(_add(board_token, kind=kind, text=text, x=x, y=y, width=width, height=height) or {})}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -57,6 +63,7 @@ def render_mermaid(dsl: str = "", output_path: str = "") -> Dict[str, Any]:
         import subprocess
         import tempfile
         import time
+
         out_path = output_path or str(Path("data/artifacts") / f"mermaid-{int(time.time())}.png")
         Path(out_path).parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(suffix=".mmd", mode="w", delete=False, encoding="utf-8") as f:
@@ -66,11 +73,18 @@ def render_mermaid(dsl: str = "", output_path: str = "") -> Dict[str, Any]:
         try:
             subprocess.run(
                 ["mmdc", "-i", mmd_path, "-o", out_path, "-w", "1200", "-H", "800"],
-                check=True, capture_output=True, timeout=60,
+                check=True,
+                capture_output=True,
+                timeout=60,
             )
             return {"ok": True, "png_path": out_path, "dsl": dsl[:200]}
         except FileNotFoundError:
-            return {"ok": False, "error": "mmdc not installed", "note": "pip install nothing; npm install -g @mermaid-js/mermaid-cli", "dsl": dsl[:200]}
+            return {
+                "ok": False,
+                "error": "mmdc not installed",
+                "note": "pip install nothing; npm install -g @mermaid-js/mermaid-cli",
+                "dsl": dsl[:200],
+            }
         except Exception as e:
             return {"ok": False, "error": str(e)}
     except Exception as e:
@@ -87,6 +101,7 @@ def yjs_op(room_id: str = "", op_kind: str = "add", payload: Optional[Dict] = No
     """Send CRDT update to sync service."""
     try:
         import requests
+
         sync_url = os.getenv("LARKMENTOR_SYNC_URL", "http://127.0.0.1:8002/yjs/op")
         r = requests.post(
             sync_url,

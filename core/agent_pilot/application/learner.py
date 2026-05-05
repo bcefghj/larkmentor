@@ -17,6 +17,7 @@ audience, output_primary, plan_outline)`` 写进 archival JSONL。
 2. 纯 Python，2C2G 友好，10ms 级匹配
 3. 通过 ``EventBus.subscribe(kind=EVT_TASK_DELIVERED)`` 自动启用
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import structlog  # type: ignore
+
     logger = structlog.get_logger("pilot.application.learner")
 except Exception:  # pragma: no cover – structlog is optional
     logger = logging.getLogger("pilot.application.learner")  # type: ignore[assignment]
@@ -74,8 +76,10 @@ class TaskMemory:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "task_id": self.task_id, "intent": self.intent,
-            "owner_open_id": self.owner_open_id, "title": self.title,
+            "task_id": self.task_id,
+            "intent": self.intent,
+            "owner_open_id": self.owner_open_id,
+            "title": self.title,
             "output_primary": self.output_primary,
             "output_audience": self.output_audience,
             "plan_outline": self.plan_outline,
@@ -130,7 +134,7 @@ def tokenize(text: str) -> List[str]:
     en = re.findall(r"[A-Za-z][A-Za-z0-9_-]+", text)
     en_tokens = [w.lower() for w in en if len(w) >= 2]
     cn = re.sub(r"[^\u4e00-\u9fff]", "", text)
-    cn_bigrams = [cn[i:i + 2] for i in range(len(cn) - 1) if len(cn[i:i + 2]) == 2]
+    cn_bigrams = [cn[i : i + 2] for i in range(len(cn) - 1) if len(cn[i : i + 2]) == 2]
     out = en_tokens + cn_bigrams
     return [t for t in out if t not in _STOPWORDS]
 
@@ -179,6 +183,7 @@ class PilotLearner:
         # event 不持有 Task 对象引用，需要通过 task_service 反查
         try:
             from .task_service import default_task_service
+
             task = default_task_service().get(ev.task_id)
             if task:
                 self.learn_from_task(task)
@@ -196,10 +201,8 @@ class PilotLearner:
             intent=task.intent,
             owner_open_id=task.owner_lock.owner_open_id,
             title=task.title,
-            output_primary=(task.context_pack.output_requirements.primary
-                              if task.context_pack else "doc"),
-            output_audience=(task.context_pack.output_requirements.audience
-                              if task.context_pack else ""),
+            output_primary=(task.context_pack.output_requirements.primary if task.context_pack else "doc"),
+            output_audience=(task.context_pack.output_requirements.audience if task.context_pack else ""),
             plan_outline=[s.tool for s in (task.plan.steps if task.plan else [])],
             artifacts_count=len(task.artifacts),
             delivered_ts=int(time.time()),
@@ -219,8 +222,9 @@ class PilotLearner:
         return self._skills[-1] if (mem.skill_id and self._skills) else None
 
     # ── 检索 ──────────────────────────────────────────────────────────────
-    def find_similar(self, tokens: List[str], *, threshold: float = 0.4,
-                      top_k: int = 5) -> List[Tuple[TaskMemory, float]]:
+    def find_similar(
+        self, tokens: List[str], *, threshold: float = 0.4, top_k: int = 5
+    ) -> List[Tuple[TaskMemory, float]]:
         scored = []
         for m in self._memories:
             s = jaccard(tokens, m.tokens)
@@ -302,7 +306,10 @@ class PilotLearner:
     # ── Satisfaction feedback loop ────────────────────────────────────────
 
     def record_feedback(
-        self, task_id: str, score: int, comment: str = "",
+        self,
+        task_id: str,
+        score: int,
+        comment: str = "",
     ) -> None:
         """Record user satisfaction feedback for a completed task.
 
@@ -332,7 +339,9 @@ class PilotLearner:
 
         logger.info(
             "feedback_recorded",
-            task_id=task_id, score=score, skill_id=mem.skill_id,
+            task_id=task_id,
+            score=score,
+            skill_id=mem.skill_id,
         )
 
     def _find_memory(self, task_id: str) -> Optional[TaskMemory]:
@@ -390,15 +399,13 @@ class PilotLearner:
         if not similars:
             return self._classify_by_intent(intent, constraints)
 
-        avg_tokens = sum(
-            m.tokens_used for m, _ in similars if m.tokens_used
-        ) / max(1, sum(1 for m, _ in similars if m.tokens_used))
-        avg_steps = sum(
-            len(m.plan_outline) for m, _ in similars
-        ) / max(1, len(similars))
-        avg_latency = sum(
-            m.latency_ms for m, _ in similars if m.latency_ms
-        ) / max(1, sum(1 for m, _ in similars if m.latency_ms))
+        avg_tokens = sum(m.tokens_used for m, _ in similars if m.tokens_used) / max(
+            1, sum(1 for m, _ in similars if m.tokens_used)
+        )
+        avg_steps = sum(len(m.plan_outline) for m, _ in similars) / max(1, len(similars))
+        avg_latency = sum(m.latency_ms for m, _ in similars if m.latency_ms) / max(
+            1, sum(1 for m, _ in similars if m.latency_ms)
+        )
 
         max_latency = constraints.get("max_latency_ms", float("inf"))
 
@@ -414,8 +421,10 @@ class PilotLearner:
 
         logger.info(
             "model_suggestion",
-            model=model, avg_tokens=int(avg_tokens),
-            avg_steps=round(avg_steps, 1), intent=intent[:60],
+            model=model,
+            avg_tokens=int(avg_tokens),
+            avg_steps=round(avg_steps, 1),
+            intent=intent[:60],
         )
         return model
 
@@ -423,15 +432,12 @@ class PilotLearner:
         """Fallback classification when no historical data is available."""
         if len(intent) < 50:
             return self._MODEL_CHEAP
-        if len(intent) > 200 or any(
-            kw in intent for kw in ("分析", "报告", "设计", "architecture", "refactor")
-        ):
+        if len(intent) > 200 or any(kw in intent for kw in ("分析", "报告", "设计", "architecture", "refactor")):
             return self._MODEL_BEST
         return self._MODEL_MID
 
     # ── 生成 SKILL ────────────────────────────────────────────────────────
-    def _generate_skill(self, mem: TaskMemory,
-                          similars: List[Tuple[TaskMemory, float]]) -> GeneratedSkill:
+    def _generate_skill(self, mem: TaskMemory, similars: List[Tuple[TaskMemory, float]]) -> GeneratedSkill:
         # 提取共同 plan_outline（每步最常出现的 tool）
         all_plans = [m.plan_outline for m, _ in similars] + [mem.plan_outline]
         flat = [t for plan in all_plans for t in plan]
@@ -461,15 +467,14 @@ class PilotLearner:
         return skill
 
     @staticmethod
-    def _render_skill_md(skill: GeneratedSkill, latest: TaskMemory,
-                           similars: List[Tuple[TaskMemory, float]]) -> str:
+    def _render_skill_md(skill: GeneratedSkill, latest: TaskMemory, similars: List[Tuple[TaskMemory, float]]) -> str:
         examples_md = "\n".join(f"- _{m.intent[:140]}_" for m, _ in similars[:3])
-        plan_md = "\n".join(f"{i+1}. {t}" for i, t in enumerate(skill.plan_template[:8]))
+        plan_md = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(skill.plan_template[:8]))
         return f"""# {skill.title}
 
 > Auto-generated from {len(similars) + 1} similar tasks (PilotLearner)
 > Skill ID: `{skill.skill_id}`
-> Created: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(skill.created_ts))}
+> Created: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(skill.created_ts))}
 
 ## Intent Pattern
 
@@ -490,7 +495,7 @@ the planner will skip outline regeneration and reuse this template.
 
 ## How to disable
 
-Delete this directory: `{skill.md_path or '<auto-generated>'}`
+Delete this directory: `{skill.md_path or "<auto-generated>"}`
 """
 
     # ── 持久化 ────────────────────────────────────────────────────────────
@@ -532,12 +537,18 @@ Delete this directory: `{skill.md_path or '<auto-generated>'}`
             title = content.splitlines()[0].lstrip("# ").strip()
             # 提取 intent pattern
             mp = re.search(r"## Intent Pattern\n\n(.*?)\n\n## ", content, re.DOTALL)
-            ip = (mp.group(1).strip() if mp else "")
-            out.append(GeneratedSkill(
-                skill_id=sid, title=title, description="",
-                intent_pattern=ip, plan_template=[], examples=[],
-                md_path=str(md),
-            ))
+            ip = mp.group(1).strip() if mp else ""
+            out.append(
+                GeneratedSkill(
+                    skill_id=sid,
+                    title=title,
+                    description="",
+                    intent_pattern=ip,
+                    plan_template=[],
+                    examples=[],
+                    md_path=str(md),
+                )
+            )
         return out
 
 

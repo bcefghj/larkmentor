@@ -46,8 +46,7 @@ class WeeklyDraft:
 
 
 def _collect_stats(open_id: str, since_ts: int) -> Dict[str, int]:
-    stats = {"focus_count": 0, "focus_minutes": 0,
-             "p0": 0, "p1": 0, "p2": 0, "p3": 0}
+    stats = {"focus_count": 0, "focus_minutes": 0, "p0": 0, "p1": 0, "p2": 0, "p3": 0}
     try:
         from core.flow_memory.working import WorkingMemory
 
@@ -88,11 +87,9 @@ def draft(open_id: str, *, user_meta: str = "", week_offset: int = 0) -> WeeklyD
         logger.debug("archival_fallback err=%s", e)
 
     summaries_md = (
-        "\n\n".join(
-            f"- archival_{getattr(a, 'id', i)} ({a.kind}) {a.summary_md[:200]}"
-            for i, a in enumerate(archived)
-        )
-        if archived else "（本周无 archival 摘要）"
+        "\n\n".join(f"- archival_{getattr(a, 'id', i)} ({a.kind}) {a.summary_md[:200]}" for i, a in enumerate(archived))
+        if archived
+        else "（本周无 archival 摘要）"
     )
 
     org_hits = kb.search(open_id, "周报 风格 模板")
@@ -102,7 +99,10 @@ def draft(open_id: str, *, user_meta: str = "", week_offset: int = 0) -> WeeklyD
         user_meta=user_meta or open_id[-8:],
         focus_count=stats["focus_count"],
         focus_minutes=stats["focus_minutes"],
-        p0=stats["p0"], p1=stats["p1"], p2=stats["p2"], p3=stats["p3"],
+        p0=stats["p0"],
+        p1=stats["p1"],
+        p2=stats["p2"],
+        p3=stats["p3"],
         summaries=summaries_md,
         org_context=org_context,
     )
@@ -125,10 +125,7 @@ def draft(open_id: str, *, user_meta: str = "", week_offset: int = 0) -> WeeklyD
             f"[来源: 待补充]\n"
         )
 
-    citations = [
-        f"archival_{getattr(a, 'id', i)}"
-        for i, a in enumerate(archived)
-    ]
+    citations = [f"archival_{getattr(a, 'id', i)}" for i, a in enumerate(archived)]
 
     return WeeklyDraft(
         open_id=open_id,

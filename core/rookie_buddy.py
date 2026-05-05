@@ -18,20 +18,26 @@ def _org_ctx() -> str:
 
 def review_message(message: str, recipient: str = "同事/上级") -> dict:
     prompt = ROOKIE_REVIEW_PROMPT.format(
-        message=message, recipient=recipient, org_context=_org_ctx(),
+        message=message,
+        recipient=recipient,
+        org_context=_org_ctx(),
     )
     result = chat_json(prompt)
     if not result:
         return {
-            "risk_level": "low", "risk_description": "",
-            "improved_version": message, "explanation": "无法分析，建议自行检查。",
+            "risk_level": "low",
+            "risk_description": "",
+            "improved_version": message,
+            "explanation": "无法分析，建议自行检查。",
         }
     return result
 
 
 def generate_task_confirmation(task_description: str, assigner: str = "上级") -> str:
     prompt = ROOKIE_TASK_CONFIRM_PROMPT.format(
-        task_description=task_description, assigner=assigner, org_context=_org_ctx(),
+        task_description=task_description,
+        assigner=assigner,
+        org_context=_org_ctx(),
     )
     result = chat(prompt, temperature=0.4)
     if not result:
@@ -41,7 +47,8 @@ def generate_task_confirmation(task_description: str, assigner: str = "上级") 
 
 def generate_weekly_report(work_content: str) -> str:
     prompt = ROOKIE_WEEKLY_PROMPT.format(
-        work_content=work_content, org_context=_org_ctx(),
+        work_content=work_content,
+        org_context=_org_ctx(),
     )
     result = chat(prompt, temperature=0.5)
     if not result:

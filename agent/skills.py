@@ -69,11 +69,13 @@ class SkillsLoader:
                         if s:
                             self.skills[s.name] = s
 
-        logger.info("SkillsLoader: %d skills loaded (official=%d builtin=%d user_generated=%d)",
-                    len(self.skills),
-                    sum(1 for s in self.skills.values() if s.source == "official"),
-                    sum(1 for s in self.skills.values() if s.source == "builtin"),
-                    sum(1 for s in self.skills.values() if s.source == "user_generated"))
+        logger.info(
+            "SkillsLoader: %d skills loaded (official=%d builtin=%d user_generated=%d)",
+            len(self.skills),
+            sum(1 for s in self.skills.values() if s.source == "official"),
+            sum(1 for s in self.skills.values() if s.source == "builtin"),
+            sum(1 for s in self.skills.values() if s.source == "user_generated"),
+        )
 
     def _parse_skill(self, d: Path, *, source: str) -> Optional[Skill]:
         skill_md = d / "SKILL.md"
@@ -173,7 +175,8 @@ class SkillsLoader:
                 "refs": len(s.references),
                 "body_kb": len(s.body) // 1024,
                 "path": str(s.path),
-            } for name, s in self.skills.items()
+            }
+            for name, s in self.skills.items()
         }
 
 

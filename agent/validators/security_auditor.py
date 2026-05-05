@@ -29,10 +29,10 @@ class SecurityAuditor:
 
         # PII scan (simplified)
         pii_patterns = [
-            ("phone_cn", r'\b1[3-9]\d{9}\b'),
-            ("id_card_cn", r'\b\d{17}[\dXx]\b'),
-            ("email", r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'),
-            ("credit_card", r'\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'),
+            ("phone_cn", r"\b1[3-9]\d{9}\b"),
+            ("id_card_cn", r"\b\d{17}[\dXx]\b"),
+            ("email", r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b"),
+            ("credit_card", r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b"),
         ]
         for name, pat in pii_patterns:
             if re.search(pat, text):
@@ -42,10 +42,10 @@ class SecurityAuditor:
 
         # Prompt injection patterns
         injection_patterns = [
-            r'ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions',
-            r'忽略\s*(?:之前|以上|上面)(?:的)?(?:指令|命令)',
-            r'system\s*:\s*(?:you\s+are|act\s+as)',
-            r'<\s*system\s*>',
+            r"ignore\s+(?:all\s+)?(?:previous|prior)\s+instructions",
+            r"忽略\s*(?:之前|以上|上面)(?:的)?(?:指令|命令)",
+            r"system\s*:\s*(?:you\s+are|act\s+as)",
+            r"<\s*system\s*>",
         ]
         for pat in injection_patterns:
             if re.search(pat, text, re.IGNORECASE):

@@ -11,12 +11,14 @@ def test_tool_registry_register_and_invoke():
     def echo_handler(text: str) -> dict:
         return {"echo": text}
 
-    reg.register(ToolMetadata(
-        name="test.echo",
-        description="echo back input",
-        handler=echo_handler,
-        permission="READ_ONLY",
-    ))
+    reg.register(
+        ToolMetadata(
+            name="test.echo",
+            description="echo back input",
+            handler=echo_handler,
+            permission="READ_ONLY",
+        )
+    )
 
     assert len(reg.list_tools()) == 1
     assert reg.get("test.echo").name == "test.echo"
@@ -44,11 +46,13 @@ def test_tool_registry_args_mismatch():
     def two_args(a: str, b: str) -> dict:
         return {"a": a, "b": b}
 
-    reg.register(ToolMetadata(
-        name="test.twoargs",
-        description="",
-        handler=two_args,
-    ))
+    reg.register(
+        ToolMetadata(
+            name="test.twoargs",
+            description="",
+            handler=two_args,
+        )
+    )
     res = reg.invoke("test.twoargs", {"a": "x"}, user_open_id="u1", skip_permission=True)
     assert res["ok"] is False
     assert res["stage"] == "invoke"
@@ -58,13 +62,15 @@ def test_tool_registry_rate_limit():
     from core.runtime import ToolMetadata, ToolRegistry
 
     reg = ToolRegistry()
-    reg.register(ToolMetadata(
-        name="test.fast",
-        description="",
-        handler=lambda: {"ok": True},
-        permission="READ_ONLY",
-        rate_limit_per_minute=2,
-    ))
+    reg.register(
+        ToolMetadata(
+            name="test.fast",
+            description="",
+            handler=lambda: {"ok": True},
+            permission="READ_ONLY",
+            rate_limit_per_minute=2,
+        )
+    )
     r1 = reg.invoke("test.fast", {}, skip_permission=True)
     r2 = reg.invoke("test.fast", {}, skip_permission=True)
     r3 = reg.invoke("test.fast", {}, skip_permission=True)
@@ -91,17 +97,21 @@ def test_skill_loader_register_and_find():
     from core.runtime import SkillLoader, SkillManifest
 
     loader = SkillLoader()
-    loader.register(SkillManifest(
-        name="mentor.write",
-        description="",
-        triggers=["帮我看看", "帮我写"],
-        tools=["mentor.write"],
-    ))
-    loader.register(SkillManifest(
-        name="mentor.task",
-        triggers=["任务确认", "任务澄清"],
-        tools=["mentor.task"],
-    ))
+    loader.register(
+        SkillManifest(
+            name="mentor.write",
+            description="",
+            triggers=["帮我看看", "帮我写"],
+            tools=["mentor.write"],
+        )
+    )
+    loader.register(
+        SkillManifest(
+            name="mentor.task",
+            triggers=["任务确认", "任务澄清"],
+            tools=["mentor.task"],
+        )
+    )
 
     assert loader.find_for_command("帮我看看这条消息怎么回").name == "mentor.write"
     assert loader.find_for_command("任务确认：交付期是？").name == "mentor.task"

@@ -26,9 +26,11 @@ from typing import Any, Dict, List, Optional
 
 try:
     import structlog
+
     logger = structlog.get_logger("agent.tools.lark_cli")
 except ImportError:
     import logging
+
     logger = logging.getLogger("agent.tools.lark_cli")  # type: ignore[assignment]
 
 from .registry import tool
@@ -141,8 +143,11 @@ class LarkCLIBridge:
         if proc.returncode != 0:
             stderr_snippet = (proc.stderr or "").strip()[:300]
             logger.debug(
-                "lark_cli_nonzero", skill=skill, action=action,
-                code=proc.returncode, stderr=stderr_snippet,
+                "lark_cli_nonzero",
+                skill=skill,
+                action=action,
+                code=proc.returncode,
+                stderr=stderr_snippet,
             )
             return CLIResult(ok=False, error=stderr_snippet or f"exit code {proc.returncode}")
 
@@ -334,10 +339,18 @@ class LarkCLIBridge:
         if not board_id:
             return CLIResult(ok=False, error="board_id is required")
         args = [
-            "--board-id", board_id,
-            "--shape", shape_type,
-            "--x", str(x), "--y", str(y),
-            "--width", str(width), "--height", str(height),
+            "--board-id",
+            board_id,
+            "--shape",
+            shape_type,
+            "--x",
+            str(x),
+            "--y",
+            str(y),
+            "--width",
+            str(width),
+            "--height",
+            str(height),
         ]
         if text:
             args.extend(["--text", text[:2000]])
@@ -443,12 +456,27 @@ def cli_whiteboard_create(title: str = "", folder: str = "") -> Dict[str, Any]:
 
 @tool(name="lark.whiteboard.add_shape", description="通过飞书 CLI 在白板上添加形状", permission="write", team="any")
 def cli_whiteboard_add_shape(
-    board_id: str = "", shape_type: str = "rect",
-    x: int = 0, y: int = 0, width: int = 200, height: int = 100, text: str = "",
+    board_id: str = "",
+    shape_type: str = "rect",
+    x: int = 0,
+    y: int = 0,
+    width: int = 200,
+    height: int = 100,
+    text: str = "",
 ) -> Dict[str, Any]:
-    return _get_bridge().whiteboard_add_shape(
-        board_id, shape_type, x=x, y=y, width=width, height=height, text=text,
-    ).to_dict()
+    return (
+        _get_bridge()
+        .whiteboard_add_shape(
+            board_id,
+            shape_type,
+            x=x,
+            y=y,
+            width=width,
+            height=height,
+            text=text,
+        )
+        .to_dict()
+    )
 
 
 @tool(name="lark.slides.create", description="通过飞书 CLI 创建幻灯片", permission="write", team="any")
@@ -464,6 +492,7 @@ def cli_slides_add_page(slides_id: str = "", content: str = "", layout: str = "t
 # ────────────────────────────────────────────────────────────────
 # register_lark_tools(): 注册到 harness ToolRegistry
 # ────────────────────────────────────────────────────────────────
+
 
 def register_lark_tools(
     registry: Any,
@@ -490,10 +519,13 @@ def register_lark_tools(
             "name": "lark.im.send",
             "description": "通过飞书 CLI 发送 IM 消息",
             "fn": lambda args, ctx, _b=b: _b.im_send(
-                args.get("chat_id", ""), args.get("text", ""),
+                args.get("chat_id", ""),
+                args.get("text", ""),
                 msg_type=args.get("msg_type", "text"),
             ).to_dict(),
-            "readonly": False, "category": "im", "timeout_sec": 15,
+            "readonly": False,
+            "category": "im",
+            "timeout_sec": 15,
             "parameters": {
                 "chat_id": {"type": "string", "desc": "目标聊天 ID"},
                 "text": {"type": "string", "desc": "消息正文"},
@@ -504,9 +536,12 @@ def register_lark_tools(
             "name": "lark.im.fetch",
             "description": "通过飞书 CLI 拉取聊天消息记录",
             "fn": lambda args, ctx, _b=b: _b.im_fetch(
-                args.get("chat_id", ""), limit=int(args.get("limit", 20)),
+                args.get("chat_id", ""),
+                limit=int(args.get("limit", 20)),
             ).to_dict(),
-            "readonly": True, "category": "im", "timeout_sec": 15,
+            "readonly": True,
+            "category": "im",
+            "timeout_sec": 15,
             "parameters": {
                 "chat_id": {"type": "string", "desc": "聊天 ID"},
                 "limit": {"type": "integer", "desc": "拉取条数，默认 20"},
@@ -517,9 +552,13 @@ def register_lark_tools(
             "name": "lark.doc.create",
             "description": "通过飞书 CLI 创建云文档",
             "fn": lambda args, ctx, _b=b: _b.doc_create(
-                args.get("title", ""), args.get("content", ""), args.get("folder", ""),
+                args.get("title", ""),
+                args.get("content", ""),
+                args.get("folder", ""),
             ).to_dict(),
-            "readonly": False, "category": "doc", "timeout_sec": 30,
+            "readonly": False,
+            "category": "doc",
+            "timeout_sec": 30,
             "parameters": {
                 "title": {"type": "string", "desc": "文档标题"},
                 "content": {"type": "string", "desc": "文档初始内容（markdown）"},
@@ -530,10 +569,13 @@ def register_lark_tools(
             "name": "lark.doc.update",
             "description": "通过飞书 CLI 更新云文档内容",
             "fn": lambda args, ctx, _b=b: _b.doc_update(
-                args.get("doc_id", ""), args.get("content", ""),
+                args.get("doc_id", ""),
+                args.get("content", ""),
                 mode=args.get("mode", "append"),
             ).to_dict(),
-            "readonly": False, "category": "doc", "timeout_sec": 30,
+            "readonly": False,
+            "category": "doc",
+            "timeout_sec": 30,
             "parameters": {
                 "doc_id": {"type": "string", "desc": "文档 ID"},
                 "content": {"type": "string", "desc": "要追加/替换的内容"},
@@ -544,9 +586,12 @@ def register_lark_tools(
             "name": "lark.doc.read",
             "description": "通过飞书 CLI 读取云文档内容",
             "fn": lambda args, ctx, _b=b: _b.doc_read(
-                url=args.get("url", ""), doc_id=args.get("doc_id", ""),
+                url=args.get("url", ""),
+                doc_id=args.get("doc_id", ""),
             ).to_dict(),
-            "readonly": True, "category": "doc", "timeout_sec": 30,
+            "readonly": True,
+            "category": "doc",
+            "timeout_sec": 30,
             "parameters": {
                 "url": {"type": "string", "desc": "文档 URL"},
                 "doc_id": {"type": "string", "desc": "文档 ID（与 url 二选一）"},
@@ -560,7 +605,9 @@ def register_lark_tools(
                 days=int(args.get("days", 7)),
                 calendar_id=args.get("calendar_id", ""),
             ).to_dict(),
-            "readonly": True, "category": "calendar", "timeout_sec": 15,
+            "readonly": True,
+            "category": "calendar",
+            "timeout_sec": 15,
             "parameters": {
                 "days": {"type": "integer", "desc": "查询未来 N 天的日程"},
                 "calendar_id": {"type": "string", "desc": "日历 ID（可选）"},
@@ -570,10 +617,14 @@ def register_lark_tools(
             "name": "lark.calendar.create_event",
             "description": "通过飞书 CLI 创建日历事件",
             "fn": lambda args, ctx, _b=b: _b.calendar_create_event(
-                args.get("title", ""), args.get("start", ""), args.get("end", ""),
+                args.get("title", ""),
+                args.get("start", ""),
+                args.get("end", ""),
                 attendees=args.get("attendees", ""),
             ).to_dict(),
-            "readonly": False, "category": "calendar", "timeout_sec": 15,
+            "readonly": False,
+            "category": "calendar",
+            "timeout_sec": 15,
             "parameters": {
                 "title": {"type": "string", "desc": "事件标题"},
                 "start": {"type": "string", "desc": "开始时间 (ISO 8601)"},
@@ -586,10 +637,13 @@ def register_lark_tools(
             "name": "lark.sheets.read",
             "description": "通过飞书 CLI 读取电子表格数据",
             "fn": lambda args, ctx, _b=b: _b.sheets_read(
-                url=args.get("url", ""), sheet_id=args.get("sheet_id", ""),
+                url=args.get("url", ""),
+                sheet_id=args.get("sheet_id", ""),
                 range_=args.get("range", ""),
             ).to_dict(),
-            "readonly": True, "category": "sheets", "timeout_sec": 30,
+            "readonly": True,
+            "category": "sheets",
+            "timeout_sec": 30,
             "parameters": {
                 "url": {"type": "string", "desc": "表格 URL"},
                 "sheet_id": {"type": "string", "desc": "表格 ID（与 url 二选一）"},
@@ -600,10 +654,13 @@ def register_lark_tools(
             "name": "lark.sheets.write",
             "description": "通过飞书 CLI 写入电子表格数据",
             "fn": lambda args, ctx, _b=b: _b.sheets_write(
-                args.get("sheet_id", ""), args.get("range", ""),
+                args.get("sheet_id", ""),
+                args.get("range", ""),
                 args.get("values", []),
             ).to_dict(),
-            "readonly": False, "category": "sheets", "timeout_sec": 30,
+            "readonly": False,
+            "category": "sheets",
+            "timeout_sec": 30,
             "parameters": {
                 "sheet_id": {"type": "string", "desc": "表格 ID"},
                 "range": {"type": "string", "desc": "写入范围"},
@@ -615,9 +672,12 @@ def register_lark_tools(
             "name": "lark.whiteboard.create",
             "description": "通过飞书 CLI 创建白板",
             "fn": lambda args, ctx, _b=b: _b.whiteboard_create(
-                args.get("title", ""), args.get("folder", ""),
+                args.get("title", ""),
+                args.get("folder", ""),
             ).to_dict(),
-            "readonly": False, "category": "whiteboard", "timeout_sec": 30,
+            "readonly": False,
+            "category": "whiteboard",
+            "timeout_sec": 30,
             "parameters": {
                 "title": {"type": "string", "desc": "白板标题"},
                 "folder": {"type": "string", "desc": "目标文件夹 token"},
@@ -627,17 +687,24 @@ def register_lark_tools(
             "name": "lark.whiteboard.add_shape",
             "description": "通过飞书 CLI 在白板上添加形状",
             "fn": lambda args, ctx, _b=b: _b.whiteboard_add_shape(
-                args.get("board_id", ""), args.get("shape_type", "rect"),
-                x=int(args.get("x", 0)), y=int(args.get("y", 0)),
-                width=int(args.get("width", 200)), height=int(args.get("height", 100)),
+                args.get("board_id", ""),
+                args.get("shape_type", "rect"),
+                x=int(args.get("x", 0)),
+                y=int(args.get("y", 0)),
+                width=int(args.get("width", 200)),
+                height=int(args.get("height", 100)),
                 text=args.get("text", ""),
             ).to_dict(),
-            "readonly": False, "category": "whiteboard", "timeout_sec": 30,
+            "readonly": False,
+            "category": "whiteboard",
+            "timeout_sec": 30,
             "parameters": {
                 "board_id": {"type": "string", "desc": "白板 ID"},
                 "shape_type": {"type": "string", "desc": "形状类型 (rect/circle/arrow/sticky)"},
-                "x": {"type": "integer", "desc": "X 坐标"}, "y": {"type": "integer", "desc": "Y 坐标"},
-                "width": {"type": "integer", "desc": "宽度"}, "height": {"type": "integer", "desc": "高度"},
+                "x": {"type": "integer", "desc": "X 坐标"},
+                "y": {"type": "integer", "desc": "Y 坐标"},
+                "width": {"type": "integer", "desc": "宽度"},
+                "height": {"type": "integer", "desc": "高度"},
                 "text": {"type": "string", "desc": "形状内文本"},
             },
         },
@@ -646,9 +713,13 @@ def register_lark_tools(
             "name": "lark.slides.create",
             "description": "通过飞书 CLI 创建幻灯片演示文稿",
             "fn": lambda args, ctx, _b=b: _b.slides_create(
-                args.get("title", ""), args.get("outline", ""), args.get("template", ""),
+                args.get("title", ""),
+                args.get("outline", ""),
+                args.get("template", ""),
             ).to_dict(),
-            "readonly": False, "category": "slides", "timeout_sec": 30,
+            "readonly": False,
+            "category": "slides",
+            "timeout_sec": 30,
             "parameters": {
                 "title": {"type": "string", "desc": "演示文稿标题"},
                 "outline": {"type": "string", "desc": "大纲内容"},
@@ -659,10 +730,13 @@ def register_lark_tools(
             "name": "lark.slides.add_page",
             "description": "通过飞书 CLI 为幻灯片添加新页面",
             "fn": lambda args, ctx, _b=b: _b.slides_add_page(
-                args.get("slides_id", ""), args.get("content", ""),
+                args.get("slides_id", ""),
+                args.get("content", ""),
                 layout=args.get("layout", "title_content"),
             ).to_dict(),
-            "readonly": False, "category": "slides", "timeout_sec": 30,
+            "readonly": False,
+            "category": "slides",
+            "timeout_sec": 30,
             "parameters": {
                 "slides_id": {"type": "string", "desc": "幻灯片 ID"},
                 "content": {"type": "string", "desc": "页面内容（markdown）"},
@@ -672,16 +746,18 @@ def register_lark_tools(
     ]
 
     for spec_dict in _specs:
-        registry.register(build_tool(
-            name=spec_dict["name"],
-            description=spec_dict["description"],
-            fn=spec_dict["fn"],
-            parameters=spec_dict.get("parameters", {}),
-            readonly=spec_dict.get("readonly", False),
-            category=spec_dict.get("category", "lark"),
-            timeout_sec=spec_dict.get("timeout_sec", DEFAULT_TIMEOUT),
-            tags=["lark-cli"],
-        ))
+        registry.register(
+            build_tool(
+                name=spec_dict["name"],
+                description=spec_dict["description"],
+                fn=spec_dict["fn"],
+                parameters=spec_dict.get("parameters", {}),
+                readonly=spec_dict.get("readonly", False),
+                category=spec_dict.get("category", "lark"),
+                timeout_sec=spec_dict.get("timeout_sec", DEFAULT_TIMEOUT),
+                tags=["lark-cli"],
+            )
+        )
 
     logger.info("lark_tools_registered", count=len(_specs), cli_available=b.available)
 

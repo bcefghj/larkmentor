@@ -47,17 +47,19 @@ class A11yReviewer:
         report.readability_score = max(0.0, score)
 
         # Contrast: can't check pixel-level without rendering, but check for emoji / markers
-        if not re.search(r'^#+\s', markdown, re.MULTILINE):
+        if not re.search(r"^#+\s", markdown, re.MULTILINE):
             report.layout_issues.append("缺少明确的 heading (# / ##)")
         return report
 
     def review_doc_markdown(self, markdown: str) -> A11yReport:
         report = A11yReport()
         # Heading hierarchy check
-        headings = re.findall(r'^(#{1,6})\s', markdown, re.MULTILINE)
+        headings = re.findall(r"^(#{1,6})\s", markdown, re.MULTILINE)
         if headings:
             levels = [len(h) for h in headings]
-            max_skip = max((levels[i + 1] - levels[i] for i in range(len(levels) - 1) if levels[i + 1] > levels[i]), default=0)
+            max_skip = max(
+                (levels[i + 1] - levels[i] for i in range(len(levels) - 1) if levels[i + 1] > levels[i]), default=0
+            )
             if max_skip > 1:
                 report.layout_issues.append(f"heading level skip detected (jumped {max_skip} levels)")
 

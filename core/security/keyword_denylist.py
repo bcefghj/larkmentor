@@ -93,8 +93,7 @@ class KeywordDenylist:
         for pat in self._compiled:
             m = pat.search(text)
             if m:
-                return DenyHit(matched=True, rule=pat.pattern,
-                               kind="regex", fragment=m.group(0)[:60])
+                return DenyHit(matched=True, rule=pat.pattern, kind="regex", fragment=m.group(0)[:60])
         return DenyHit(matched=False)
 
     def add_keyword(self, kw: str) -> None:
@@ -110,8 +109,7 @@ class KeywordDenylist:
             logger.warning("add_regex skipped: %s (%s)", pattern, e)
 
     def to_dict(self) -> dict:
-        return {"keywords": self.keywords, "regexes": self.regexes,
-                "case_insensitive": self.case_insensitive}
+        return {"keywords": self.keywords, "regexes": self.regexes, "case_insensitive": self.case_insensitive}
 
     @classmethod
     def from_dict(cls, d: dict) -> "KeywordDenylist":

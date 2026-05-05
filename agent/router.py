@@ -125,9 +125,11 @@ class StrategyRouter:
             rationale.append("mid complexity → DAG")
 
         return RouteDecision(
-            strategy=strategy, complexity=complexity,
+            strategy=strategy,
+            complexity=complexity,
             reasoning=" ".join(rationale),
-            rationale=rationale, recommended_agents=recommended,
+            rationale=rationale,
+            recommended_agents=recommended,
         )
 
     def _match(self, patterns: List[str], text: str) -> bool:

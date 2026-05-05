@@ -43,39 +43,53 @@ def _validate_config():
 def _start_scheduler():
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
+
         scheduler = BackgroundScheduler()
 
         # Daily report at configured time
         scheduler.add_job(
-            send_all_daily_reports, "cron",
-            hour=Config.DAILY_REPORT_HOUR, minute=Config.DAILY_REPORT_MINUTE,
+            send_all_daily_reports,
+            "cron",
+            hour=Config.DAILY_REPORT_HOUR,
+            minute=Config.DAILY_REPORT_MINUTE,
         )
         # Weekly report on Friday 17:00
         scheduler.add_job(
-            send_all_daily_reports, "cron",
-            day_of_week="fri", hour=17, minute=0,
+            send_all_daily_reports,
+            "cron",
+            day_of_week="fri",
+            hour=17,
+            minute=0,
         )
         # Calendar polling
         scheduler.add_job(
-            _poll_calendar, "interval",
+            _poll_calendar,
+            "interval",
             minutes=Config.CALENDAR_POLL_MINUTES,
         )
         # Sender profile rolling-window decay (daily)
         scheduler.add_job(
-            decay_recent_counts, "cron", hour=3, minute=0,
+            decay_recent_counts,
+            "cron",
+            hour=3,
+            minute=0,
         )
 
         # ── v4 Mentor: weekly growth summary (Sunday 21:00) ──
         scheduler.add_job(
-            _coach_weekly_growth_summary, "cron",
-            day_of_week="sun", hour=21, minute=0,
+            _coach_weekly_growth_summary,
+            "cron",
+            day_of_week="sun",
+            hour=21,
+            minute=0,
         )
 
         scheduler.start()
         set_scheduler(scheduler)
         logger.info(
             "定时任务已启动: 日报 %02d:%02d | 周报 周五17:00 | 日历轮询 %d分钟",
-            Config.DAILY_REPORT_HOUR, Config.DAILY_REPORT_MINUTE,
+            Config.DAILY_REPORT_HOUR,
+            Config.DAILY_REPORT_MINUTE,
             Config.CALENDAR_POLL_MINUTES,
         )
         return scheduler
@@ -97,17 +111,17 @@ def _poll_calendar():
             return
 
         focus_keywords = Config.FOCUS_KEYWORDS_IN_CALENDAR
-        has_focus_event = any(
-            any(kw.lower() in ev.lower() for kw in focus_keywords)
-            for ev in events
-        )
+        has_focus_event = any(any(kw.lower() in ev.lower() for kw in focus_keywords) for ev in events)
 
         if has_focus_event:
             for user in all_users():
                 if not user.is_focusing():
                     user.start_focus(duration_min=0, context="日历检测到专注日程")
                     capture_snapshot(user)
-                    send_text(user.open_id, "检测到日历中有专注/深度工作日程，已自动开启保护模式。\n\n发送 `结束专注` 可随时关闭。")
+                    send_text(
+                        user.open_id,
+                        "检测到日历中有专注/深度工作日程，已自动开启保护模式。\n\n发送 `结束专注` 可随时关闭。",
+                    )
                     logger.info("Auto-focus for user %s via calendar", user.open_id)
     except Exception as e:
         logger.debug("Calendar poll error (non-critical): %s", e)
@@ -127,7 +141,8 @@ def _coach_weekly_growth_summary():
                 if summary:
                     logger.info(
                         "coach_weekly_summary user=%s len=%d",
-                        user.open_id[-6:], len(summary),
+                        user.open_id[-6:],
+                        len(summary),
                     )
             except Exception as e:
                 logger.debug("coach_weekly_summary user=%s err=%s", user.open_id[-6:], e)
@@ -170,6 +185,7 @@ def main():
     # ── v7 Pilot: subscribe learner to event bus (auto SKILL.md after 3 similar) ──
     try:
         from core.agent_pilot.application import default_pilot_learner
+
         default_pilot_learner().attach_to_bus()
         logger.info("PilotLearner attached to domain event bus")
     except Exception as e:
@@ -178,6 +194,7 @@ def main():
     # ── v7 Pilot: bind 6-tier memory resolver to ContextService ──
     try:
         from core.agent_pilot.application import attach_memory_to_default_services
+
         attach_memory_to_default_services()
         logger.info("6-tier flow_memory_md resolver attached to ContextService")
     except Exception as e:

@@ -63,13 +63,15 @@ STANDARD_SCRIPT = [
 ]
 
 
-STRESS_SCRIPT = STANDARD_SCRIPT + [
-    (f"burst_p0_{i}", f"紧急！服务故障 #{i}") for i in range(5)
-] + [
-    ("post_burst_status", "状态"),
-    ("post_burst_audit", "最近决策"),
-    ("rollback_test", "回滚 abc_def01 P3"),
-]
+STRESS_SCRIPT = (
+    STANDARD_SCRIPT
+    + [(f"burst_p0_{i}", f"紧急！服务故障 #{i}") for i in range(5)]
+    + [
+        ("post_burst_status", "状态"),
+        ("post_burst_audit", "最近决策"),
+        ("rollback_test", "回滚 abc_def01 P3"),
+    ]
+)
 
 
 def _build_test_client():
@@ -87,6 +89,7 @@ def _send_text(client, target_user_id: str, text: str, chat_id: str = None) -> b
         CreateMessageRequest,
         CreateMessageRequestBody,
     )
+
     if chat_id:
         receive_id = chat_id
         receive_id_type = "chat_id"
@@ -124,8 +127,10 @@ def run(scenario_name: str = "standard", pause_sec: int = None):
         sys.exit(1)
 
     client = _build_test_client()
-    print(f"Running '{scenario_name}' scenario with {len(script)} messages, "
-          f"pause={pause}s, target={'chat:'+chat_id if chat_id else 'user:'+target[-8:]}")
+    print(
+        f"Running '{scenario_name}' scenario with {len(script)} messages, "
+        f"pause={pause}s, target={'chat:' + chat_id if chat_id else 'user:' + target[-8:]}"
+    )
     print("-" * 70)
 
     success = 0
@@ -145,8 +150,7 @@ def run(scenario_name: str = "standard", pause_sec: int = None):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--scenario", default="standard",
-                    choices=["short", "standard", "stress"])
+    ap.add_argument("--scenario", default="standard", choices=["short", "standard", "stress"])
     ap.add_argument("--pause", type=int, help="Pause seconds between messages")
     args = ap.parse_args()
     run(args.scenario, args.pause)

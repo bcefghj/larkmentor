@@ -19,6 +19,7 @@ Q4 已结论：**三档资料源**——粘贴链接 / 上传文件 / 飞书 Wik
 本模型用 ``MaterialKind`` 标 source，下游 ``application.context_service``
 负责具体抓取/校验。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,13 +30,13 @@ from typing import Any, Dict, List
 class MaterialKind(str, Enum):
     """三档资料源（Q4）。"""
 
-    LINK = "link"               # 粘贴链接（开放 web）
-    UPLOAD = "upload"           # 用户上传的文件
-    FEISHU_DOC = "feishu_doc"   # 飞书 Docx（真实 API）
-    FEISHU_WIKI = "feishu_wiki" # 飞书 Wiki（真实 API）
+    LINK = "link"  # 粘贴链接（开放 web）
+    UPLOAD = "upload"  # 用户上传的文件
+    FEISHU_DOC = "feishu_doc"  # 飞书 Docx（真实 API）
+    FEISHU_WIKI = "feishu_wiki"  # 飞书 Wiki（真实 API）
     FEISHU_BITABLE = "feishu_bitable"  # 飞书多维表格
     BITABLE_ROW = "bitable_row"  # 飞书 Bitable Agent Node（PRD 加分项）
-    IM_THREAD = "im_thread"     # IM 群聊上下文片段
+    IM_THREAD = "im_thread"  # IM 群聊上下文片段
     HISTORY_TASK = "history_task"  # 历史归档任务（FlowMemory archival）
 
 
@@ -60,10 +61,10 @@ class SourceDoc:
 
     kind: MaterialKind
     title: str = ""
-    url: str = ""               # 飞书 Doc URL or external link
-    doc_token: str = ""         # 飞书 doc_token（如适用）
-    summary: str = ""           # 一两句话摘要
-    excerpt: str = ""           # 关键正文片段
+    url: str = ""  # 飞书 Doc URL or external link
+    doc_token: str = ""  # 飞书 doc_token（如适用）
+    summary: str = ""  # 一两句话摘要
+    excerpt: str = ""  # 关键正文片段
     permission_ok: bool = True  # 用户是否有读权限
     fetched_ts: int = 0
 
@@ -74,22 +75,22 @@ class UserMaterial:
 
     kind: MaterialKind
     title: str = ""
-    body: str = ""              # 文本内容（如手输说明）
-    url: str = ""               # 链接资料
-    file_path: str = ""         # 上传文件本地路径（沙箱内）
-    note: str = ""              # 用户备注
+    body: str = ""  # 文本内容（如手输说明）
+    url: str = ""  # 链接资料
+    file_path: str = ""  # 上传文件本地路径（沙箱内）
+    note: str = ""  # 用户备注
 
 
 @dataclass
 class OutputRequirements:
     """PRD §7.4 ``output_requirements``."""
 
-    primary: str = "doc"        # "doc" / "ppt" / "canvas" / "doc+ppt"
-    pages: int = 0              # 0 = 不限
-    style: str = ""             # "boss_report" / "internal" / "casual" / "academic"
-    audience: str = ""          # "leader" / "team" / "client"
+    primary: str = "doc"  # "doc" / "ppt" / "canvas" / "doc+ppt"
+    pages: int = 0  # 0 = 不限
+    style: str = ""  # "boss_report" / "internal" / "casual" / "academic"
+    audience: str = ""  # "leader" / "team" / "client"
     language: str = "zh-CN"
-    tone: str = ""              # "formal" / "neutral" / "warm"
+    tone: str = ""  # "formal" / "neutral" / "warm"
     extras: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -97,10 +98,10 @@ class OutputRequirements:
 class Constraints:
     """PRD §7.4 ``constraints``."""
 
-    deadline_ts: int = 0        # 0 = 无 deadline
+    deadline_ts: int = 0  # 0 = 无 deadline
     confidential: bool = False
-    format: str = ""            # "pdf" / "pptx" / "feishu_doc"
-    must_cite: bool = True      # claim 必须有 source（启用 Citation Agent）
+    format: str = ""  # "pdf" / "pptx" / "feishu_doc"
+    must_cite: bool = True  # claim 必须有 source（启用 Citation Agent）
     must_validate: bool = True  # 必须经过 @validator 审查
     extras: Dict[str, Any] = field(default_factory=dict)
 
@@ -158,11 +159,7 @@ class ContextPack:
         return (
             bool(self.task_goal.strip())
             and bool(self.output_requirements.primary)
-            and (
-                bool(self.source_messages)
-                or bool(self.source_docs)
-                or bool(self.user_added_materials)
-            )
+            and (bool(self.source_messages) or bool(self.source_docs) or bool(self.user_added_materials))
         )
 
 

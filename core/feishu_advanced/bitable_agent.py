@@ -56,13 +56,11 @@ def writeback_ai_result(
     """PATCH the Bitable record with a formatted AI result cell."""
     try:
         from bot.feishu_client import get_tenant_access_token  # type: ignore
+
         tat = get_tenant_access_token()
         if not tat:
             return False
-        url = (
-            f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}"
-            f"/tables/{table_id}/records/{record_id}"
-        )
+        url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records/{record_id}"
         cell_value = {
             "text": f"{verdict}\n{share_url}",
             "status": verdict,
@@ -71,7 +69,8 @@ def writeback_ai_result(
             cell_value.update(extra)
         payload = {"fields": {ai_field_name: cell_value}}
         req = urllib.request.Request(
-            url, data=json.dumps(payload).encode("utf-8"),
+            url,
+            data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Content-Type": "application/json; charset=utf-8",
                 "Authorization": f"Bearer {tat}",

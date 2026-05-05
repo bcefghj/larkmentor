@@ -11,6 +11,7 @@ application 层的核心入口——所有 Bot/Card/Dashboard 调用都通过本
 - ``default_task_service()`` 单例
 - 持久化目录默认 ``data/tasks/``，由调用方覆盖
 """
+
 from __future__ import annotations
 
 import json
@@ -83,18 +84,25 @@ class TaskRepository:
 class TaskService:
     """任务服务 facade."""
 
-    def __init__(self, *, repository: Optional[TaskRepository] = None,
-                 event_bus: Optional[EventBus] = None) -> None:
+    def __init__(self, *, repository: Optional[TaskRepository] = None, event_bus: Optional[EventBus] = None) -> None:
         self.repo = repository or TaskRepository()
         self.bus = event_bus or default_event_bus()
         self._live: Dict[str, Task] = {}
         self._lock = threading.Lock()
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
-    def create_task(self, *, intent: str, owner_open_id: str = "",
-                    source_chat_id: str = "", source_msg_id: str = "",
-                    tenant_id: str = "default", workspace_id: str = "",
-                    department_id: str = "", title: str = "") -> Task:
+    def create_task(
+        self,
+        *,
+        intent: str,
+        owner_open_id: str = "",
+        source_chat_id: str = "",
+        source_msg_id: str = "",
+        tenant_id: str = "default",
+        workspace_id: str = "",
+        department_id: str = "",
+        title: str = "",
+    ) -> Task:
         t = Task.new(
             intent=intent,
             owner_open_id=owner_open_id,
@@ -120,14 +128,21 @@ class TaskService:
             return list(self._live.values())
 
     # ── state transitions ─────────────────────────────────────────────────────
-    def fire(self, task_id: str, event: TaskEvent, *,
-             actor_open_id: str = "", note: str = "",
-             enforce_owner_lock: bool = True) -> Task:
+    def fire(
+        self,
+        task_id: str,
+        event: TaskEvent,
+        *,
+        actor_open_id: str = "",
+        note: str = "",
+        enforce_owner_lock: bool = True,
+    ) -> Task:
         t = self.get(task_id)
         if t is None:
             raise KeyError(f"task not found: {task_id}")
-        t.apply(event, actor_open_id=actor_open_id, note=note,
-                event_bus=self.bus, enforce_owner_lock=enforce_owner_lock)
+        t.apply(
+            event, actor_open_id=actor_open_id, note=note, event_bus=self.bus, enforce_owner_lock=enforce_owner_lock
+        )
         self.repo.save(t)
         return t
 
@@ -145,8 +160,7 @@ class TaskService:
         return self.assign(task_id, to_open_id=by_open_id, by_open_id=by_open_id)
 
     # ── context ──────────────────────────────────────────────────────────────
-    def attach_context(self, task_id: str, ctx: ContextPack, *,
-                       confirmed: bool = False) -> Task:
+    def attach_context(self, task_id: str, ctx: ContextPack, *, confirmed: bool = False) -> Task:
         t = self.get(task_id)
         if t is None:
             raise KeyError(f"task not found: {task_id}")

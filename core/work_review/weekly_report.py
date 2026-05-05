@@ -53,8 +53,7 @@ class WeeklyReport:
 
 
 def _collect_stats(open_id: str, since_ts: int) -> Dict[str, int]:
-    stats = {"focus_count": 0, "focus_minutes": 0,
-             "p0": 0, "p1": 0, "p2": 0, "p3": 0}
+    stats = {"focus_count": 0, "focus_minutes": 0, "p0": 0, "p1": 0, "p2": 0, "p3": 0}
     try:
         wm = WorkingMemory.load(open_id)
         for ev in wm.since(since_ts):
@@ -86,8 +85,7 @@ def generate_weekly_report(
     stats = _collect_stats(open_id, week_start)
     archived = query_archival(open_id, since_ts=week_start, limit=50)
     summaries_md = (
-        "\n\n".join(f"- ({a.kind}) {a.summary_md[:200]}" for a in archived)
-        if archived else "（本周无 archival 摘要）"
+        "\n\n".join(f"- ({a.kind}) {a.summary_md[:200]}" for a in archived) if archived else "（本周无 archival 摘要）"
     )
 
     if llm_chat is None:
@@ -100,8 +98,10 @@ def generate_weekly_report(
         user_meta=user_meta or open_id[-8:],
         focus_count=stats["focus_count"],
         focus_minutes=stats["focus_minutes"],
-        p0=stats.get("p0", 0), p1=stats.get("p1", 0),
-        p2=stats.get("p2", 0), p3=stats.get("p3", 0),
+        p0=stats.get("p0", 0),
+        p1=stats.get("p1", 0),
+        p2=stats.get("p2", 0),
+        p3=stats.get("p3", 0),
         summaries=summaries_md,
     )
 
@@ -134,8 +134,11 @@ def generate_weekly_report(
     if publish:
         try:
             write_archival_summary(
-                open_id, body_md, kind="weekly",
-                span_start=week_start, span_end=now,
+                open_id,
+                body_md,
+                kind="weekly",
+                span_start=week_start,
+                span_end=now,
                 meta={"used_llm": str(used_llm)},
             )
         except Exception as e:

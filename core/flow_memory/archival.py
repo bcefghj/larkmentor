@@ -65,18 +65,22 @@ def _try_write_bitable(entry: ArchivalEntry) -> Optional[str]:
         if not (ws.bitable_app_token and ws.bitable_table_id):
             return None
         client = get_client()
-        rec = AppTableRecord.builder().fields({
-            "时间": time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts)),
-            "类型": entry.kind,
-            "摘要": entry.summary_md[:500],
-        }).build()
+        rec = (
+            AppTableRecord.builder()
+            .fields(
+                {
+                    "时间": time.strftime("%Y-%m-%d %H:%M", time.localtime(entry.ts)),
+                    "类型": entry.kind,
+                    "摘要": entry.summary_md[:500],
+                }
+            )
+            .build()
+        )
         req = (
             CreateAppTableRecordRequest.builder()
             .app_token(ws.bitable_app_token)
             .table_id(ws.bitable_table_id)
-            .request_body(
-                CreateAppTableRecordRequestBody.builder().fields(rec.fields).build()
-            )
+            .request_body(CreateAppTableRecordRequestBody.builder().fields(rec.fields).build())
             .build()
         )
         resp = client.bitable.v1.app_table_record.create(req)
@@ -90,6 +94,7 @@ def _try_write_bitable(entry: ArchivalEntry) -> Optional[str]:
 def _try_append_recovery_doc(entry: ArchivalEntry) -> bool:
     try:
         from core.feishu_workspace_init import append_recovery_card
+
         body = (
             f"### {entry.kind.upper()} · {time.strftime('%Y-%m-%d %H:%M', time.localtime(entry.ts))}\n\n"
             + entry.summary_md
@@ -132,7 +137,11 @@ def write_archival_summary(
 
 
 def query_archival(
-    open_id: str, *, kinds: Optional[List[str]] = None, since_ts: int = 0, limit: int = 20,
+    open_id: str,
+    *,
+    kinds: Optional[List[str]] = None,
+    since_ts: int = 0,
+    limit: int = 20,
 ) -> List[ArchivalEntry]:
     """Linear scan of the JSONL store. Good enough at LarkMentor scale (<100k entries)."""
     if not ARCHIVE_FILE.exists():

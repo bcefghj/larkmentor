@@ -22,6 +22,7 @@ PRD §6 §7 §10 的工程兑现：
 - ``....bot.cards`` 渲染卡片
 - ``.....dashboard`` 渲染任务列表/详情
 """
+
 from .artifact import Artifact, ArtifactKind
 from .context_pack import (
     Constraints,

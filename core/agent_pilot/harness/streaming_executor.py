@@ -81,8 +81,13 @@ class _RWLock:
 
 
 class StreamingToolExecutor:
-    def __init__(self, registry: ToolRegistry, *, max_parallel_readers: int = 4,
-                 emit: Optional[Callable[[Dict[str, Any]], None]] = None) -> None:
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        *,
+        max_parallel_readers: int = 4,
+        emit: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> None:
         self._reg = registry
         self._lock = _RWLock()
         self._max = max_parallel_readers
@@ -165,12 +170,23 @@ class StreamingToolExecutor:
         if spec is None or spec.fn is None:
             finished = int(time.time() * 1000)
             outcome = ToolOutcome(
-                call_id=call.call_id, tool=call.tool,
-                ok=False, error=f"tool not registered: {call.tool}",
-                started_ts=started, finished_ts=finished, readonly=False,
+                call_id=call.call_id,
+                tool=call.tool,
+                ok=False,
+                error=f"tool not registered: {call.tool}",
+                started_ts=started,
+                finished_ts=finished,
+                readonly=False,
             )
-            self._fire({"kind": "tool_failed", "tool": call.tool, "call_id": call.call_id,
-                         "error": outcome.error, "ts": finished})
+            self._fire(
+                {
+                    "kind": "tool_failed",
+                    "tool": call.tool,
+                    "call_id": call.call_id,
+                    "error": outcome.error,
+                    "ts": finished,
+                }
+            )
             return outcome
         timeout = spec.timeout_sec
         try:
@@ -178,40 +194,77 @@ class StreamingToolExecutor:
             result = fut.result(timeout=timeout) or {}
             finished = int(time.time() * 1000)
             outcome = ToolOutcome(
-                call_id=call.call_id, tool=call.tool,
-                ok=True, result=result, started_ts=started, finished_ts=finished,
+                call_id=call.call_id,
+                tool=call.tool,
+                ok=True,
+                result=result,
+                started_ts=started,
+                finished_ts=finished,
                 readonly=spec.readonly,
             )
-            self._fire({"kind": "tool_done", "tool": call.tool, "call_id": call.call_id,
-                         "duration_ms": outcome.duration_ms, "ts": finished})
+            self._fire(
+                {
+                    "kind": "tool_done",
+                    "tool": call.tool,
+                    "call_id": call.call_id,
+                    "duration_ms": outcome.duration_ms,
+                    "ts": finished,
+                }
+            )
             return outcome
         except cf.TimeoutError:
             fut.cancel()
             finished = int(time.time() * 1000)
             outcome = ToolOutcome(
-                call_id=call.call_id, tool=call.tool,
-                ok=False, error=f"timeout after {timeout}s",
-                started_ts=started, finished_ts=finished, readonly=spec.readonly,
+                call_id=call.call_id,
+                tool=call.tool,
+                ok=False,
+                error=f"timeout after {timeout}s",
+                started_ts=started,
+                finished_ts=finished,
+                readonly=spec.readonly,
             )
-            self._fire({"kind": "tool_failed", "tool": call.tool, "call_id": call.call_id,
-                         "error": outcome.error, "ts": finished})
+            self._fire(
+                {
+                    "kind": "tool_failed",
+                    "tool": call.tool,
+                    "call_id": call.call_id,
+                    "error": outcome.error,
+                    "ts": finished,
+                }
+            )
             return outcome
         except Exception as exc:
             finished = int(time.time() * 1000)
             tb = traceback.format_exc(limit=2)
             outcome = ToolOutcome(
-                call_id=call.call_id, tool=call.tool,
-                ok=False, error=f"{type(exc).__name__}: {exc}",
-                result={"traceback": tb}, started_ts=started, finished_ts=finished,
+                call_id=call.call_id,
+                tool=call.tool,
+                ok=False,
+                error=f"{type(exc).__name__}: {exc}",
+                result={"traceback": tb},
+                started_ts=started,
+                finished_ts=finished,
                 readonly=spec.readonly,
             )
-            self._fire({"kind": "tool_failed", "tool": call.tool, "call_id": call.call_id,
-                         "error": outcome.error, "ts": finished})
+            self._fire(
+                {
+                    "kind": "tool_failed",
+                    "tool": call.tool,
+                    "call_id": call.call_id,
+                    "error": outcome.error,
+                    "ts": finished,
+                }
+            )
             return outcome
 
     def _err_outcome(self, call: ToolInvocation, msg: str) -> ToolOutcome:
         now = int(time.time() * 1000)
         return ToolOutcome(
-            call_id=call.call_id, tool=call.tool,
-            ok=False, error=msg, started_ts=now, finished_ts=now,
+            call_id=call.call_id,
+            tool=call.tool,
+            ok=False,
+            error=msg,
+            started_ts=now,
+            finished_ts=now,
         )

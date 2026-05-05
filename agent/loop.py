@@ -37,6 +37,7 @@ _HAS_ORCHESTRATOR = False
 try:
     from core.agent_pilot.harness.orchestrator_v2 import ConversationOrchestrator
     from core.agent_pilot.planner import Plan, PlanStep
+
     _HAS_ORCHESTRATOR = True
 except Exception:
     ConversationOrchestrator = None  # type: ignore[assignment,misc]
@@ -82,7 +83,8 @@ class AgentLoop:
     """Core agent loop – delegates to ConversationOrchestrator when available."""
 
     def __init__(
-        self, *,
+        self,
+        *,
         context_manager: Optional[ContextManager] = None,
         permissions: Optional[PermissionGate] = None,
         hooks: Optional[HookRegistry] = None,
@@ -118,7 +120,9 @@ class AgentLoop:
     # ── Main entry point ──────────────────────────
 
     def run(
-        self, prompt: str, *,
+        self,
+        prompt: str,
+        *,
         user_open_id: str = "",
         tenant_id: str = "default",
         session_id: Optional[str] = None,
@@ -150,7 +154,9 @@ class AgentLoop:
     # ── Orchestrator-backed implementation ──────────────────────────
 
     def _orchestrated_run(
-        self, prompt: str, *,
+        self,
+        prompt: str,
+        *,
         user_open_id: str = "",
         tenant_id: str = "default",
         session_id: Optional[str] = None,
@@ -195,15 +201,22 @@ class AgentLoop:
 
         # Step 3 – Convert orchestrator results → LoopResult.
         return self._plan_to_loop_result(
-            finished_plan, session_id=session_id, steps=steps,
+            finished_plan,
+            session_id=session_id,
+            steps=steps,
         )
 
     def _build_plan(
-        self, prompt: str, *, user_open_id: str, session_id: str,
+        self,
+        prompt: str,
+        *,
+        user_open_id: str,
+        session_id: str,
     ) -> Any:
         """Try the PilotPlanner; fall back to a single-step 'chat' plan."""
         try:
             from core.agent_pilot.planner import plan_from_intent
+
             return plan_from_intent(prompt, user_open_id=user_open_id)
         except Exception:
             logger.debug("planner unavailable – building single-step plan")
@@ -227,7 +240,10 @@ class AgentLoop:
 
     @staticmethod
     def _plan_to_loop_result(
-        plan: Any, *, session_id: str, steps: List[LoopStep],
+        plan: Any,
+        *,
+        session_id: str,
+        steps: List[LoopStep],
     ) -> LoopResult:
         tool_calls: List[ToolCall] = []
         final_text_parts: List[str] = []
@@ -238,10 +254,7 @@ class AgentLoop:
                 arguments=ps.args or {},
                 result=ps.result if ps.status == "done" else None,
                 error=ps.error or None,
-                duration_ms=(
-                    (ps.finished_ts - ps.started_ts) * 1000
-                    if ps.finished_ts and ps.started_ts else 0
-                ),
+                duration_ms=((ps.finished_ts - ps.started_ts) * 1000 if ps.finished_ts and ps.started_ts else 0),
             )
             tool_calls.append(tc)
 
@@ -273,7 +286,9 @@ class AgentLoop:
     # ── Legacy 9-step pipeline (fallback) ──────────────────────────
 
     def _legacy_run(
-        self, prompt: str, *,
+        self,
+        prompt: str,
+        *,
         user_open_id: str = "",
         tenant_id: str = "default",
         session_id: Optional[str] = None,
@@ -300,10 +315,15 @@ class AgentLoop:
         # Step 2: State init
         t = time.time()
         step = LoopStep(index=2, name="state_init")
-        hook_out = self.hooks.fire(HookEvent.SESSION_START, {
-            "session_id": session_id, "user_open_id": user_open_id,
-            "tenant_id": tenant_id, "prompt": prompt,
-        })
+        hook_out = self.hooks.fire(
+            HookEvent.SESSION_START,
+            {
+                "session_id": session_id,
+                "user_open_id": user_open_id,
+                "tenant_id": tenant_id,
+                "prompt": prompt,
+            },
+        )
         system_prompt_parts = []
         if hook_out.payload.get("system_prompt"):
             system_prompt_parts.append(hook_out.payload["system_prompt"])
@@ -311,9 +331,11 @@ class AgentLoop:
             system_prompt_parts.append(self.skills.l1_system_prompt())
         if system_prompt_parts:
             messages.append({"role": "system", "content": "\n\n".join(system_prompt_parts)})
-        step.status = "ok"; step.duration_ms = int((time.time() - t) * 1000)
+        step.status = "ok"
+        step.duration_ms = int((time.time() - t) * 1000)
         step.detail = {"session_id": session_id, "sys_prompt_chars": sum(len(p) for p in system_prompt_parts)}
-        steps.append(step); self._emit(step)
+        steps.append(step)
+        self._emit(step)
 
         # Step 3: Context assembly
         t = time.time()
@@ -322,17 +344,29 @@ class AgentLoop:
         if recent:
             recall_lines = [f"- [{e.kind}] {e.content[:120]}" for e in recent]
             messages.append({"role": "system", "content": "=== RECENT MEMORY RECALL ===\n" + "\n".join(recall_lines)})
-        hook_up = self.hooks.fire(HookEvent.USER_PROMPT_SUBMIT, {
-            "session_id": session_id, "prompt": prompt, "user_open_id": user_open_id,
-        })
+        hook_up = self.hooks.fire(
+            HookEvent.USER_PROMPT_SUBMIT,
+            {
+                "session_id": session_id,
+                "prompt": prompt,
+                "user_open_id": user_open_id,
+            },
+        )
         if hook_up.vetoed:
-            return LoopResult(session_id=session_id, final_text="",
-                              tool_calls=[], steps=steps, status="vetoed",
-                              error=hook_up.veto_reason)
+            return LoopResult(
+                session_id=session_id,
+                final_text="",
+                tool_calls=[],
+                steps=steps,
+                status="vetoed",
+                error=hook_up.veto_reason,
+            )
         messages.append({"role": "user", "content": prompt})
-        step.status = "ok"; step.duration_ms = int((time.time() - t) * 1000)
+        step.status = "ok"
+        step.duration_ms = int((time.time() - t) * 1000)
         step.detail = {"msg_count": len(messages), "recall_count": len(recent)}
-        steps.append(step); self._emit(step)
+        steps.append(step)
+        self._emit(step)
 
         # Multi-turn loop
         turn = 0
@@ -343,12 +377,14 @@ class AgentLoop:
             t = time.time()
             step = LoopStep(index=4, name=f"compaction_turn{turn}")
             messages, events = self.context_manager.shape(messages)
-            step.status = "ok"; step.duration_ms = int((time.time() - t) * 1000)
+            step.status = "ok"
+            step.duration_ms = int((time.time() - t) * 1000)
             step.detail = {
                 "msg_count": len(messages),
                 "events": [{"layer": e.layer, "ratio": e.ratio()} for e in events],
             }
-            steps.append(step); self._emit(step)
+            steps.append(step)
+            self._emit(step)
 
             # Step 5: Model call
             t = time.time()
@@ -357,7 +393,8 @@ class AgentLoop:
             step.status = "ok" if model_output else "failed"
             step.duration_ms = int((time.time() - t) * 1000)
             step.detail = {"chars": len(model_output) if model_output else 0}
-            steps.append(step); self._emit(step)
+            steps.append(step)
+            self._emit(step)
 
             if not model_output:
                 break
@@ -379,36 +416,49 @@ class AgentLoop:
                 dec = self.permissions.check(tcall.name, tcall.arguments)
                 if dec.decision == Decision.DENY:
                     tcall.error = f"denied by {dec.layer}: {dec.reason or dec.matched_rule or ''}"
-                    step.status = "denied"; step.duration_ms = int((time.time() - t) * 1000)
+                    step.status = "denied"
+                    step.duration_ms = int((time.time() - t) * 1000)
                     step.detail = {"tool": tcall.name, "layer": dec.layer, "reason": tcall.error}
-                    steps.append(step); self._emit(step)
+                    steps.append(step)
+                    self._emit(step)
                     tool_calls.append(tcall)
-                    messages.append({
-                        "role": "tool", "name": tcall.name,
-                        "content": f"PERMISSION_DENIED: {tcall.error}"
-                    })
+                    messages.append(
+                        {"role": "tool", "name": tcall.name, "content": f"PERMISSION_DENIED: {tcall.error}"}
+                    )
                     continue
                 if dec.decision == Decision.ASK:
                     tcall.error = f"ask_required: {dec.layer}"
-                    step.status = "asked"; step.duration_ms = int((time.time() - t) * 1000)
+                    step.status = "asked"
+                    step.duration_ms = int((time.time() - t) * 1000)
                     step.detail = {"tool": tcall.name, "layer": dec.layer}
-                    steps.append(step); self._emit(step)
+                    steps.append(step)
+                    self._emit(step)
                     tool_calls.append(tcall)
-                    messages.append({
-                        "role": "tool", "name": tcall.name,
-                        "content": f"PERMISSION_ASK_REQUIRED: {dec.layer} — please request explicit approval from user."
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "name": tcall.name,
+                            "content": f"PERMISSION_ASK_REQUIRED: {dec.layer} — please request explicit approval from user.",
+                        }
+                    )
                     continue
 
-                pre = self.hooks.fire(HookEvent.PRE_TOOL_USE, {
-                    "session_id": session_id, "tool": tcall.name,
-                    "arguments": tcall.arguments, "user_open_id": user_open_id,
-                    "plan_id": context.get("plan_id", ""),
-                })
+                pre = self.hooks.fire(
+                    HookEvent.PRE_TOOL_USE,
+                    {
+                        "session_id": session_id,
+                        "tool": tcall.name,
+                        "arguments": tcall.arguments,
+                        "user_open_id": user_open_id,
+                        "plan_id": context.get("plan_id", ""),
+                    },
+                )
                 if pre.vetoed:
                     tcall.error = f"pre_tool_veto: {pre.veto_reason}"
-                    step.status = "vetoed"; step.duration_ms = int((time.time() - t) * 1000)
-                    steps.append(step); self._emit(step)
+                    step.status = "vetoed"
+                    step.duration_ms = int((time.time() - t) * 1000)
+                    steps.append(step)
+                    self._emit(step)
                     tool_calls.append(tcall)
                     messages.append({"role": "tool", "name": tcall.name, "content": f"VETOED: {pre.veto_reason}"})
                     continue
@@ -434,46 +484,68 @@ class AgentLoop:
                 step.status = "ok" if not tcall.error else "failed"
                 step.duration_ms = tcall.duration_ms
                 step.detail = {"tool": tcall.name, "error": tcall.error}
-                steps.append(step); self._emit(step)
+                steps.append(step)
+                self._emit(step)
                 tool_calls.append(tcall)
 
-                self.hooks.fire(HookEvent.POST_TOOL_USE, {
-                    "session_id": session_id, "tool": tcall.name,
-                    "arguments": tcall.arguments, "result": tcall.result,
-                    "ok": not tcall.error, "plan_id": context.get("plan_id", ""),
-                    "user_open_id": user_open_id,
-                })
+                self.hooks.fire(
+                    HookEvent.POST_TOOL_USE,
+                    {
+                        "session_id": session_id,
+                        "tool": tcall.name,
+                        "arguments": tcall.arguments,
+                        "result": tcall.result,
+                        "ok": not tcall.error,
+                        "plan_id": context.get("plan_id", ""),
+                        "user_open_id": user_open_id,
+                    },
+                )
 
-                messages.append({
-                    "role": "tool", "name": tcall.name,
-                    "content": json.dumps(tcall.result, ensure_ascii=False, default=str)[:8000] if tcall.result else (tcall.error or ""),
-                })
+                messages.append(
+                    {
+                        "role": "tool",
+                        "name": tcall.name,
+                        "content": json.dumps(tcall.result, ensure_ascii=False, default=str)[:8000]
+                        if tcall.result
+                        else (tcall.error or ""),
+                    }
+                )
 
             # Step 9: stop condition
             step = LoopStep(index=9, name=f"stop_check_turn{turn}")
-            step.detail = {"turn": turn, "has_errors": any(tc.error for tc in tool_calls[-len(parsed_tools):])}
-            steps.append(step); self._emit(step)
+            step.detail = {"turn": turn, "has_errors": any(tc.error for tc in tool_calls[-len(parsed_tools) :])}
+            steps.append(step)
+            self._emit(step)
 
         # Final stop hook
-        stop_hook = self.hooks.fire(HookEvent.STOP, {
-            "session_id": session_id, "final_text": final_text,
-            "tool_calls_count": len(tool_calls), "user_open_id": user_open_id,
-        })
+        stop_hook = self.hooks.fire(
+            HookEvent.STOP,
+            {
+                "session_id": session_id,
+                "final_text": final_text,
+                "tool_calls_count": len(tool_calls),
+                "user_open_id": user_open_id,
+            },
+        )
         if stop_hook.payload.get("final_text"):
             final_text = stop_hook.payload["final_text"]
 
         try:
             self.memory.upsert(
                 content=f"User asked: {prompt[:200]}\nAgent answered: {final_text[:300]}",
-                kind="session_summary", user_id=user_open_id,
-                session_id=session_id, tenant_id=tenant_id,
+                kind="session_summary",
+                user_id=user_open_id,
+                session_id=session_id,
+                tenant_id=tenant_id,
             )
         except Exception:
             pass
 
         return LoopResult(
-            session_id=session_id, final_text=final_text,
-            tool_calls=tool_calls, steps=steps,
+            session_id=session_id,
+            final_text=final_text,
+            tool_calls=tool_calls,
+            steps=steps,
             status="ok" if final_text or any(not tc.error for tc in tool_calls) else "failed",
         )
 
@@ -482,6 +554,7 @@ class AgentLoop:
     def _resolve_settings(self) -> Dict[str, Any]:
         try:
             from .providers import default_providers
+
             return {"providers": default_providers().snapshot()}
         except Exception:
             return {"providers": {}}
@@ -489,6 +562,7 @@ class AgentLoop:
     def _call_llm(self, messages: List[Dict], *, context: Dict[str, Any]) -> str:
         try:
             from .providers import default_providers
+
             providers = default_providers()
             task_kind = context.get("task_kind", "chinese_chat")
             return providers.chat(messages, task_kind=task_kind)
@@ -496,6 +570,7 @@ class AgentLoop:
             logger.warning("providers.chat failed, falling back to llm_client: %s", e)
             try:
                 from llm.llm_client import chat as _chat
+
                 return _chat(messages=messages, temperature=0.4, max_tokens=1200)
             except Exception as e2:
                 logger.error("LLM call failed: %s", e2)
@@ -510,6 +585,7 @@ class AgentLoop:
         3. Multiple per response
         """
         import re
+
         calls: List[ToolCall] = []
 
         for m in re.finditer(r"```tool_call\s*\n(.*?)\n```", text, re.DOTALL):

@@ -52,15 +52,24 @@ class Settings(BaseSettings):
     DAILY_REPORT_HOUR: int = 18
     DAILY_REPORT_MINUTE: int = 0
     CALENDAR_POLL_MINUTES: int = 5
-    FOCUS_KEYWORDS_IN_CALENDAR: List[str] = [
-        "专注", "深度工作", "Deep Work", "focus", "勿扰", "免打扰"
-    ]
+    FOCUS_KEYWORDS_IN_CALENDAR: List[str] = ["专注", "深度工作", "Deep Work", "focus", "勿扰", "免打扰"]
 
     # ── Urgent keywords (Smart Shield rule layer) ──
     URGENT_KEYWORDS: List[str] = [
-        "紧急", "urgent", "ASAP", "马上", "立刻", "立即",
-        "线上故障", "P0", "生产事故", "严重bug", "阻塞",
-        "immediately", "critical", "blocking",
+        "紧急",
+        "urgent",
+        "ASAP",
+        "马上",
+        "立刻",
+        "立即",
+        "线上故障",
+        "P0",
+        "生产事故",
+        "严重bug",
+        "阻塞",
+        "immediately",
+        "critical",
+        "blocking",
     ]
 
     # ── Notification channels ──
@@ -97,9 +106,23 @@ class Settings(BaseSettings):
 
     # ── Time sensitivity patterns ──
     TIME_SENSITIVITY_PATTERNS: List[str] = [
-        "今天", "今晚", "马上", "立刻", "现在", "1小时内", "半小时", "30分钟",
-        "今日", "下班前", "today", "tonight", "this morning",
-        "deadline", "ddl", "due", "by EOD",
+        "今天",
+        "今晚",
+        "马上",
+        "立刻",
+        "现在",
+        "1小时内",
+        "半小时",
+        "30分钟",
+        "今日",
+        "下班前",
+        "today",
+        "tonight",
+        "this morning",
+        "deadline",
+        "ddl",
+        "due",
+        "by EOD",
     ]
 
     # ── Sync & Security ──

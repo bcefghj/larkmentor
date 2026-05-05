@@ -10,7 +10,10 @@ logger = logging.getLogger("flowguard.feishu.calendar")
 
 
 def create_busy_event(
-    open_id: str, *, summary: str = "LarkMentor 专注时间", duration_min: int = 30,
+    open_id: str,
+    *,
+    summary: str = "LarkMentor 专注时间",
+    duration_min: int = 30,
 ) -> Dict:
     """Create a single-tenant busy event in the user's primary calendar."""
     try:
@@ -21,6 +24,7 @@ def create_busy_event(
         )
 
         from bot.feishu_client import get_client
+
         client = get_client()
         # Locate the primary calendar for this user.
         primary_id = _get_primary_calendar_id(open_id)
@@ -38,11 +42,7 @@ def create_busy_event(
             .visibility("private")
             .build()
         )
-        req = (
-            CreateCalendarEventRequest.builder()
-            .calendar_id(primary_id).user_id_type("open_id")
-            .event(event).build()
-        )
+        req = CreateCalendarEventRequest.builder().calendar_id(primary_id).user_id_type("open_id").event(event).build()
         resp = client.calendar.v4.calendar_event.create(req)
         if not resp.success():
             return {"ok": False, "code": resp.code, "msg": resp.msg}
@@ -61,6 +61,7 @@ def _get_primary_calendar_id(open_id: str) -> str:
         from lark_oapi.api.calendar.v4 import ListCalendarRequest  # type: ignore
 
         from bot.feishu_client import get_client
+
         client = get_client()
         req = ListCalendarRequest.builder().user_id_type("open_id").build()
         resp = client.calendar.v4.calendar.list(req)

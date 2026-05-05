@@ -25,18 +25,28 @@ logger = logging.getLogger("flowguard.mentor.router")
 _KEYWORDS = [
     ("weekly", ["周报", "月报", "复盘", "weekly", "monthly", "wrapped"]),
     ("task", ["任务", "需求", "deadline", "ddl", "交付", "拆解", "需求方"]),
-    ("writing", [
-        "怎么回", "怎么写", "怎么说", "改一下", "润色",
-        "帮我看", "代我回", "建议回复", "草拟",
-    ]),
+    (
+        "writing",
+        [
+            "怎么回",
+            "怎么写",
+            "怎么说",
+            "改一下",
+            "润色",
+            "帮我看",
+            "代我回",
+            "建议回复",
+            "草拟",
+        ],
+    ),
 ]
 
 
 @dataclass
 class RouteDecision:
-    role: str          # "writing" | "task" | "weekly" | "chitchat"
+    role: str  # "writing" | "task" | "weekly" | "chitchat"
     confidence: float  # 0-1
-    method: str        # "keyword" | "llm" | "default"
+    method: str  # "keyword" | "llm" | "default"
     why: str = ""
 
 
@@ -48,7 +58,9 @@ def _short_circuit(text: str) -> Optional[RouteDecision]:
         for kw in kws:
             if kw.lower() in low:
                 return RouteDecision(
-                    role=role, confidence=0.85, method="keyword",
+                    role=role,
+                    confidence=0.85,
+                    method="keyword",
                     why=f"matched '{kw}'",
                 )
     return None
@@ -84,6 +96,8 @@ def route(user_input: str, *, allow_llm: bool = True) -> RouteDecision:
     except Exception:
         conf = 0.5
     return RouteDecision(
-        role=role, confidence=conf, method="llm",
+        role=role,
+        confidence=conf,
+        method="llm",
         why=str(result.get("why", ""))[:60],
     )

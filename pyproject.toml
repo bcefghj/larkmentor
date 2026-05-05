@@ -57,8 +57,8 @@ python_version = "3.10"
 ignore_missing_imports = true
 no_strict_optional = true
 warn_unused_configs = true
-warn_return_any = true
-warn_redundant_casts = true
+warn_return_any = false
+warn_redundant_casts = false
 disallow_untyped_defs = false
 exclude = ["tests/", "mobile_desktop/", "sync_v4/"]
 

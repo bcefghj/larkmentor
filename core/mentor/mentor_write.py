@@ -32,9 +32,13 @@ class WritingReview:
     risk_level: str = "low"
     risk_description: str = ""
     nvc_diagnosis: dict = field(default_factory=dict)
-    three_versions: dict = field(default_factory=lambda: {
-        "conservative": "", "neutral": "", "direct": "",
-    })
+    three_versions: dict = field(
+        default_factory=lambda: {
+            "conservative": "",
+            "neutral": "",
+            "direct": "",
+        }
+    )
     explanation: str = ""
     uses_org_style: bool = False
     citations: List[str] = field(default_factory=list)
@@ -59,7 +63,9 @@ def _safe_fallback(message: str) -> WritingReview:
         risk_description="",
         nvc_diagnosis={
             "observation": "（LLM 不可用，跳过 NVC 诊断）",
-            "feeling": "", "need": "", "request": "",
+            "feeling": "",
+            "need": "",
+            "request": "",
         },
         three_versions={
             "conservative": "收到，我稍后处理后回复您。",

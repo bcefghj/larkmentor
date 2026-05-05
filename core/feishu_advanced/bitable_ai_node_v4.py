@@ -49,13 +49,18 @@ def handle_bitable_webhook(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         # Use OrchestratorWorker 'pilot' team for quality
         from agent.orchestrator_worker import default_orchestrator_worker
+
         ow = default_orchestrator_worker()
-        result = ow.sync_run(intent, team="pilot", extra_context={
-            "source": "bitable_ai_node",
-            "trigger_field": trigger_field,
-            "output_field": output_field,
-            "tenant_id": tenant_id,
-        })
+        result = ow.sync_run(
+            intent,
+            team="pilot",
+            extra_context={
+                "source": "bitable_ai_node",
+                "trigger_field": trigger_field,
+                "output_field": output_field,
+                "tenant_id": tenant_id,
+            },
+        )
 
         # Write back to Bitable
         app_token = payload.get("app_token", "")
@@ -65,9 +70,12 @@ def handle_bitable_webhook(payload: Dict[str, Any]) -> Dict[str, Any]:
         if app_token and table_id and record_id:
             try:
                 from core.feishu_advanced.bitable_agent import write_ai_field
+
                 write_ai_field(
-                    app_token=app_token, table_id=table_id,
-                    record_id=record_id, field=output_field,
+                    app_token=app_token,
+                    table_id=table_id,
+                    record_id=record_id,
+                    field=output_field,
                     value=result.final_synthesis[:2000],
                 )
                 written = True

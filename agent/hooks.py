@@ -87,7 +87,8 @@ class HookRegistry:
                 if result.get("_veto"):
                     tripped.append(getattr(fn, "__name__", "veto"))
                     return HookOutcome(
-                        payload=merged, vetoed=True,
+                        payload=merged,
+                        vetoed=True,
                         veto_reason=result.get("_reason", ""),
                         tripped=tripped,
                     )
@@ -98,13 +99,15 @@ class HookRegistry:
 
     def _record(self, event: str, payload: Dict[str, Any], tripped: List[str]) -> None:
         with self._lock:
-            self._history.append({
-                "event": event,
-                "tripped": tripped,
-                "keys": list(payload.keys()),
-            })
+            self._history.append(
+                {
+                    "event": event,
+                    "tripped": tripped,
+                    "keys": list(payload.keys()),
+                }
+            )
             if len(self._history) > self._history_limit:
-                self._history = self._history[-self._history_limit:]
+                self._history = self._history[-self._history_limit :]
 
     # ── Default hooks (6 events) ──
 
@@ -115,9 +118,13 @@ class HookRegistry:
             """PreToolUse: append to audit log."""
             try:
                 from core.observability import audit as _audit
-                _audit("tool.call.pre", tool=payload.get("tool", "?"),
-                       user=payload.get("user_open_id", ""),
-                       plan_id=payload.get("plan_id", ""))
+
+                _audit(
+                    "tool.call.pre",
+                    tool=payload.get("tool", "?"),
+                    user=payload.get("user_open_id", ""),
+                    plan_id=payload.get("plan_id", ""),
+                )
             except Exception:
                 pass
             return None
@@ -126,10 +133,14 @@ class HookRegistry:
             """PostToolUse: audit completion + progress card update."""
             try:
                 from core.observability import audit as _audit
-                _audit("tool.call.post", tool=payload.get("tool", "?"),
-                       user=payload.get("user_open_id", ""),
-                       plan_id=payload.get("plan_id", ""),
-                       ok=payload.get("ok", True))
+
+                _audit(
+                    "tool.call.post",
+                    tool=payload.get("tool", "?"),
+                    user=payload.get("user_open_id", ""),
+                    plan_id=payload.get("plan_id", ""),
+                    ok=payload.get("ok", True),
+                )
             except Exception:
                 pass
             return None
@@ -138,6 +149,7 @@ class HookRegistry:
             """Inject LARKMENTOR.md chain."""
             try:
                 from .memory import default_memory
+
                 mem = default_memory()
                 system_prompt = mem.build_system_prompt()
                 if system_prompt:
@@ -153,10 +165,10 @@ class HookRegistry:
                 sessions_dir = home / "sessions"
                 sessions_dir.mkdir(parents=True, exist_ok=True)
                 import time as _t
+
                 fname = sessions_dir / f"session_{int(_t.time())}.json"
                 fname.write_text(
-                    json.dumps(payload.get("messages", []), ensure_ascii=False)[:1_000_000],
-                    encoding="utf-8"
+                    json.dumps(payload.get("messages", []), ensure_ascii=False)[:1_000_000], encoding="utf-8"
                 )
             except Exception:
                 pass
@@ -188,10 +200,13 @@ class HookRegistry:
                     def _shell_hook(event: str, payload: Dict[str, Any], _cmd: str = cmd) -> Optional[Dict[str, Any]]:
                         try:
                             import subprocess
+
                             env = os.environ.copy()
                             env["LARKMENTOR_HOOK_EVENT"] = event
                             env["LARKMENTOR_HOOK_PAYLOAD"] = json.dumps(payload, ensure_ascii=False)[:4000]
-                            result = subprocess.run(_cmd, shell=True, capture_output=True, timeout=10, env=env, text=True)
+                            result = subprocess.run(
+                                _cmd, shell=True, capture_output=True, timeout=10, env=env, text=True
+                            )
                             if result.returncode == 0 and result.stdout.strip():
                                 try:
                                     return json.loads(result.stdout)

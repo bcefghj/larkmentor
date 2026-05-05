@@ -83,8 +83,11 @@ class ContextManager:
 
         if ratio < 0.40:
             return ContextSnapshot(
-                messages=messages, token_count=tokens,
-                total_budget=self.total_budget, layer="", dropped=0,
+                messages=messages,
+                token_count=tokens,
+                total_budget=self.total_budget,
+                layer="",
+                dropped=0,
                 notes="no compaction; below 40% threshold",
             )
 
@@ -109,9 +112,12 @@ class ContextManager:
 
         new_tokens = messages_tokens(new_msgs)
         snapshot = ContextSnapshot(
-            messages=new_msgs, token_count=new_tokens,
-            total_budget=self.total_budget, compacted_at=int(time.time()),
-            layer=layer, dropped=dropped,
+            messages=new_msgs,
+            token_count=new_tokens,
+            total_budget=self.total_budget,
+            compacted_at=int(time.time()),
+            layer=layer,
+            dropped=dropped,
             notes=f"compacted from {tokens} → {new_tokens} tokens via {layer}",
         )
         if self._on_pre_compact:
@@ -119,8 +125,7 @@ class ContextManager:
                 self._on_pre_compact("post_compact_done", new_msgs)
             except Exception:
                 pass
-        logger.info("context compacted via %s: %d -> %d tokens, dropped=%d",
-                    layer, tokens, new_tokens, dropped)
+        logger.info("context compacted via %s: %d -> %d tokens, dropped=%d", layer, tokens, new_tokens, dropped)
         return snapshot
 
     # ── L1: lossless HISTORY_SNIP ──

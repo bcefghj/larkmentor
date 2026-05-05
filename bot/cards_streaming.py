@@ -21,6 +21,7 @@ Element IDs used (stable across patches):
   - ``stream.actions``  — action button row
   - ``stream.arts``     — artifact list (complete card only)
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
@@ -95,12 +96,14 @@ def streaming_progress_card(
 
     body.append(_divider())
 
-    body.append({
-        "tag": "markdown",
-        "content": current_text or "▋",
-        "element_id": "stream.body",
-        "stream": True,
-    })
+    body.append(
+        {
+            "tag": "markdown",
+            "content": current_text or "▋",
+            "element_id": "stream.body",
+            "stream": True,
+        }
+    )
 
     footer_parts: List[str] = []
     if task_id:
@@ -108,9 +111,7 @@ def streaming_progress_card(
     if elapsed_sec > 0:
         footer_parts.append(f"耗时 {elapsed_sec:.1f}s")
     if footer_parts:
-        body.append(
-            _text("_" + "  ·  ".join(footer_parts) + "_", eid="stream.footer")
-        )
+        body.append(_text("_" + "  ·  ".join(footer_parts) + "_", eid="stream.footer"))
 
     template = {
         "complete": "green",
@@ -163,18 +164,18 @@ def streaming_complete_card(
 
     body.append(_divider())
 
-    body.append({
-        "tag": "markdown",
-        "content": content or "（无内容）",
-        "element_id": "stream.body",
-    })
+    body.append(
+        {
+            "tag": "markdown",
+            "content": content or "（无内容）",
+            "element_id": "stream.body",
+        }
+    )
 
     if artifacts:
         body.append(_divider())
         arts_md = "\n".join(
-            f"- {a.get('icon', '📄')} **{a.get('title', '产物')}**"
-            f"  [打开]({a.get('url', '#')})"
-            for a in artifacts
+            f"- {a.get('icon', '📄')} **{a.get('title', '产物')}**  [打开]({a.get('url', '#')})" for a in artifacts
         )
         body.append(_text(arts_md, eid="stream.arts"))
 
@@ -184,27 +185,25 @@ def streaming_complete_card(
         actions = []
         if task_id:
             actions.append(
-                _button("📦 归档", action="pilot.task.archive",
-                        value={"task_id": task_id}, eid="stream.btn.archive")
+                _button("📦 归档", action="pilot.task.archive", value={"task_id": task_id}, eid="stream.btn.archive")
             )
             actions.append(
-                _button("🔄 重新生成", action="pilot.task.confirm",
-                        value={"task_id": task_id}, eid="stream.btn.retry")
+                _button("🔄 重新生成", action="pilot.task.confirm", value={"task_id": task_id}, eid="stream.btn.retry")
             )
     if actions:
-        body.append({
-            "tag": "action",
-            "actions": actions,
-            "element_id": "stream.actions",
-        })
+        body.append(
+            {
+                "tag": "action",
+                "actions": actions,
+                "element_id": "stream.actions",
+            }
+        )
 
     footer_parts: List[str] = []
     if task_id:
         footer_parts.append(f"task: `{task_id[-8:]}`")
     footer_parts.append(f"耗时 {elapsed_sec:.1f}s")
-    body.append(
-        _text("_" + "  ·  ".join(footer_parts) + "_", eid="stream.footer")
-    )
+    body.append(_text("_" + "  ·  ".join(footer_parts) + "_", eid="stream.footer"))
 
     hdr = _header(title, subtitle="任务完成", template="green")
     return _envelope(hdr, body)
@@ -234,21 +233,29 @@ def streaming_error_card(
         )
     if task_id:
         body.append(_divider())
+        body.append(_text(f"_task: `{task_id[-8:]}`_", eid="stream.footer"))
         body.append(
-            _text(f"_task: `{task_id[-8:]}`_", eid="stream.footer")
+            {
+                "tag": "action",
+                "actions": [
+                    _button(
+                        "🔄 重试",
+                        action="pilot.task.confirm",
+                        value={"task_id": task_id},
+                        style="primary",
+                        eid="stream.btn.retry",
+                    ),
+                    _button(
+                        "🙈 忽略",
+                        action="pilot.task.ignore",
+                        value={"task_id": task_id},
+                        style="danger",
+                        eid="stream.btn.ignore",
+                    ),
+                ],
+                "element_id": "stream.actions",
+            }
         )
-        body.append({
-            "tag": "action",
-            "actions": [
-                _button("🔄 重试", action="pilot.task.confirm",
-                        value={"task_id": task_id}, style="primary",
-                        eid="stream.btn.retry"),
-                _button("🙈 忽略", action="pilot.task.ignore",
-                        value={"task_id": task_id}, style="danger",
-                        eid="stream.btn.ignore"),
-            ],
-            "element_id": "stream.actions",
-        })
 
     hdr = _header(title, subtitle="执行出错", template="red")
     return _envelope(hdr, body)

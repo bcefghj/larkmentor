@@ -220,8 +220,7 @@ def parse_command(text: str) -> dict:
 
     match = re.match(r"回滚\s*([\w_]+)\s+(P[0-3])", text)
     if match:
-        return {"command": "rollback_decision",
-                "args": {"id": match.group(1), "level": match.group(2)}}
+        return {"command": "rollback_decision", "args": {"id": match.group(1), "level": match.group(2)}}
 
     # ── v2 Agent-Pilot entry points ──
     match = re.match(r"[/／]?pilot[：:\s]+(.+)", text, re.S | re.I)
@@ -261,6 +260,7 @@ def parse_command(text: str) -> dict:
 def get_status_text(user: UserState) -> str:
     if user.is_focusing():
         from utils.time_utils import fmt_duration, now_ts
+
         elapsed = now_ts() - user.focus_start_ts
         pending_count = len(user.pending_messages)
         task_info = f"\n当前任务：{user.active_task_name}" if user.active_task_name else ""

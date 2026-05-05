@@ -32,6 +32,7 @@
     ├─ add_ctx  → 弹 context_confirm_card
     └─ ...
 """
+
 from __future__ import annotations
 
 import logging
@@ -75,10 +76,10 @@ class RouterResult:
     """每次处理消息/按钮后的统一结果（便于上层 logging + e2e 测试）."""
 
     handled: bool = False
-    verdict: str = ""           # "ready" / "clarify" / "not_intent" / "cooldown" / ...
+    verdict: str = ""  # "ready" / "clarify" / "not_intent" / "cooldown" / ...
     task_id: str = ""
     card: Optional[Dict[str, Any]] = None
-    next_action: str = ""        # 下一步建议（debug 用）
+    next_action: str = ""  # 下一步建议（debug 用）
     error: str = ""
 
 
@@ -95,7 +96,7 @@ class PilotRouter:
         intent_detector: Optional[IntentDetector] = None,
         context_service: Optional[ContextService] = None,
         planner_service: Optional[PlannerService] = None,
-        orchestrator_service: Optional['OrchestratorService'] = None,
+        orchestrator_service: Optional["OrchestratorService"] = None,
         card_sender: Optional[CardSender] = None,
     ) -> None:
         self.task_service = task_service or default_task_service()
@@ -107,6 +108,7 @@ class PilotRouter:
         if orchestrator_service is None:
             try:
                 from core.agent_pilot.application import default_orchestrator_service
+
                 self.orchestrator_service = default_orchestrator_service()
             except Exception:
                 self.orchestrator_service = None
@@ -115,29 +117,33 @@ class PilotRouter:
         self._recent_max = 30
 
     # ── 消息入口 ──────────────────────────────────────────────────────────
-    def handle_chat_message(self, *,
-                            sender_open_id: str,
-                            text: str,
-                            chat_id: str = "",
-                            msg_id: str = "",
-                            workspace_id: str = "",
-                            department_id: str = "",
-                            tenant_id: str = "default",
-                            in_focus_mode: bool = False,
-                            ts: Optional[int] = None) -> RouterResult:
+    def handle_chat_message(
+        self,
+        *,
+        sender_open_id: str,
+        text: str,
+        chat_id: str = "",
+        msg_id: str = "",
+        workspace_id: str = "",
+        department_id: str = "",
+        tenant_id: str = "default",
+        in_focus_mode: bool = False,
+        ts: Optional[int] = None,
+    ) -> RouterResult:
         """处理一条 IM 消息（已解析为纯参数）.
 
         - ``in_focus_mode=True`` 时，让 @shield v1 路径处理（本 router 跳过）
         - 否则走 IntentDetector 三闸门
         """
         if in_focus_mode:
-            return RouterResult(handled=False, verdict="focus_mode_bypass",
-                                  next_action="defer_to_shield_path")
+            return RouterResult(handled=False, verdict="focus_mode_bypass", next_action="defer_to_shield_path")
 
         msg = ChatMessage(
-            sender_open_id=sender_open_id, text=text or "",
+            sender_open_id=sender_open_id,
+            text=text or "",
             chat_id=chat_id or sender_open_id,
-            msg_id=msg_id, ts=ts or int(time.time()),
+            msg_id=msg_id,
+            ts=ts or int(time.time()),
         )
         # update recent buffer
         buf = self._recent.setdefault(msg.chat_id, [])
@@ -152,11 +158,9 @@ class PilotRouter:
         # 三闸门
         candidate = self.intent_detector.detect(buf)
         if candidate.verdict == IntentVerdict.NOT_INTENT:
-            return RouterResult(handled=True, verdict="not_intent",
-                                 next_action="silent")
+            return RouterResult(handled=True, verdict="not_intent", next_action="silent")
         if candidate.verdict in (IntentVerdict.COOLDOWN, IntentVerdict.IGNORED):
-            return RouterResult(handled=True, verdict=candidate.verdict.value,
-                                 next_action="silent")
+            return RouterResult(handled=True, verdict=candidate.verdict.value, next_action="silent")
 
         # READY / NEEDS_CLARIFY 都创建 Task
         task = self.task_service.create_task(
@@ -206,23 +210,19 @@ class PilotRouter:
         except Exception as e:
             logger.warning("card send failed: %s", e)
 
-        return RouterResult(handled=True, verdict=verdict,
-                            task_id=task.task_id, card=card,
-                            next_action="awaiting_owner_action")
+        return RouterResult(
+            handled=True, verdict=verdict, task_id=task.task_id, card=card, next_action="awaiting_owner_action"
+        )
 
     # ── 按钮回调入口 ──────────────────────────────────────────────────────
-    def handle_card_action(self, *,
-                           actor_open_id: str,
-                           action: str,
-                           value: Dict[str, Any]) -> RouterResult:
+    def handle_card_action(self, *, actor_open_id: str, action: str, value: Dict[str, Any]) -> RouterResult:
         task_id = value.get("task_id", "")
         if not action:
             return RouterResult(handled=False, error="empty_action")
 
         # 路由各按钮
         if action == "pilot.task.confirm":
-            return self._action_confirm(task_id, actor_open_id,
-                                         skip_clarify=bool(value.get("skip_clarify")))
+            return self._action_confirm(task_id, actor_open_id, skip_clarify=bool(value.get("skip_clarify")))
         if action == "pilot.task.ignore":
             return self._action_ignore(task_id, actor_open_id)
         if action == "pilot.task.add_context":
@@ -246,30 +246,36 @@ class PilotRouter:
         if action == "pilot.task.request_ppt":
             return self._action_request_ppt(task_id, actor_open_id)
         if action == "pilot.task.clarify_inline":
-            return RouterResult(handled=True, verdict="clarify_inline",
-                                 task_id=task_id, next_action="user_will_reply_inline")
+            return RouterResult(
+                handled=True, verdict="clarify_inline", task_id=task_id, next_action="user_will_reply_inline"
+            )
 
         return RouterResult(handled=False, error=f"unknown_action: {action}")
 
     # ── private actions ──────────────────────────────────────────────────
-    def _handle_explicit_pilot(self, msg: ChatMessage, workspace_id: str,
-                                 department_id: str, tenant_id: str) -> RouterResult:
+    def _handle_explicit_pilot(
+        self, msg: ChatMessage, workspace_id: str, department_id: str, tenant_id: str
+    ) -> RouterResult:
         """显式 /pilot 指令：直接创建 Task READY 状态."""
         intent = msg.text.split(maxsplit=1)
         body = intent[1] if len(intent) > 1 else ""
         if not body.strip():
-            return RouterResult(handled=True, verdict="empty_explicit",
-                                 next_action="ask_for_intent")
+            return RouterResult(handled=True, verdict="empty_explicit", next_action="ask_for_intent")
         task = self.task_service.create_task(
-            intent=body, owner_open_id=msg.sender_open_id,
-            source_chat_id=msg.chat_id, source_msg_id=msg.msg_id,
-            tenant_id=tenant_id, workspace_id=workspace_id,
+            intent=body,
+            owner_open_id=msg.sender_open_id,
+            source_chat_id=msg.chat_id,
+            source_msg_id=msg.msg_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
             department_id=department_id,
             title=body[:40],
         )
         plan_outline = self._heuristic_outline(body)
         card = cards_pilot.task_suggested_card(
-            task_id=task.task_id, title=task.title, intent=body,
+            task_id=task.task_id,
+            title=task.title,
+            intent=body,
             source_chat=msg.chat_id,
             owner_open_id=msg.sender_open_id,
             owner_display=msg.sender_open_id[-6:],
@@ -280,14 +286,11 @@ class PilotRouter:
             self.card_sender(msg.chat_id, card, scope="chat")
         except Exception:
             pass
-        return RouterResult(handled=True, verdict="explicit_ready",
-                             task_id=task.task_id, card=card)
+        return RouterResult(handled=True, verdict="explicit_ready", task_id=task.task_id, card=card)
 
-    def _action_confirm(self, task_id: str, actor: str,
-                         skip_clarify: bool = False) -> RouterResult:
+    def _action_confirm(self, task_id: str, actor: str, skip_clarify: bool = False) -> RouterResult:
         try:
-            task = self.task_service.fire(task_id, TaskEvent.USER_CONFIRM,
-                                            actor_open_id=actor)
+            task = self.task_service.fire(task_id, TaskEvent.USER_CONFIRM, actor_open_id=actor)
         except Exception as e:
             return RouterResult(handled=False, task_id=task_id, error=str(e))
 
@@ -298,14 +301,13 @@ class PilotRouter:
             self.card_sender(actor, card, scope="user")
         except Exception:
             pass
-        return RouterResult(handled=True, verdict="confirmed",
-                             task_id=task_id, card=card,
-                             next_action="awaiting_context_confirm")
+        return RouterResult(
+            handled=True, verdict="confirmed", task_id=task_id, card=card, next_action="awaiting_context_confirm"
+        )
 
     def _action_confirm_context(self, task_id: str, actor: str) -> RouterResult:
         try:
-            task = self.task_service.fire(task_id, TaskEvent.USER_CONFIRM_CONTEXT,
-                                           actor_open_id=actor)
+            task = self.task_service.fire(task_id, TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id=actor)
             self.planner_service.plan_for_task(task)
         except Exception as e:
             return RouterResult(handled=False, task_id=task_id, error=str(e))
@@ -320,6 +322,7 @@ class PilotRouter:
         writer.append("@pilot 拆解任务中...\n")
 
         import threading
+
         t = threading.Thread(
             target=self._stream_plan_execution,
             args=(task, actor, writer),
@@ -327,15 +330,13 @@ class PilotRouter:
         )
         t.start()
 
-        return RouterResult(handled=True, verdict="ctx_confirmed",
-                             task_id=task_id,
-                             next_action="orchestrator_streaming")
+        return RouterResult(
+            handled=True, verdict="ctx_confirmed", task_id=task_id, next_action="orchestrator_streaming"
+        )
 
     def _action_ignore(self, task_id: str, actor: str) -> RouterResult:
         try:
-            task = self.task_service.fire(task_id, TaskEvent.USER_IGNORE,
-                                           actor_open_id=actor,
-                                           enforce_owner_lock=False)
+            task = self.task_service.fire(task_id, TaskEvent.USER_IGNORE, actor_open_id=actor, enforce_owner_lock=False)
             self.intent_detector.cooldown.mark_ignored(
                 task.source_chat_id,
                 task.intent[:24],
@@ -356,8 +357,7 @@ class PilotRouter:
                 pass
         if task.state == TaskState.ASSIGNED:
             try:
-                self.task_service.fire(task_id, TaskEvent.USER_ADD_CONTEXT,
-                                        actor_open_id=actor)
+                self.task_service.fire(task_id, TaskEvent.USER_ADD_CONTEXT, actor_open_id=actor)
             except Exception:
                 pass
         cp_summary = self._build_initial_context(task)
@@ -366,21 +366,20 @@ class PilotRouter:
             self.card_sender(actor, card, scope="user")
         except Exception:
             pass
-        return RouterResult(handled=True, verdict="ctx_pending",
-                             task_id=task_id, card=card)
+        return RouterResult(handled=True, verdict="ctx_pending", task_id=task_id, card=card)
 
     def _action_open_assign(self, task_id: str, actor: str) -> RouterResult:
         # 在真实环境，candidates 来自 IM API。这里给空列表 + 「我来执行」按钮。
         card = cards_pilot.assign_picker_card(
-            task_id=task_id, candidates=[],
+            task_id=task_id,
+            candidates=[],
             current_owner_open_id=actor,
         )
         try:
             self.card_sender(actor, card, scope="user")
         except Exception:
             pass
-        return RouterResult(handled=True, verdict="assign_picker",
-                             task_id=task_id, card=card)
+        return RouterResult(handled=True, verdict="assign_picker", task_id=task_id, card=card)
 
     def _action_assign_to(self, task_id: str, actor: str, to_open_id: str) -> RouterResult:
         if not to_open_id:
@@ -400,29 +399,26 @@ class PilotRouter:
 
     def _action_pause(self, task_id: str, actor: str) -> RouterResult:
         try:
-            self.task_service.fire(task_id, TaskEvent.USER_PAUSE,
-                                    actor_open_id=actor,
-                                    enforce_owner_lock=False)
+            self.task_service.fire(task_id, TaskEvent.USER_PAUSE, actor_open_id=actor, enforce_owner_lock=False)
         except Exception as e:
             return RouterResult(handled=False, task_id=task_id, error=str(e))
         return RouterResult(handled=True, verdict="paused", task_id=task_id)
 
     def _action_deliver(self, task_id: str, actor: str) -> RouterResult:
         try:
-            self.task_service.fire(task_id, TaskEvent.USER_DELIVER,
-                                    actor_open_id=actor)
+            self.task_service.fire(task_id, TaskEvent.USER_DELIVER, actor_open_id=actor)
         except Exception as e:
             return RouterResult(handled=False, task_id=task_id, error=str(e))
         return RouterResult(handled=True, verdict="delivered", task_id=task_id)
 
     def _action_request_ppt(self, task_id: str, actor: str) -> RouterResult:
         try:
-            task = self.task_service.fire(task_id, TaskEvent.USER_REQUEST_PPT,
-                                            actor_open_id=actor)
+            task = self.task_service.fire(task_id, TaskEvent.USER_REQUEST_PPT, actor_open_id=actor)
         except Exception as e:
             return RouterResult(handled=False, task_id=task_id, error=str(e))
 
         import threading
+
         t = threading.Thread(
             target=self._async_generate_ppt,
             args=(task, actor),
@@ -435,9 +431,7 @@ class PilotRouter:
 
     # ── streaming plan execution ────────────────────────────────────────
 
-    def _stream_plan_execution(
-        self, task: Task, actor_open_id: str, writer: CardStreamWriter
-    ) -> None:
+    def _stream_plan_execution(self, task: Task, actor_open_id: str, writer: CardStreamWriter) -> None:
         """Background thread: run orchestrator with streaming card updates.
 
         Subscribes to ExecutionEvent broadcasts from the orchestrator and
@@ -494,9 +488,9 @@ class PilotRouter:
                     writer.set_progress(1.0, "执行完毕")
                     writer.append(f"\n📊 执行完毕: {done} 成功, {failed} 失败\n")
 
-            if hasattr(self.orchestrator_service, 'orchestrator'):
+            if hasattr(self.orchestrator_service, "orchestrator"):
                 orch = self.orchestrator_service.orchestrator
-                if hasattr(orch, 'set_broadcaster'):
+                if hasattr(orch, "set_broadcaster"):
                     orch.set_broadcaster(_on_event)
 
             writer.set_progress(0.1, "正在生成文档...")
@@ -512,20 +506,30 @@ class PilotRouter:
                     if step.status == "done" and step.result:
                         r = step.result
                         artifact: Dict[str, Any] = {}
-                        for key in ("doc_token", "url", "canvas_id", "slide_id",
-                                    "pptx_url", "share_url", "title", "local_path"):
+                        for key in (
+                            "doc_token",
+                            "url",
+                            "canvas_id",
+                            "slide_id",
+                            "pptx_url",
+                            "share_url",
+                            "title",
+                            "local_path",
+                        ):
                             if r.get(key):
                                 artifact[key] = r[key]
                         if artifact:
                             artifact["tool"] = step.tool
                             artifacts.append(artifact)
-                            artifact_display.append({
-                                "title": artifact.get("title", step.tool),
-                                "url": artifact.get("share_url")
-                                       or artifact.get("url")
-                                       or artifact.get("pptx_url", "#"),
-                                "icon": "📄",
-                            })
+                            artifact_display.append(
+                                {
+                                    "title": artifact.get("title", step.tool),
+                                    "url": artifact.get("share_url")
+                                    or artifact.get("url")
+                                    or artifact.get("pptx_url", "#"),
+                                    "icon": "📄",
+                                }
+                            )
 
             writer.finish(
                 artifacts=artifact_display,
@@ -544,8 +548,7 @@ class PilotRouter:
                 except Exception:
                     pass
 
-            logger.info("streaming orchestration completed for task %s, artifacts=%d",
-                         task_id, len(artifacts))
+            logger.info("streaming orchestration completed for task %s, artifacts=%d", task_id, len(artifacts))
 
         except Exception as e:
             logger.exception("streaming orchestration failed for task %s: %s", task_id, e)
@@ -597,8 +600,7 @@ class PilotRouter:
                     if step.status == "done" and step.result:
                         ctx["step_results"][step.step_id] = step.result
 
-            dummy_step = DomainPlanStep(step_id="ppt_gen", tool="slide.generate",
-                                         description="生成 PPT")
+            dummy_step = DomainPlanStep(step_id="ppt_gen", tool="slide.generate", description="生成 PPT")
             result = slide_generate(dummy_step, ctx)
 
             artifacts = [{"tool": "slide.generate", **result}]
@@ -617,13 +619,14 @@ class PilotRouter:
     # ── helpers ──────────────────────────────────────────────────────────
     def _build_initial_context(self, task) -> Dict[str, Any]:
         recent = self._recent.get(task.source_chat_id, [])
-        im_msgs = [SourceMessage(sender_open_id=m.sender_open_id,
-                                  text=m.text, chat_id=m.chat_id,
-                                  msg_id=m.msg_id, ts=m.ts)
-                    for m in recent[-12:]]
+        im_msgs = [
+            SourceMessage(sender_open_id=m.sender_open_id, text=m.text, chat_id=m.chat_id, msg_id=m.msg_id, ts=m.ts)
+            for m in recent[-12:]
+        ]
         cp = self.context_service.build(
             ContextBuildOptions(
-                task_id=task.task_id, task_goal=task.intent,
+                task_id=task.task_id,
+                task_goal=task.intent,
                 owner_open_id=task.owner_lock.owner_open_id,
                 output_primary="ppt" if any(k in task.intent for k in ("PPT", "ppt", "汇报")) else "doc",
                 output_audience="leader" if "老板" in task.intent else "",
@@ -657,8 +660,7 @@ def _default_card_sender(target: str, card: Dict[str, Any], *, scope: str = "use
     """无飞书 token 时的占位 sender（仅用于本地/测试）.
 
     在生产中由 ``main.py`` 注入真实的 ``bot.message_sender.send_card``."""
-    logger.info("card-sender (stub) target=%s scope=%s body_keys=%s",
-                target, scope, list(card.keys()))
+    logger.info("card-sender (stub) target=%s scope=%s body_keys=%s", target, scope, list(card.keys()))
     return f"stub-msg-{int(time.time() * 1000)}"
 
 

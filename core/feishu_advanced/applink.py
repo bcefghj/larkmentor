@@ -18,8 +18,9 @@ import urllib.parse
 from typing import Dict, Optional
 
 
-def build_open_h5(*, h5_path: str, mode: str = "window",
-                  app_id: Optional[str] = None, extra: Optional[Dict[str, str]] = None) -> str:
+def build_open_h5(
+    *, h5_path: str, mode: str = "window", app_id: Optional[str] = None, extra: Optional[Dict[str, str]] = None
+) -> str:
     """Generate an applink that opens an H5 page inside Feishu."""
     params = {
         "appId": app_id or os.getenv("FEISHU_APP_ID", ""),

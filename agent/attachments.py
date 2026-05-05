@@ -44,8 +44,11 @@ def _is_ssrf_safe(url: str) -> bool:
 
 
 def download_attachment(
-    *, url: str = "", file_key: str = "",
-    session_id: str = "", max_size: int = MAX_FILE_SIZE,
+    *,
+    url: str = "",
+    file_key: str = "",
+    session_id: str = "",
+    max_size: int = MAX_FILE_SIZE,
 ) -> Dict[str, Any]:
     """Download attachment to data/attachments/{session_id}/.
 
@@ -61,11 +64,12 @@ def download_attachment(
             return {"ok": False, "error": "ssrf_blocked", "url": url}
         try:
             import requests
+
             r = requests.get(url, stream=True, timeout=30)
             if r.status_code != 200:
                 return {"ok": False, "error": f"http_{r.status_code}"}
             total = 0
-            fname = re.sub(r'[^\w\-.]', '_', urlparse(url).path.split('/')[-1] or "attachment.bin")
+            fname = re.sub(r"[^\w\-.]", "_", urlparse(url).path.split("/")[-1] or "attachment.bin")
             out_path = base_dir / fname
             with out_path.open("wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
@@ -82,6 +86,7 @@ def download_attachment(
     if file_key:
         try:
             from bot.feishu_client import get_client
+
             get_client()
             # Simplified; actual API needs message_id + file_key
             return {"ok": False, "error": "file_key download not fully wired; use ShanClaw reference"}
@@ -103,6 +108,7 @@ def extract_text(path: str) -> str:
         if suffix == ".pdf":
             try:
                 import pypdf  # type: ignore
+
                 reader = pypdf.PdfReader(path)
                 return "\n".join((page.extract_text() or "") for page in reader.pages)[:50_000]
             except ImportError:
@@ -110,6 +116,7 @@ def extract_text(path: str) -> str:
         if suffix in (".docx",):
             try:
                 import docx  # type: ignore
+
                 doc = docx.Document(path)
                 return "\n".join(p.text for p in doc.paragraphs)[:50_000]
             except ImportError:
@@ -120,7 +127,9 @@ def extract_text(path: str) -> str:
 
 
 def build_context_from_attachments(
-    attachments: List[Dict[str, Any]], *, session_id: str = "",
+    attachments: List[Dict[str, Any]],
+    *,
+    session_id: str = "",
 ) -> List[Dict[str, Any]]:
     """Process up to N attachments, returns context blocks for LLM."""
     blocks = []
@@ -137,9 +146,12 @@ def build_context_from_attachments(
             blocks.append({"kind": "attachment_error", "index": i, "error": res.get("error")})
             continue
         text = extract_text(res["path"])
-        blocks.append({
-            "kind": "attachment",
-            "index": i, "path": res["path"],
-            "text_preview": text[:5000],
-        })
+        blocks.append(
+            {
+                "kind": "attachment",
+                "index": i,
+                "path": res["path"],
+                "text_preview": text[:5000],
+            }
+        )
     return blocks

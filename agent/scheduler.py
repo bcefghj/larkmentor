@@ -29,6 +29,7 @@ class CronScheduler:
         for f in self.schedules_dir.glob("*.yaml"):
             try:
                 import yaml
+
                 data = yaml.safe_load(f.read_text())
                 self.jobs.append(data)
             except Exception as e:
@@ -73,15 +74,19 @@ class CronScheduler:
                 logger.info("cron run %s: %s", job.get("name"), kind)
                 if kind == "pilot":
                     from bot.handlers_v4 import _run_pilot
+
                     _run_pilot(task, user_open_id=user_open_id, chat_id="", tenant_id=tenant_id)
                 elif kind == "weekly_report":
                     from agent.tools.mentor_tools import weekly_report
+
                     weekly_report(user_open_id=user_open_id)
                 elif kind == "shell":
                     import subprocess
+
                     subprocess.run(job.get("command", "true"), shell=True, timeout=300)
             except Exception as e:
                 logger.exception("cron %s failed: %s", job.get("name"), e)
+
         return _run
 
     def stop(self) -> None:

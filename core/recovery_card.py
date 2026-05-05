@@ -65,7 +65,7 @@ class BlockedMessage:
     sender_name: str
     sender_id: str
     content: str
-    level: str        # "P0" | "P1" | "P2" | "P3"
+    level: str  # "P0" | "P1" | "P2" | "P3"
     score: float
     ts: int
     chat_name: str = ""
@@ -91,10 +91,10 @@ class BlockedMessage:
 class DraftReply:
     """One version of an AI-suggested reply draft."""
 
-    tone: str         # "conservative" | "neutral" | "direct"
-    label: str        # "保守" | "中性" | "直接"
+    tone: str  # "conservative" | "neutral" | "direct"
+    label: str  # "保守" | "中性" | "直接"
     text: str
-    citation: str = ""    # 召回的 KB chunk source（如有）
+    citation: str = ""  # 召回的 KB chunk source（如有）
 
     def to_card_value(self) -> str:
         """Encode for Feishu card button value field."""
@@ -126,6 +126,7 @@ def collect_blocked_messages(
     """从 working_memory 拉 since_ts 之后的"挡掉"事件，按优先级排序。"""
     try:
         from core.flow_memory.working import WorkingMemory
+
         wm = WorkingMemory.load(user_open_id)
         events = wm.since(since_ts)
     except Exception as e:
@@ -140,16 +141,18 @@ def collect_blocked_messages(
         level = p.get("level", "P3")
         if level == "P3":
             continue
-        blocked.append(BlockedMessage(
-            sender_name=p.get("sender_name", "未知"),
-            sender_id=p.get("sender_id", ""),
-            content=p.get("content", ""),
-            level=level,
-            score=float(p.get("score", 0.0)),
-            ts=ev.ts,
-            chat_name=p.get("chat_name", ""),
-            message_id=p.get("message_id", ""),
-        ))
+        blocked.append(
+            BlockedMessage(
+                sender_name=p.get("sender_name", "未知"),
+                sender_id=p.get("sender_id", ""),
+                content=p.get("content", ""),
+                level=level,
+                score=float(p.get("score", 0.0)),
+                ts=ev.ts,
+                chat_name=p.get("chat_name", ""),
+                message_id=p.get("message_id", ""),
+            )
+        )
 
     level_order = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
     blocked.sort(key=lambda m: (level_order.get(m.level, 9), -m.ts))
@@ -175,6 +178,7 @@ def draft_three_versions(
     drafts: List[DraftReply] = []
     try:
         from core.mentor.mentor_write import draft_three_tones
+
         out = draft_three_tones(
             user_open_id=user_open_id,
             sender_name=msg.sender_name,
@@ -221,7 +225,9 @@ def build_recovery_context(
     duration = max(0, end_ts - focus_start_ts)
 
     blocked = collect_blocked_messages(
-        user_open_id, focus_start_ts, max_n=max_blocked,
+        user_open_id,
+        focus_start_ts,
+        max_n=max_blocked,
     )
     top = pick_top_message(blocked)
     drafts: List[DraftReply] = []
@@ -290,15 +296,19 @@ def render_recovery_card(ctx: RecoveryContext) -> Dict[str, Any]:
                 f"`{m.sender_name}` · {m.relative_time()} · "
                 f"{m.short_content(80)}"
             )
-        elements.append({
-            "tag": "div",
-            "text": {"tag": "lark_md", "content": "\n".join(lines)},
-        })
+        elements.append(
+            {
+                "tag": "div",
+                "text": {"tag": "lark_md", "content": "\n".join(lines)},
+            }
+        )
     else:
-        elements.append({
-            "tag": "div",
-            "text": {"tag": "lark_md", "content": "**📥 我替你挡了什么** · 这段时间没有需要你看的消息。"},
-        })
+        elements.append(
+            {
+                "tag": "div",
+                "text": {"tag": "lark_md", "content": "**📥 我替你挡了什么** · 这段时间没有需要你看的消息。"},
+            }
+        )
 
     elements.append({"tag": "hr"})
 
@@ -308,59 +318,78 @@ def render_recovery_card(ctx: RecoveryContext) -> Dict[str, Any]:
             f"**📝 我替你起草了回复**（针对 {_level_emoji(ctx.top_message.level)} "
             f"`{ctx.top_message.sender_name}`：{ctx.top_message.short_content(40)}）"
         )
-        elements.append({
-            "tag": "div",
-            "text": {"tag": "lark_md", "content": head_text},
-        })
+        elements.append(
+            {
+                "tag": "div",
+                "text": {"tag": "lark_md", "content": head_text},
+            }
+        )
 
         for d in ctx.drafts_for_top:
             cite_suffix = f"\n_引用：{d.citation}_" if d.citation else ""
-            elements.append({
-                "tag": "div",
-                "text": {
-                    "tag": "lark_md",
-                    "content": f"**v{1 + ['conservative', 'neutral', 'direct'].index(d.tone)} {d.label}**\n> {d.text}{cite_suffix}",
-                },
-            })
+            elements.append(
+                {
+                    "tag": "div",
+                    "text": {
+                        "tag": "lark_md",
+                        "content": f"**v{1 + ['conservative', 'neutral', 'direct'].index(d.tone)} {d.label}**\n> {d.text}{cite_suffix}",
+                    },
+                }
+            )
 
         # Action buttons: adopt v1/v2/v3 + ignore + detail
         actions = []
         for i, d in enumerate(ctx.drafts_for_top, start=1):
-            actions.append({
+            actions.append(
+                {
+                    "tag": "button",
+                    "text": {"tag": "plain_text", "content": f"采纳 v{i} {d.label}"},
+                    "type": "primary" if i == 2 else "default",
+                    "value": {"action": "recovery_adopt", "tone": d.tone},
+                }
+            )
+        actions.append(
+            {
                 "tag": "button",
-                "text": {"tag": "plain_text", "content": f"采纳 v{i} {d.label}"},
-                "type": "primary" if i == 2 else "default",
-                "value": {"action": "recovery_adopt", "tone": d.tone},
-            })
-        actions.append({
-            "tag": "button",
-            "text": {"tag": "plain_text", "content": "全部忽略"},
-            "type": "default",
-            "value": {"action": "recovery_ignore"},
-        })
-        actions.append({
-            "tag": "button",
-            "text": {"tag": "plain_text", "content": "为什么这条最高？"},
-            "type": "default",
-            "value": {"action": "recovery_explain"},
-        })
+                "text": {"tag": "plain_text", "content": "全部忽略"},
+                "type": "default",
+                "value": {"action": "recovery_ignore"},
+            }
+        )
+        actions.append(
+            {
+                "tag": "button",
+                "text": {"tag": "plain_text", "content": "为什么这条最高？"},
+                "type": "default",
+                "value": {"action": "recovery_explain"},
+            }
+        )
         elements.append({"tag": "action", "actions": actions})
     else:
-        elements.append({
-            "tag": "div",
-            "text": {"tag": "lark_md", "content": "**📝 我替你起草了回复** · 暂无需要回复的紧急消息，可以专注下一段工作了。"},
-        })
+        elements.append(
+            {
+                "tag": "div",
+                "text": {
+                    "tag": "lark_md",
+                    "content": "**📝 我替你起草了回复** · 暂无需要回复的紧急消息，可以专注下一段工作了。",
+                },
+            }
+        )
 
     # ── Footer ────────────────────────────────────────────────
     elements.append({"tag": "hr"})
     explain_md = ctx.explanation or "卡片由 LarkMentor 自动生成。"
-    elements.append({
-        "tag": "note",
-        "elements": [{
-            "tag": "lark_md",
-            "content": f"🤖 LarkMentor · {explain_md} · 30 秒内可点撤回 · **永不自动发送**",
-        }],
-    })
+    elements.append(
+        {
+            "tag": "note",
+            "elements": [
+                {
+                    "tag": "lark_md",
+                    "content": f"🤖 LarkMentor · {explain_md} · 30 秒内可点撤回 · **永不自动发送**",
+                }
+            ],
+        }
+    )
 
     return {
         "config": {"wide_screen_mode": True},
@@ -401,6 +430,7 @@ def send_recovery_card(
     if sender is None:
         try:
             from bot.message_sender import send_card
+
             sender = send_card
         except Exception as e:
             logger.warning("recovery_card sender unavailable, returning context only: %s", e)

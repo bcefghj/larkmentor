@@ -12,6 +12,7 @@
 - ``delivery_service``: 归档与分享
 - ``repository``: JSON 持久化（task_repo / artifact_repo / audit_repo）
 """
+
 from .context_service import (
     ContextBuildOptions,
     ContextService,
@@ -51,6 +52,7 @@ from .task_service import TaskService, default_task_service
 def default_orchestrator_service() -> OrchestratorService:
     """Create an OrchestratorService with all default tools registered."""
     from ..tools import build_default_registry
+
     return OrchestratorService(tools=build_default_registry())
 
 

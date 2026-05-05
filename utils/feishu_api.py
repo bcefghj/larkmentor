@@ -18,6 +18,7 @@ logger = logging.getLogger("flowguard.api")
 
 # ── Contact: resolve user name ──
 
+
 def resolve_user_name(open_id: str) -> str:
     """Get user's display name from Feishu contacts API, with caching."""
     cached = get_cached_name(open_id)
@@ -39,6 +40,7 @@ def resolve_user_name(open_id: str) -> str:
 
 
 # ── Calendar ──
+
 
 def get_current_calendar_events() -> list:
     """Fetch primary calendar events happening right now using tenant token.
@@ -73,12 +75,14 @@ def get_current_calendar_events() -> list:
 
 # ── Tasks ──
 
+
 def get_user_tasks() -> list:
     """Fetch current user's incomplete tasks (simplified)."""
     return []
 
 
 # ── Bitable ──
+
 
 def log_to_bitable(fields: dict) -> bool:
     if not Config.BITABLE_APP_TOKEN or not Config.BITABLE_TABLE_ID:
@@ -99,9 +103,18 @@ def log_to_bitable(fields: dict) -> bool:
 
 
 def log_interruption_to_bitable(
-    timestamp: str, sender: str, level: str, action: str, chat_name: str,
+    timestamp: str,
+    sender: str,
+    level: str,
+    action: str,
+    chat_name: str,
 ) -> bool:
-    return log_to_bitable({
-        "时间": timestamp, "消息来源": sender, "优先级": level,
-        "处理方式": action, "频道": chat_name,
-    })
+    return log_to_bitable(
+        {
+            "时间": timestamp,
+            "消息来源": sender,
+            "优先级": level,
+            "处理方式": action,
+            "频道": chat_name,
+        }
+    )

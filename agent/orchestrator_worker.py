@@ -83,14 +83,17 @@ class OrchestratorWorker:
     """Hierarchical Lead + Workers (Anthropic 90.2% pattern)."""
 
     def __init__(
-        self, *,
+        self,
+        *,
         runner: Optional[SubagentRunner] = None,
     ) -> None:
         self.runner = runner or default_subagent_runner()
         self.providers = default_providers()
 
     async def run(
-        self, task: str, *,
+        self,
+        task: str,
+        *,
         team: str = "pilot",
         extra_context: Optional[Dict[str, Any]] = None,
     ) -> OrchestratorResult:
@@ -98,10 +101,12 @@ class OrchestratorWorker:
         start = time.time()
         roles = PREDEFINED_TEAMS.get(team)
         if not roles:
-            roles = [WorkerRole(
-                name="worker",
-                instruction="Execute the task directly.",
-            )]
+            roles = [
+                WorkerRole(
+                    name="worker",
+                    instruction="Execute the task directly.",
+                )
+            ]
 
         # Step 1: Lead (MiniMax M2.7) generates plan + delegates
         lead_plan = await self._lead_plan(task, roles, extra_context or {})
@@ -111,12 +116,14 @@ class OrchestratorWorker:
         for role in roles:
             # Custom task for each worker from lead plan
             worker_task = self._worker_subtask(task, role, lead_plan, extra_context or {})
-            specs.append(SubagentSpec(
-                agent_type=role.name,
-                task=worker_task,
-                instruction=role.instruction,
-                max_turns=role.max_turns,
-            ))
+            specs.append(
+                SubagentSpec(
+                    agent_type=role.name,
+                    task=worker_task,
+                    instruction=role.instruction,
+                    max_turns=role.max_turns,
+                )
+            )
 
         worker_results = await self.runner.spawn_parallel(
             specs,
@@ -143,17 +150,21 @@ class OrchestratorWorker:
             f"You are a Lead Agent orchestrating specialists to accomplish a task.\n\n"
             f"Task: {task}\n\n"
             f"Available workers:\n"
-            + "\n".join(f"- @{r.name}: {r.instruction}" for r in roles) +
-            f"\n\nExtra context: {json.dumps(ctx, ensure_ascii=False)[:500]}\n\n"
+            + "\n".join(f"- @{r.name}: {r.instruction}" for r in roles)
+            + f"\n\nExtra context: {json.dumps(ctx, ensure_ascii=False)[:500]}\n\n"
             f"Step 1: break the task into worker-sized pieces.\n"
             f"Step 2: for each worker, specify what they should focus on.\n"
-            f"Respond as JSON: {{\"plan\": \"overall strategy\", \"assignments\": {{\"@worker\": \"subtask\"}}}}"
+            f'Respond as JSON: {{"plan": "overall strategy", "assignments": {{"@worker": "subtask"}}}}'
         )
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self.providers.chat(
-            messages=[{"role": "user", "content": prompt}],
-            task_kind="planning", max_tokens=1200,
-        ))
+        return await loop.run_in_executor(
+            None,
+            lambda: self.providers.chat(
+                messages=[{"role": "user", "content": prompt}],
+                task_kind="planning",
+                max_tokens=1200,
+            ),
+        )
 
     def _worker_subtask(self, main_task: str, role: WorkerRole, lead_plan: str, ctx: Dict) -> str:
         return (
@@ -177,7 +188,8 @@ class OrchestratorWorker:
                     {"role": "system", "content": spec.instruction},
                     {"role": "user", "content": spec.task},
                 ],
-                task_kind=kind, max_tokens=1500,
+                task_kind=kind,
+                max_tokens=1500,
             )
             return {
                 "summary": out[:3000],
@@ -185,6 +197,7 @@ class OrchestratorWorker:
                 "tokens_used": len(out) // 4,
                 "metadata": {"role": spec.agent_type, "model_kind": kind},
             }
+
         return _exec
 
     async def _lead_synthesize(self, task: str, results: List[SubagentResult]) -> str:
@@ -199,10 +212,14 @@ class OrchestratorWorker:
             "Resolve any disagreements. Output in Chinese if the task is Chinese."
         )
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self.providers.chat(
-            messages=[{"role": "user", "content": prompt}],
-            task_kind="reasoning", max_tokens=2000,
-        ))
+        return await loop.run_in_executor(
+            None,
+            lambda: self.providers.chat(
+                messages=[{"role": "user", "content": prompt}],
+                task_kind="reasoning",
+                max_tokens=2000,
+            ),
+        )
 
     def sync_run(self, task: str, *, team: str = "pilot", **kwargs) -> OrchestratorResult:
         loop = asyncio.new_event_loop()

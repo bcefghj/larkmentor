@@ -180,7 +180,8 @@ class ConflictResolver:
         self._field_strategies[field_path] = strategy
 
     def detect_conflicts(
-        self, updates: List[OfflineUpdate],
+        self,
+        updates: List[OfflineUpdate],
     ) -> List[ConflictRecord]:
         """Detect conflicting updates (multiple clients editing the same field)."""
         by_field: Dict[str, List[OfflineUpdate]] = defaultdict(list)
@@ -193,7 +194,8 @@ class ConflictResolver:
             client_ids = list({u.client_id for u in field_updates})
             if len(client_ids) > 1:
                 strategy = self._field_strategies.get(
-                    field_path, self._default_strategy,
+                    field_path,
+                    self._default_strategy,
                 )
                 conflicts.append(
                     ConflictRecord(
@@ -213,19 +215,13 @@ class ConflictResolver:
         """Apply resolution strategies and return the winning updates."""
         conflict_fields = {c.field_path for c in conflicts}
 
-        non_conflicting = [
-            u for u in updates if (u.field_path or "__root__") not in conflict_fields
-        ]
+        non_conflicting = [u for u in updates if (u.field_path or "__root__") not in conflict_fields]
 
         resolved: List[OfflineUpdate] = list(non_conflicting)
 
         for conflict in conflicts:
             strategy = ConflictStrategy(conflict.strategy)
-            field_updates = [
-                u
-                for u in updates
-                if (u.field_path or "__root__") == conflict.field_path
-            ]
+            field_updates = [u for u in updates if (u.field_path or "__root__") == conflict.field_path]
 
             if strategy == ConflictStrategy.LAST_WRITER_WINS:
                 winner = max(field_updates, key=lambda u: u.ts)
@@ -255,7 +251,10 @@ class ConflictResolver:
             return list(self._pending_user_decisions)
 
     def submit_user_decision(
-        self, field_path: str, room: str, winner_client_id: str,
+        self,
+        field_path: str,
+        room: str,
+        winner_client_id: str,
     ) -> bool:
         """Submit a user's manual conflict resolution decision."""
         with self._lock:
@@ -442,9 +441,7 @@ class OfflineMergeEngine:
                 }
                 for u in resolved
             ],
-            "pending_decisions": [
-                asdict(d) for d in self.resolver.get_pending_decisions()
-            ],
+            "pending_decisions": [asdict(d) for d in self.resolver.get_pending_decisions()],
         }
 
     # ── Stats ──

@@ -115,12 +115,8 @@ class TestUserState(unittest.TestCase):
         self.assertTrue(user.is_focusing())
         self.assertEqual(user.work_context, "写代码")
 
-        user.add_pending(PendingMessage(
-            "m1", "张三", "u1", "群1", "你好", "P3", "archive", "", 0
-        ))
-        user.add_pending(PendingMessage(
-            "m2", "李四", "u2", "群2", "项目进度", "P1", "queue", "", 0
-        ))
+        user.add_pending(PendingMessage("m1", "张三", "u1", "群1", "你好", "P3", "archive", "", 0))
+        user.add_pending(PendingMessage("m2", "李四", "u2", "群2", "项目进度", "P1", "queue", "", 0))
         self.assertEqual(len(user.pending_messages), 2)
         self.assertEqual(user.daily_p3, 1)
         self.assertEqual(user.daily_p1, 1)

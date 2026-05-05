@@ -17,7 +17,8 @@ logger = logging.getLogger("pilot.tool.archive")
 
 DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
-    "data", "pilot_artifacts",
+    "data",
+    "pilot_artifacts",
 )
 
 
@@ -31,8 +32,7 @@ def archive_bundle(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
         if not isinstance(r, dict):
             continue
         item = {"step_id": sid}
-        for key in ("doc_token", "url", "canvas_id", "slide_id",
-                    "pptx_url", "pdf_url", "title", "markdown_path"):
+        for key in ("doc_token", "url", "canvas_id", "slide_id", "pptx_url", "pdf_url", "title", "markdown_path"):
             if r.get(key):
                 item[key] = r[key]
         if len(item) > 1:
@@ -65,6 +65,7 @@ def archive_bundle(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 def _try_create_summary_doc(plan_id: str, manifest: Dict[str, Any]) -> str:
     try:
         from .doc_tool import _try_append_feishu_blocks, _try_create_feishu_doc
+
         title = f"[Agent-Pilot] 汇报摘要 · {plan_id}"
         created = _try_create_feishu_doc(title)
         if not created or not created.get("doc_token"):
@@ -78,15 +79,17 @@ def _try_create_summary_doc(plan_id: str, manifest: Dict[str, Any]) -> str:
 
 
 def _manifest_to_markdown(manifest: Dict[str, Any]) -> str:
-    lines = ["# Agent-Pilot 汇报摘要", "",
-             f"Plan id: `{manifest['plan_id']}`",
-             f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(manifest['bundled_ts']))}",
-             "", "## 产物列表"]
+    lines = [
+        "# Agent-Pilot 汇报摘要",
+        "",
+        f"Plan id: `{manifest['plan_id']}`",
+        f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(manifest['bundled_ts']))}",
+        "",
+        "## 产物列表",
+    ]
     for a in manifest["artifacts"]:
         title = a.get("title") or a.get("step_id")
         url = a.get("url") or a.get("pptx_url") or a.get("markdown_path") or "-"
         lines.append(f"- [{title}]({url})")
-    lines += ["", "## 下一步",
-              "- 评审会建议 5/7 前召开",
-              "- 如需二次编辑，请在任意一端修改，所有端通过 CRDT 自动同步"]
+    lines += ["", "## 下一步", "- 评审会建议 5/7 前召开", "- 如需二次编辑，请在任意一端修改，所有端通过 CRDT 自动同步"]
     return "\n".join(lines)

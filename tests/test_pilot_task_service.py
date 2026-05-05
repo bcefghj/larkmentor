@@ -1,4 +1,5 @@
 """P2 收官 · TaskService 应用服务测试."""
+
 from __future__ import annotations
 
 import pytest
@@ -74,9 +75,7 @@ def test_attach_context_with_confirmation(svc):
 
 def test_add_artifact_persists(svc, tmp_path):
     t = svc.create_task(intent="x", owner_open_id="u1")
-    art = Artifact(artifact_id="a1", task_id="",
-                    kind=ArtifactKind.DOC, title="doc",
-                    feishu_url="https://x")
+    art = Artifact(artifact_id="a1", task_id="", kind=ArtifactKind.DOC, title="doc", feishu_url="https://x")
     svc.add_artifact(t.task_id, art)
     t2 = svc.get(t.task_id)
     assert len(t2.artifacts) == 1

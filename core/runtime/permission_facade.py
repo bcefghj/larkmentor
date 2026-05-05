@@ -26,6 +26,7 @@ class PermissionFacade:
 
     def __init__(self) -> None:
         from core.security.permission_manager import default_manager
+
         self._pm = default_manager()
 
     def check(self, tool: str, user_open_id: str) -> Tuple[bool, str]:
@@ -40,6 +41,7 @@ class PermissionFacade:
     def set_user_level(self, user_open_id: str, level_name: str) -> bool:
         """Set per-user permission level by name."""
         from core.security.permission_manager import PermissionLevel
+
         try:
             level = PermissionLevel[level_name]
         except KeyError:

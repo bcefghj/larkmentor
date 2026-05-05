@@ -14,6 +14,7 @@
 - ``/v7/memory``     6 级 Memory 时间线
 - ``/v7/triad``      三线协同雷达
 """
+
 from __future__ import annotations
 
 import json
@@ -36,45 +37,51 @@ def _list_tasks(limit: int = 50) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     try:
         from core.agent_pilot.application import default_task_service
+
         svc = default_task_service()
         for t in svc.list_live():
-            out.append({
-                "task_id": t.task_id,
-                "title": t.title,
-                "intent": t.intent[:120],
-                "state": t.state.value,
-                "owner": t.owner_lock.owner_open_id,
-                "created_ts": t.created_ts,
-                "updated_ts": t.updated_ts,
-                "artifacts_count": len(t.artifacts),
-                "agent_logs_count": len(t.agent_logs),
-                "transitions_count": len(t.transitions),
-                "source_chat_id": t.source_chat_id,
-            })
+            out.append(
+                {
+                    "task_id": t.task_id,
+                    "title": t.title,
+                    "intent": t.intent[:120],
+                    "state": t.state.value,
+                    "owner": t.owner_lock.owner_open_id,
+                    "created_ts": t.created_ts,
+                    "updated_ts": t.updated_ts,
+                    "artifacts_count": len(t.artifacts),
+                    "agent_logs_count": len(t.agent_logs),
+                    "transitions_count": len(t.transitions),
+                    "source_chat_id": t.source_chat_id,
+                }
+            )
     except Exception as e:
         logger.debug("list live tasks failed: %s", e)
 
     # 历史（仅展示元数据）
     try:
         from core.agent_pilot.application import default_task_service
+
         rows = default_task_service().repo.list(limit=limit)
         seen = {x["task_id"] for x in out}
         for r in rows:
             if r.get("task_id") in seen:
                 continue
-            out.append({
-                "task_id": r.get("task_id"),
-                "title": r.get("title") or "",
-                "intent": (r.get("intent") or "")[:120],
-                "state": r.get("state") or "delivered",
-                "owner": (r.get("owner_lock") or {}).get("owner_open_id", ""),
-                "created_ts": r.get("created_ts", 0),
-                "updated_ts": r.get("updated_ts", 0),
-                "artifacts_count": len(r.get("artifacts", [])),
-                "agent_logs_count": len(r.get("agent_logs", [])),
-                "transitions_count": len(r.get("transitions", [])),
-                "source_chat_id": r.get("source_chat_id", ""),
-            })
+            out.append(
+                {
+                    "task_id": r.get("task_id"),
+                    "title": r.get("title") or "",
+                    "intent": (r.get("intent") or "")[:120],
+                    "state": r.get("state") or "delivered",
+                    "owner": (r.get("owner_lock") or {}).get("owner_open_id", ""),
+                    "created_ts": r.get("created_ts", 0),
+                    "updated_ts": r.get("updated_ts", 0),
+                    "artifacts_count": len(r.get("artifacts", [])),
+                    "agent_logs_count": len(r.get("agent_logs", [])),
+                    "transitions_count": len(r.get("transitions", [])),
+                    "source_chat_id": r.get("source_chat_id", ""),
+                }
+            )
     except Exception:
         pass
 
@@ -85,6 +92,7 @@ def _list_tasks(limit: int = 50) -> List[Dict[str, Any]]:
 def _task_detail(task_id: str) -> Optional[Dict[str, Any]]:
     try:
         from core.agent_pilot.application import default_task_service
+
         t = default_task_service().get(task_id)
         if t is not None:
             return t.to_dict()
@@ -101,18 +109,21 @@ def _task_detail(task_id: str) -> Optional[Dict[str, Any]]:
 def _list_skills() -> List[Dict[str, Any]]:
     try:
         from core.agent_pilot.application import default_pilot_learner
+
         out = []
         for sk in default_pilot_learner().list_skills():
-            out.append({
-                "skill_id": sk.skill_id,
-                "title": sk.title,
-                "description": sk.description,
-                "intent_pattern": sk.intent_pattern[:140],
-                "examples": sk.examples[:3],
-                "created_ts": sk.created_ts,
-                "hit_count": sk.hit_count,
-                "md_path": sk.md_path,
-            })
+            out.append(
+                {
+                    "skill_id": sk.skill_id,
+                    "title": sk.title,
+                    "description": sk.description,
+                    "intent_pattern": sk.intent_pattern[:140],
+                    "examples": sk.examples[:3],
+                    "created_ts": sk.created_ts,
+                    "hit_count": sk.hit_count,
+                    "md_path": sk.md_path,
+                }
+            )
         return out
     except Exception as e:
         logger.debug("list_skills failed: %s", e)
@@ -124,21 +135,21 @@ def _triad_data() -> Dict[str, Any]:
     out = {
         "shield": {"intercepted": 0, "p0_p1_alerts": 0, "label": "消息守护"},
         "mentor": {"drafts": 0, "skills_used": 0, "label": "表达带教"},
-        "pilot": {"tasks_total": 0, "tasks_delivered": 0,
-                   "skills_auto": 0, "label": "主驾驶"},
+        "pilot": {"tasks_total": 0, "tasks_delivered": 0, "skills_auto": 0, "label": "主驾驶"},
     }
     # shield
     try:
         from core.advanced_features import list_recent_decisions
+
         decs = list_recent_decisions() or []
         out["shield"]["intercepted"] = len(decs)
-        out["shield"]["p0_p1_alerts"] = sum(1 for d in decs
-                                              if d.get("level", "") in ("P0", "P1"))
+        out["shield"]["p0_p1_alerts"] = sum(1 for d in decs if d.get("level", "") in ("P0", "P1"))
     except Exception:
         pass
     # mentor
     try:
         from core.mentor.knowledge_base import KB_STATS
+
         out["mentor"]["drafts"] = KB_STATS.get("draft_count", 0)
     except Exception:
         pass
@@ -148,6 +159,7 @@ def _triad_data() -> Dict[str, Any]:
             default_pilot_learner,
             default_task_service,
         )
+
         svc = default_task_service()
         s = svc.stats()
         out["pilot"]["tasks_total"] = s.get("total", 0)
@@ -162,6 +174,7 @@ def _intent_stats() -> Dict[str, Any]:
     """主动识别命中统计：cooldown + ignore + 命中分布."""
     try:
         from bot.pilot_router import default_pilot_router
+
         r = default_pilot_router()
         cd = r.intent_detector.cooldown
         return {
@@ -173,14 +186,14 @@ def _intent_stats() -> Dict[str, Any]:
         }
     except Exception as e:
         logger.debug("intent_stats failed: %s", e)
-        return {"fired_count": 0, "ignored_count": 0, "cooldown_sec": 0,
-                "rule_threshold": 0, "llm_min_confidence": 0}
+        return {"fired_count": 0, "ignored_count": 0, "cooldown_sec": 0, "rule_threshold": 0, "llm_min_confidence": 0}
 
 
 def _memory_content(tenant: str = "default") -> Dict[str, Any]:
     out = {"tenant": tenant, "tiers": []}
     try:
         from core.flow_memory.flow_memory_md import MEMORY_DIR, TIER_ORDER
+
         for tier in TIER_ORDER:
             d = MEMORY_DIR / tier
             if not d.exists():
@@ -192,8 +205,7 @@ def _memory_content(tenant: str = "default") -> Dict[str, Any]:
                     content = f.read_text(encoding="utf-8")
                 except Exception:
                     pass
-                files.append({"name": f.name, "size": f.stat().st_size,
-                                "content": content[:1000]})
+                files.append({"name": f.name, "size": f.stat().st_size, "content": content[:1000]})
             if files:
                 out["tiers"].append({"tier": tier, "files": files})
     except Exception as e:
@@ -233,10 +245,12 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
         d = _task_detail(task_id)
         if d is None:
             return JSONResponse({"error": "not_found"}, status_code=404)
-        return JSONResponse({
-            "transitions": d.get("transitions", []),
-            "agent_logs": d.get("agent_logs", []),
-        })
+        return JSONResponse(
+            {
+                "transitions": d.get("transitions", []),
+                "agent_logs": d.get("agent_logs", []),
+            }
+        )
 
     @app.get("/api/v7/skills")
     def _r_skills():
@@ -259,8 +273,10 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
         """Real-time audit log stream for security panel."""
         try:
             from core.event_store import EventStore
+
             store = EventStore()
             import time
+
             events = store.replay_since(int(time.time()) - 86400)
             return JSONResponse({"events": events[-limit:]})
         except Exception:
@@ -271,27 +287,30 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
         """Get plan steps with execution status for DAG visualization."""
         try:
             from core.agent_pilot.service import get_plan
+
             plan = get_plan(plan_id)
             if plan is None:
                 return JSONResponse({"error": "not_found"}, status_code=404)
-            return JSONResponse({
-                "plan_id": plan.plan_id,
-                "intent": plan.intent,
-                "steps": [
-                    {
-                        "step_id": s.step_id,
-                        "tool": s.tool,
-                        "description": s.description,
-                        "status": s.status,
-                        "depends_on": s.depends_on,
-                        "parallel_group": s.parallel_group,
-                        "started_ts": s.started_ts,
-                        "finished_ts": s.finished_ts,
-                        "error": s.error,
-                    }
-                    for s in plan.steps
-                ],
-            })
+            return JSONResponse(
+                {
+                    "plan_id": plan.plan_id,
+                    "intent": plan.intent,
+                    "steps": [
+                        {
+                            "step_id": s.step_id,
+                            "tool": s.tool,
+                            "description": s.description,
+                            "status": s.status,
+                            "depends_on": s.depends_on,
+                            "parallel_group": s.parallel_group,
+                            "started_ts": s.started_ts,
+                            "finished_ts": s.finished_ts,
+                            "error": s.error,
+                        }
+                        for s in plan.steps
+                    ],
+                }
+            )
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -300,15 +319,18 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
         """Summary metrics for dashboard header."""
         try:
             from core.observability import get_metrics_summary
+
             return JSONResponse(get_metrics_summary())
         except Exception:
-            return JSONResponse({
-                "total_plans": 0,
-                "active_plans": 0,
-                "total_tools_called": 0,
-                "avg_latency_ms": 0,
-                "error_rate": 0.0,
-            })
+            return JSONResponse(
+                {
+                    "total_plans": 0,
+                    "active_plans": 0,
+                    "total_tools_called": 0,
+                    "avg_latency_ms": 0,
+                    "error_rate": 0.0,
+                }
+            )
 
     @app.get("/v7/pilot", response_class=HTMLResponse)
     def _r_pilot_page():

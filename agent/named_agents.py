@@ -41,6 +41,7 @@ class NamedAgentRegistry:
             for f in d.glob("*.yaml"):
                 try:
                     import yaml  # type: ignore
+
                     data = yaml.safe_load(f.read_text(encoding="utf-8"))
                     if not isinstance(data, dict):
                         continue
@@ -73,9 +74,11 @@ class NamedAgentRegistry:
         for a in self.agents.values():
             for t in a.tools:
                 if t == tool_name:
-                    matches.append(a); break
+                    matches.append(a)
+                    break
                 if t.endswith(".*") and tool_name.startswith(t[:-2] + "."):
-                    matches.append(a); break
+                    matches.append(a)
+                    break
         return matches
 
 

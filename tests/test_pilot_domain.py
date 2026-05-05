@@ -8,6 +8,7 @@
 - ContextPack 最小信息闸门
 - Domain Event 总线发布/订阅/隔离
 """
+
 from __future__ import annotations
 
 import pytest
@@ -42,10 +43,18 @@ from core.agent_pilot.domain.state_machine import legal_events, transition_count
 
 def test_state_enum_has_all_10_plus_2_states():
     expected = {
-        "suggested", "assigned", "context_pending",
-        "planning", "doc_generating", "ppt_generating", "canvas_generating",
-        "reviewing", "delivered",
-        "paused", "failed", "ignored",
+        "suggested",
+        "assigned",
+        "context_pending",
+        "planning",
+        "doc_generating",
+        "ppt_generating",
+        "canvas_generating",
+        "reviewing",
+        "delivered",
+        "paused",
+        "failed",
+        "ignored",
     }
     assert {s.value for s in TaskState} == expected
 
@@ -235,6 +244,7 @@ def test_task_assign_changes_owner():
 def test_task_to_dict_serializable():
     """JSON 持久化：Task.to_dict() 必须可被 json.dumps."""
     import json
+
     t = Task.new(intent="x", owner_open_id="u1")
     s = json.dumps(t.to_dict(), ensure_ascii=False, default=str)
     assert "task_id" in s
@@ -268,8 +278,10 @@ def test_context_pack_total_chars():
         task_id="t1",
         task_goal="x",
         owner_open_id="u1",
-        source_messages=[SourceMessage(sender_open_id="u", text="abc"),
-                         SourceMessage(sender_open_id="u", text="defgh")],
+        source_messages=[
+            SourceMessage(sender_open_id="u", text="abc"),
+            SourceMessage(sender_open_id="u", text="defgh"),
+        ],
     )
     assert cp.total_chars() == 8
 
@@ -291,8 +303,9 @@ def test_add_artifact_publishes_event():
     received = []
     bus.subscribe(received.append)
     t = Task.new(intent="x", owner_open_id="u1", event_bus=bus)
-    art = Artifact(artifact_id="a1", task_id="", kind=ArtifactKind.DOC,
-                    title="复盘文档", feishu_url="https://feishu.cn/doc/xxx")
+    art = Artifact(
+        artifact_id="a1", task_id="", kind=ArtifactKind.DOC, title="复盘文档", feishu_url="https://feishu.cn/doc/xxx"
+    )
     t.add_artifact(art, event_bus=bus)
     assert len(t.artifacts) == 1
     assert t.artifacts[0].task_id == t.task_id

@@ -7,6 +7,7 @@
 如果你只读现有 planner，仍能正常工作。如果你写新代码，请用本模块的
 ``Plan``（带 owner / task_id 双向引用）。
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,12 +35,12 @@ class Plan:
     """Domain Plan: 显式带 task_id + owner."""
 
     plan_id: str
-    task_id: str                    # 反向指向 Task
+    task_id: str  # 反向指向 Task
     owner_open_id: str
     intent: str
     steps: List[PlanStep] = field(default_factory=list)
     created_ts: int = 0
-    notes: str = ""                  # planner 自由备注（推理模式选择理由等）
+    notes: str = ""  # planner 自由备注（推理模式选择理由等）
     reasoning_pattern: str = "react"  # "react" / "reflection" / "cot" / "debate" / "tot"
 
     def step_count(self) -> int:

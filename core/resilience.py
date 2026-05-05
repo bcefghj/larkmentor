@@ -42,16 +42,22 @@ def retry_with_backoff(config: Optional[RetryConfig] = None):
                     last_exc = e
                     if attempt == cfg.max_attempts - 1:
                         break
-                    delay = min(cfg.base_delay_sec * (2 ** attempt), cfg.max_delay_sec)
+                    delay = min(cfg.base_delay_sec * (2**attempt), cfg.max_delay_sec)
                     if cfg.jitter:
-                        delay *= (0.5 + random.random())
+                        delay *= 0.5 + random.random()
                     logger.warning(
                         "retry %s attempt=%d/%d delay=%.1fs err=%s",
-                        fn.__name__, attempt + 1, cfg.max_attempts, delay, e,
+                        fn.__name__,
+                        attempt + 1,
+                        cfg.max_attempts,
+                        delay,
+                        e,
                     )
                     time.sleep(delay)
             raise last_exc  # type: ignore
+
         return wrapper  # type: ignore
+
     return decorator
 
 
@@ -171,11 +177,13 @@ class WebSocketReconnector:
                 self._attempt += 1
                 if self._on_disconnected:
                     self._on_disconnected(e)
-                delay = min(self._base_delay * (2 ** self._attempt), self._max_delay)
-                delay *= (0.5 + random.random())
+                delay = min(self._base_delay * (2**self._attempt), self._max_delay)
+                delay *= 0.5 + random.random()
                 logger.warning(
                     "WebSocket reconnect attempt=%d delay=%.1fs err=%s",
-                    self._attempt, delay, e,
+                    self._attempt,
+                    delay,
+                    e,
                 )
                 time.sleep(delay)
 
@@ -194,11 +202,8 @@ def notify_user_error(
     """
     try:
         from bot.message_sender import send_text
-        error_msg = (
-            f"⚠️ Agent-Pilot 执行异常\n\n"
-            f"错误类型: {type(error).__name__}\n"
-            f"详情: {str(error)[:200]}\n"
-        )
+
+        error_msg = f"⚠️ Agent-Pilot 执行异常\n\n错误类型: {type(error).__name__}\n详情: {str(error)[:200]}\n"
         if context:
             error_msg += f"上下文: {context}\n"
         error_msg += "\n请稍后重试，或输入 /pilot 重新启动任务。"
@@ -206,5 +211,7 @@ def notify_user_error(
     except Exception as notify_err:
         logger.error(
             "failed to notify user %s about error: %s (original: %s)",
-            user_open_id, notify_err, error,
+            user_open_id,
+            notify_err,
+            error,
         )

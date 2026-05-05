@@ -47,7 +47,7 @@ class Decision(str, enum.Enum):
 
 @dataclass
 class PermissionRule:
-    pattern: str            # tool name exact, or "prefix.*"
+    pattern: str  # tool name exact, or "prefix.*"
     decision: Decision = Decision.ALLOW
     reason: str = ""
 
@@ -98,15 +98,28 @@ ALWAYS_PROTECTED = {
 # Tools considered "write-like" (non-readonly, non-destructive).
 # Treated as ASK in default and DENY in plan.
 WRITE_LIKE_PREFIXES = (
-    "doc.", "canvas.", "slide.", "bitable.", "drive.", "calendar.",
-    "im.send", "im.batch_send", "archive.",
+    "doc.",
+    "canvas.",
+    "slide.",
+    "bitable.",
+    "drive.",
+    "calendar.",
+    "im.send",
+    "im.batch_send",
+    "archive.",
 )
 
 # Tools considered safe readonly.
 READONLY_PREFIXES = (
-    "im.fetch_thread", "im.list", "doc.read", "mentor.clarify",
-    "mentor.summarize", "voice.transcribe", "audit.list",
-    "search.", "memory.query",
+    "im.fetch_thread",
+    "im.list",
+    "doc.read",
+    "mentor.clarify",
+    "mentor.summarize",
+    "voice.transcribe",
+    "audit.list",
+    "search.",
+    "memory.query",
 )
 
 
@@ -157,15 +170,24 @@ class PermissionGate:
 
     # ── Evaluate ──
 
-    def check(self, *, tool: str, readonly: bool = False, destructive: bool = False,
-              user_open_id: str = "", args: Optional[Dict[str, Any]] = None) -> PermissionResult:
+    def check(
+        self,
+        *,
+        tool: str,
+        readonly: bool = False,
+        destructive: bool = False,
+        user_open_id: str = "",
+        args: Optional[Dict[str, Any]] = None,
+    ) -> PermissionResult:
         """Evaluate permission for a tool call. Deny-first priority."""
         mode = self.user_mode(user_open_id)
 
         # Always-protected tools.
         if tool in ALWAYS_PROTECTED and mode != PermissionMode.BYPASS:
             result = PermissionResult(
-                decision=Decision.DENY, tool=tool, mode=mode,
+                decision=Decision.DENY,
+                tool=tool,
+                mode=mode,
                 reason="always-protected tool",
             )
             self._remember(tool, user_open_id, result)
@@ -176,7 +198,9 @@ class PermissionGate:
             for r in self._deny:
                 if r.matches(tool):
                     result = PermissionResult(
-                        decision=Decision.DENY, tool=tool, mode=mode,
+                        decision=Decision.DENY,
+                        tool=tool,
+                        mode=mode,
                         reason=f"explicit deny rule: {r.pattern} ({r.reason})",
                         rule=r,
                     )
@@ -187,7 +211,9 @@ class PermissionGate:
             for r in self._ask:
                 if r.matches(tool):
                     result = PermissionResult(
-                        decision=Decision.ASK, tool=tool, mode=mode,
+                        decision=Decision.ASK,
+                        tool=tool,
+                        mode=mode,
                         reason=f"explicit ask rule: {r.pattern} ({r.reason})",
                         rule=r,
                     )
@@ -198,7 +224,9 @@ class PermissionGate:
             for r in self._allow:
                 if r.matches(tool):
                     result = PermissionResult(
-                        decision=Decision.ALLOW, tool=tool, mode=mode,
+                        decision=Decision.ALLOW,
+                        tool=tool,
+                        mode=mode,
                         reason=f"explicit allow rule: {r.pattern}",
                         rule=r,
                     )
@@ -216,30 +244,33 @@ class PermissionGate:
             if readonly or _is_readonly(tool):
                 result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode, reason="plan + readonly")
             else:
-                result = PermissionResult(decision=Decision.DENY, tool=tool, mode=mode,
-                                           reason="plan mode blocks all writes")
+                result = PermissionResult(
+                    decision=Decision.DENY, tool=tool, mode=mode, reason="plan mode blocks all writes"
+                )
             self._remember(tool, user_open_id, result)
             return result
 
         if mode == PermissionMode.AUTO or mode == PermissionMode.DONT_ASK:
             # Allow unless destructive + non-readonly (then ask).
             if destructive and not readonly:
-                result = PermissionResult(decision=Decision.ASK, tool=tool, mode=mode,
-                                           reason="destructive requires confirm")
+                result = PermissionResult(
+                    decision=Decision.ASK, tool=tool, mode=mode, reason="destructive requires confirm"
+                )
             else:
-                result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode,
-                                           reason="mode permits")
+                result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode, reason="mode permits")
             self._remember(tool, user_open_id, result)
             return result
 
         if mode == PermissionMode.ACCEPT_EDITS:
             # Allow readonly + edits; destructive asks.
             if destructive:
-                result = PermissionResult(decision=Decision.ASK, tool=tool, mode=mode,
-                                           reason="destructive in acceptEdits asks")
+                result = PermissionResult(
+                    decision=Decision.ASK, tool=tool, mode=mode, reason="destructive in acceptEdits asks"
+                )
             else:
-                result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode,
-                                           reason="acceptEdits permits writes")
+                result = PermissionResult(
+                    decision=Decision.ALLOW, tool=tool, mode=mode, reason="acceptEdits permits writes"
+                )
             self._remember(tool, user_open_id, result)
             return result
 
@@ -247,11 +278,13 @@ class PermissionGate:
         if readonly or _is_readonly(tool):
             result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode, reason="default + readonly")
         elif destructive:
-            result = PermissionResult(decision=Decision.ASK, tool=tool, mode=mode,
-                                       reason="destructive requires confirm (default)")
+            result = PermissionResult(
+                decision=Decision.ASK, tool=tool, mode=mode, reason="destructive requires confirm (default)"
+            )
         elif _is_write_like(tool):
-            result = PermissionResult(decision=Decision.ASK, tool=tool, mode=mode,
-                                       reason="write-like needs confirm (default)")
+            result = PermissionResult(
+                decision=Decision.ASK, tool=tool, mode=mode, reason="write-like needs confirm (default)"
+            )
         else:
             result = PermissionResult(decision=Decision.ALLOW, tool=tool, mode=mode, reason="default: unknown, allow")
         self._remember(tool, user_open_id, result)
@@ -259,11 +292,15 @@ class PermissionGate:
 
     def _remember(self, tool: str, user: str, r: PermissionResult) -> None:
         with self._lock:
-            self._audit.append({
-                "tool": tool, "user": user[-8:] if user else "-",
-                "decision": r.decision.value, "mode": r.mode.value,
-                "reason": r.reason,
-            })
+            self._audit.append(
+                {
+                    "tool": tool,
+                    "user": user[-8:] if user else "-",
+                    "decision": r.decision.value,
+                    "mode": r.mode.value,
+                    "reason": r.reason,
+                }
+            )
             if len(self._audit) > 500:
                 self._audit = self._audit[-500:]
 

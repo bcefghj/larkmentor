@@ -1,4 +1,5 @@
 """P6 · MultiAgentPipeline 测试 (Builder-Validator + 5 named agents)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -95,13 +96,19 @@ def task_ready_for_pipeline(tmp_path):
     svc = TaskService(repository=TaskRepository(root=str(tmp_path)))
     ctx_svc = ContextService(upload_root=str(tmp_path))
 
-    def make(intent: str = "活动复盘汇报", primary: str = "ppt",
-             audience: str = "leader", reasoning_pattern: str = "cot"):
+    def make(
+        intent: str = "活动复盘汇报", primary: str = "ppt", audience: str = "leader", reasoning_pattern: str = "cot"
+    ):
         t = svc.create_task(intent=intent, owner_open_id="u1")
-        cp = ctx_svc.build(ContextBuildOptions(
-            task_id=t.task_id, task_goal=intent, owner_open_id="u1",
-            output_primary=primary, output_audience=audience,
-        ))
+        cp = ctx_svc.build(
+            ContextBuildOptions(
+                task_id=t.task_id,
+                task_goal=intent,
+                owner_open_id="u1",
+                output_primary=primary,
+                output_audience=audience,
+            )
+        )
         t.attach_context(cp, confirmed=True)
         ps = PlannerService(planner_factory=False)
         ps.plan_for_task(t)
@@ -123,9 +130,13 @@ def test_pipeline_runs_full_chain(task_ready_for_pipeline):
         citation_agent=MockCitationAgent(),
     )
     content = "本次校园推广活动覆盖 2400 人。根据 2025 年数据，参与率上升 15%。"
-    rep = pipe.run(t, content=content, artifacts=[
-        Artifact(artifact_id="a1", task_id="", kind=ArtifactKind.DOC, title="复盘"),
-    ])
+    rep = pipe.run(
+        t,
+        content=content,
+        artifacts=[
+            Artifact(artifact_id="a1", task_id="", kind=ArtifactKind.DOC, title="复盘"),
+        ],
+    )
     assert rep.task_id == t.task_id
     assert rep.quality_gates_total == 5
     assert rep.quality_gates_passed == 5
@@ -179,9 +190,11 @@ def test_pipeline_safety_blocks_pii(task_ready_for_pipeline):
 
 def test_pipeline_validator_failure_does_not_break(task_ready_for_pipeline):
     """Quality runner 抛异常 → transcript ok=False，但 pipeline 不挂掉."""
+
     class BrokenRunner:
         def run(self, *_, **__):
             raise RuntimeError("downstream qg crashed")
+
     t = task_ready_for_pipeline()
     pipe = MultiAgentPipeline(
         llm_chat=_mock_llm_simple,
@@ -225,6 +238,7 @@ def test_pipeline_logs_to_task_agent_log(task_ready_for_pipeline):
 
 def test_pipeline_emits_events(task_ready_for_pipeline):
     from core.agent_pilot.domain import EventBus
+
     bus = EventBus()
     received = []
     bus.subscribe(received.append)
@@ -254,10 +268,12 @@ def test_pipeline_mentor_extracts_revisions(task_ready_for_pipeline):
 
 def test_pipeline_overall_ok_when_one_gate_fails(task_ready_for_pipeline):
     """允许 1 个 gate 失败仍 overall_ok（弹性容忍）."""
+
     class Mostly:
         def run(self, *_, **__):
             gates = [MockGate(f"g{i}", i != 0, 0.8) for i in range(5)]
             return MockQualityReport(gates=gates, overall_passed=False, overall_score=0.7)
+
     t = task_ready_for_pipeline()
     pipe = MultiAgentPipeline(
         llm_chat=_mock_llm_simple,

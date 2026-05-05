@@ -28,17 +28,22 @@ def triage_message(
     try:
         from core.smart_shield_v3 import process_message_v3
         from memory.user_state import get_user
+
         user = get_user(user_open_id) if user_open_id else None
         if user is None:
             return {
-                "level": "P2", "score": 0.3,
+                "level": "P2",
+                "score": 0.3,
                 "recommended_action": "defer",
                 "note": "user not found, default P2",
             }
         result = process_message_v3(
             user=user,
-            sender_name=sender_name, sender_id=sender_id,
-            message_id="", content=content, chat_name=chat_name,
+            sender_name=sender_name,
+            sender_id=sender_id,
+            message_id="",
+            content=content,
+            chat_name=chat_name,
             chat_type=chat_type,
         )
         return {"level": result.get("level", "P2"), **result}
@@ -56,6 +61,7 @@ def triage_message(
 def send_text(chat_id: str = "", open_id: str = "", text: str = "") -> Dict[str, Any]:
     try:
         from bot.message_sender import send_text as _send_text
+
         ok = _send_text(chat_id or open_id, text)
         return {"ok": ok, "target": chat_id or open_id}
     except Exception as e:
@@ -71,6 +77,7 @@ def send_text(chat_id: str = "", open_id: str = "", text: str = "") -> Dict[str,
 def send_card(chat_id: str = "", open_id: str = "", card: Optional[Dict] = None) -> Dict[str, Any]:
     try:
         from bot.message_sender import send_card as _send_card
+
         msg_id = _send_card(chat_id or open_id, card or {})
         return {"ok": bool(msg_id), "message_id": msg_id}
     except Exception as e:
@@ -86,6 +93,7 @@ def send_card(chat_id: str = "", open_id: str = "", card: Optional[Dict] = None)
 def recovery_card(user_open_id: str = "", focus_start_ts: int = 0) -> Dict[str, Any]:
     try:
         from core.recovery_card import send_recovery_card
+
         ok = send_recovery_card(user_open_id=user_open_id, focus_start_ts=focus_start_ts)
         return {"ok": bool(ok)}
     except Exception as e:
@@ -101,18 +109,22 @@ def recovery_card(user_open_id: str = "", focus_start_ts: int = 0) -> Dict[str, 
 def get_history(chat_id: str = "", limit: int = 20) -> Dict[str, Any]:
     try:
         from bot.feishu_client import get_client
+
         client = get_client()
         from lark_oapi.api.im.v1 import ListMessageRequest
+
         req = ListMessageRequest.builder().container_id_type("chat").container_id(chat_id).page_size(limit).build()
         resp = client.im.v1.message.list(req)
         items = []
         if resp.success() and resp.data:
-            for item in (resp.data.items or []):
-                items.append({
-                    "message_id": getattr(item, "message_id", ""),
-                    "sender_id": getattr(getattr(item, "sender", None), "id", ""),
-                    "content": str(getattr(item, "body", ""))[:500],
-                })
+            for item in resp.data.items or []:
+                items.append(
+                    {
+                        "message_id": getattr(item, "message_id", ""),
+                        "sender_id": getattr(getattr(item, "sender", None), "id", ""),
+                        "content": str(getattr(item, "body", ""))[:500],
+                    }
+                )
         return {"ok": True, "items": items, "count": len(items)}
     except Exception as e:
         return {"ok": False, "error": str(e)}

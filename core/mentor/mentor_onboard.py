@@ -96,6 +96,7 @@ _load()
 
 # ── data classes ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class OnboardSession:
     open_id: str
@@ -136,6 +137,7 @@ class OnboardSession:
 
 
 # ── public API ───────────────────────────────────────────────────────────────
+
 
 def start(open_id: str, *, force: bool = False) -> OnboardSession:
     """Start (or restart) the onboarding flow for a user."""
@@ -221,7 +223,9 @@ def _ingest_into_kb(sess: OnboardSession) -> None:
         # PII would hint at a problem we want the user to see (we still
         # honour delete_user_kb).
         kb.import_text(
-            sess.open_id, source="onboarding", text=body,
+            sess.open_id,
+            source="onboarding",
+            text=body,
             skip_pii_check=True,
         )
     except Exception as e:  # noqa: BLE001
@@ -229,6 +233,7 @@ def _ingest_into_kb(sess: OnboardSession) -> None:
 
 
 # ── helpers used by event_handler ────────────────────────────────────────────
+
 
 def reset(open_id: str) -> None:
     if open_id in _MEM:

@@ -27,18 +27,16 @@ from utils.time_utils import now_ts
 
 logger = logging.getLogger("flowguard.sender_profile")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
-)
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 PROFILE_FILE = os.path.join(DATA_DIR, "sender_profiles.json")
 
 # ── Identity tags ──
-IDENTITY_VIP = "vip"               # explicitly marked
-IDENTITY_SUPERIOR = "superior"     # leader/manager
-IDENTITY_PEER = "peer"             # frequent collaborator
+IDENTITY_VIP = "vip"  # explicitly marked
+IDENTITY_SUPERIOR = "superior"  # leader/manager
+IDENTITY_PEER = "peer"  # frequent collaborator
 IDENTITY_OCCASIONAL = "occasional"  # infrequent contact
-IDENTITY_UNKNOWN = "unknown"       # never seen
-IDENTITY_BOT = "bot"               # automated sender
+IDENTITY_UNKNOWN = "unknown"  # never seen
+IDENTITY_BOT = "bot"  # automated sender
 
 IDENTITY_SCORE = {
     IDENTITY_VIP: 1.0,
@@ -55,12 +53,12 @@ class SenderProfile:
     sender_id: str
     name: str = ""
     identity_tag: str = IDENTITY_UNKNOWN
-    recent_messages_count: int = 0       # rolling 7-day count
+    recent_messages_count: int = 0  # rolling 7-day count
     total_messages_count: int = 0
     last_seen_ts: int = 0
     user_response_delays: List[int] = field(default_factory=list)  # seconds
-    user_marked_important: int = 0        # times user replied within 60s
-    user_marked_unimportant: int = 0      # times user ignored / archived
+    user_marked_important: int = 0  # times user replied within 60s
+    user_marked_unimportant: int = 0  # times user ignored / archived
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -177,6 +175,7 @@ def decay_recent_counts():
 
 
 # ── Persistence ──
+
 
 def save():
     os.makedirs(DATA_DIR, exist_ok=True)

@@ -30,9 +30,7 @@ from utils.time_utils import fmt_time, now_ts
 
 logger = logging.getLogger("flowguard.workspace")
 
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
-)
+DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 WORKSPACE_FILE = os.path.join(DATA_DIR, "user_workspaces.json")
 
 
@@ -80,8 +78,7 @@ def _save_all():
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
         with open(WORKSPACE_FILE, "w", encoding="utf-8") as f:
-            json.dump({k: v.to_dict() for k, v in _store.items()}, f,
-                      ensure_ascii=False, indent=2)
+            json.dump({k: v.to_dict() for k, v in _store.items()}, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error("Save workspaces failed: %s", e)
 
@@ -95,26 +92,86 @@ def get_workspace(user_open_id: str) -> UserWorkspace:
 # ── Bitable provisioning ──
 
 DEMO_INTERRUPTION_ROWS = [
-    {"时间": "09:12", "发送者": "张三 (产品)", "群组": "Q3 项目讨论",
-     "优先级": "P1", "处理动作": "暂存等专注结束", "触发原因": "决策类消息+任务关联0.62"},
-    {"时间": "09:17", "发送者": "李四 (实习生)", "群组": "全体大群",
-     "优先级": "P3", "处理动作": "归档", "触发原因": "闲聊频道+无关键词"},
-    {"时间": "09:23", "发送者": "王总 (Director)", "群组": "私聊",
-     "优先级": "P0", "处理动作": "立即转达", "触发原因": "白名单命中"},
-    {"时间": "09:31", "发送者": "客户支持机器人", "群组": "客户群",
-     "优先级": "P2", "处理动作": "代回复", "触发原因": "Bot身份+常规问询"},
-    {"时间": "09:42", "发送者": "陈五 (UI)", "群组": "设计评审",
-     "优先级": "P1", "处理动作": "暂存等专注结束", "触发原因": "任务关联0.71"},
-    {"时间": "09:55", "发送者": "DevOps 告警", "群组": "运维通知",
-     "优先级": "P0", "处理动作": "立即转达+邮件", "触发原因": "紧急关键词+生产事故"},
-    {"时间": "10:08", "发送者": "赵六", "群组": "技术分享",
-     "优先级": "P3", "处理动作": "归档", "触发原因": "广播频道+无关键词"},
-    {"时间": "10:21", "发送者": "李洁盈 (队友)", "群组": "私聊",
-     "优先级": "P1", "处理动作": "暂存等专注结束", "触发原因": "白名单+非紧急"},
-    {"时间": "10:34", "发送者": "市场周报", "群组": "公司公告",
-     "优先级": "P3", "处理动作": "归档", "触发原因": "广播+非时间敏感"},
-    {"时间": "10:46", "发送者": "周七 (HR)", "群组": "私聊",
-     "优先级": "P2", "处理动作": "代回复", "触发原因": "决策中性+时间敏感低"},
+    {
+        "时间": "09:12",
+        "发送者": "张三 (产品)",
+        "群组": "Q3 项目讨论",
+        "优先级": "P1",
+        "处理动作": "暂存等专注结束",
+        "触发原因": "决策类消息+任务关联0.62",
+    },
+    {
+        "时间": "09:17",
+        "发送者": "李四 (实习生)",
+        "群组": "全体大群",
+        "优先级": "P3",
+        "处理动作": "归档",
+        "触发原因": "闲聊频道+无关键词",
+    },
+    {
+        "时间": "09:23",
+        "发送者": "王总 (Director)",
+        "群组": "私聊",
+        "优先级": "P0",
+        "处理动作": "立即转达",
+        "触发原因": "白名单命中",
+    },
+    {
+        "时间": "09:31",
+        "发送者": "客户支持机器人",
+        "群组": "客户群",
+        "优先级": "P2",
+        "处理动作": "代回复",
+        "触发原因": "Bot身份+常规问询",
+    },
+    {
+        "时间": "09:42",
+        "发送者": "陈五 (UI)",
+        "群组": "设计评审",
+        "优先级": "P1",
+        "处理动作": "暂存等专注结束",
+        "触发原因": "任务关联0.71",
+    },
+    {
+        "时间": "09:55",
+        "发送者": "DevOps 告警",
+        "群组": "运维通知",
+        "优先级": "P0",
+        "处理动作": "立即转达+邮件",
+        "触发原因": "紧急关键词+生产事故",
+    },
+    {
+        "时间": "10:08",
+        "发送者": "赵六",
+        "群组": "技术分享",
+        "优先级": "P3",
+        "处理动作": "归档",
+        "触发原因": "广播频道+无关键词",
+    },
+    {
+        "时间": "10:21",
+        "发送者": "李洁盈 (队友)",
+        "群组": "私聊",
+        "优先级": "P1",
+        "处理动作": "暂存等专注结束",
+        "触发原因": "白名单+非紧急",
+    },
+    {
+        "时间": "10:34",
+        "发送者": "市场周报",
+        "群组": "公司公告",
+        "优先级": "P3",
+        "处理动作": "归档",
+        "触发原因": "广播+非时间敏感",
+    },
+    {
+        "时间": "10:46",
+        "发送者": "周七 (HR)",
+        "群组": "私聊",
+        "优先级": "P2",
+        "处理动作": "代回复",
+        "触发原因": "决策中性+时间敏感低",
+    },
 ]
 
 
@@ -129,22 +186,17 @@ def _create_bitable(user_open_id: str) -> Optional[Dict]:
             ReqApp,
             ReqTable,
         )
+
         client = get_client()
 
         app_req = (
             CreateAppRequest.builder()
-            .request_body(
-                ReqApp.builder()
-                .name("LarkMentor - 我的打断分析看板")
-                .folder_token("")
-                .build()
-            )
+            .request_body(ReqApp.builder().name("LarkMentor - 我的打断分析看板").folder_token("").build())
             .build()
         )
         app_resp = client.bitable.v1.app.create(app_req)
         if not app_resp.success():
-            logger.warning("Create bitable app failed: %s %s",
-                           app_resp.code, app_resp.msg)
+            logger.warning("Create bitable app failed: %s %s", app_resp.code, app_resp.msg)
             return None
         app_token = app_resp.data.app.app_token
         app_url = app_resp.data.app.url
@@ -163,13 +215,7 @@ def _create_bitable(user_open_id: str) -> Optional[Dict]:
             .app_token(app_token)
             .request_body(
                 CreateAppTableRequestBody.builder()
-                .table(
-                    ReqTable.builder()
-                    .name("打断分析")
-                    .default_view_name("看板视图")
-                    .fields(fields)
-                    .build()
-                )
+                .table(ReqTable.builder().name("打断分析").default_view_name("看板视图").fields(fields).build())
                 .build()
             )
             .build()
@@ -194,19 +240,14 @@ def _seed_demo_rows(app_token: str, table_id: str) -> int:
             BatchCreateAppTableRecordRequest,
             BatchCreateAppTableRecordRequestBody,
         )
+
         client = get_client()
-        records = [
-            AppTableRecord.builder().fields(row).build()
-            for row in DEMO_INTERRUPTION_ROWS
-        ]
+        records = [AppTableRecord.builder().fields(row).build() for row in DEMO_INTERRUPTION_ROWS]
         req = (
             BatchCreateAppTableRecordRequest.builder()
             .app_token(app_token)
             .table_id(table_id)
-            .request_body(
-                BatchCreateAppTableRecordRequestBody.builder()
-                .records(records).build()
-            )
+            .request_body(BatchCreateAppTableRecordRequestBody.builder().records(records).build())
             .build()
         )
         resp = client.bitable.v1.app_table_record.batch_create(req)
@@ -261,15 +302,12 @@ def _create_doc(title: str, body_md: str) -> Optional[Dict]:
     """Create a Feishu Docx document. Falls back to wiki if docx unavailable."""
     try:
         import lark_oapi.api.docx.v1 as docx_api
+
         client = get_client()
         # Step 1: create blank doc
         req = (
             docx_api.CreateDocumentRequest.builder()
-            .request_body(
-                docx_api.CreateDocumentRequestBody.builder()
-                .title(title)
-                .build()
-            )
+            .request_body(docx_api.CreateDocumentRequestBody.builder().title(title).build())
             .build()
         )
         resp = client.docx.v1.document.create(req)
@@ -290,6 +328,7 @@ def _create_doc(title: str, body_md: str) -> Optional[Dict]:
                 TextElement,
                 TextRun,
             )
+
             text_run = TextRun.builder().content(body_md).build()
             text_el = TextElement.builder().text_run(text_run).build()
             text = Text.builder().elements([text_el]).build()
@@ -298,10 +337,7 @@ def _create_doc(title: str, body_md: str) -> Optional[Dict]:
                 CreateDocumentBlockChildrenRequest.builder()
                 .document_id(doc_token)
                 .block_id(doc_token)
-                .request_body(
-                    CreateDocumentBlockChildrenRequestBody.builder()
-                    .children([block]).index(0).build()
-                )
+                .request_body(CreateDocumentBlockChildrenRequestBody.builder().children([block]).index(0).build())
                 .build()
             )
             client.docx.v1.document_block_children.create(children_req)
@@ -315,6 +351,7 @@ def _create_doc(title: str, body_md: str) -> Optional[Dict]:
 
 
 # ── Public entry ─────────────────────────────────────────────────
+
 
 def ensure_workspace(user_open_id: str, force: bool = False) -> UserWorkspace:
     """Provision the personal workspace for this user if not yet created.
@@ -369,10 +406,9 @@ def append_recovery_card(user_open_id: str, content_md: str) -> bool:
             TextElement,
             TextRun,
         )
+
         client = get_client()
-        text_run = TextRun.builder().content(
-            f"\n--- {fmt_time()} ---\n{content_md}\n"
-        ).build()
+        text_run = TextRun.builder().content(f"\n--- {fmt_time()} ---\n{content_md}\n").build()
         text_el = TextElement.builder().text_run(text_run).build()
         text = Text.builder().elements([text_el]).build()
         block = Block.builder().block_type(2).text(text).build()
@@ -380,10 +416,7 @@ def append_recovery_card(user_open_id: str, content_md: str) -> bool:
             CreateDocumentBlockChildrenRequest.builder()
             .document_id(ws.recovery_doc_token)
             .block_id(ws.recovery_doc_token)
-            .request_body(
-                CreateDocumentBlockChildrenRequestBody.builder()
-                .children([block]).build()
-            )
+            .request_body(CreateDocumentBlockChildrenRequestBody.builder().children([block]).build())
             .build()
         )
         resp = client.docx.v1.document_block_children.create(req)

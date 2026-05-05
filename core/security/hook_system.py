@@ -113,6 +113,7 @@ def _make_declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             if kw in text:
                 raise HookVeto(f"contains denied keyword: {kw}")
             return None
+
         _hook.__name__ = f"deny_keyword_{kw}"
         return _hook
     if kind == "force_level":
@@ -124,6 +125,7 @@ def _make_declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
             if target_kw and target_kw in text:
                 return {"forced_level": level, "force_reason": f"hook:{target_kw}"}
             return None
+
         _hook.__name__ = f"force_level_{target_kw}"
         return _hook
     return None

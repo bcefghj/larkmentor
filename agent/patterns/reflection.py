@@ -9,7 +9,8 @@ logger = logging.getLogger("agent.patterns.reflection")
 
 
 def reflect_and_improve(
-    initial_output: str, *,
+    initial_output: str,
+    *,
     task: str,
     llm: Callable[[str], str],
     max_iters: int = 3,
@@ -27,6 +28,7 @@ def reflect_and_improve(
         critique = llm(critique_prompt)
         try:
             import json
+
             data = json.loads(critique.strip().removeprefix("```json").removeprefix("```").removesuffix("```"))
             score = float(data.get("score", 0))
             if score >= quality_threshold:

@@ -16,8 +16,7 @@ except ImportError:
         return any(kw.lower() in lower for kw in Config.URGENT_KEYWORDS)
 
 
-def classify_message(user, sender_name: str = "", sender_id: str = "",
-                     text: str = "", chat_name: str = "", **kwargs):
+def classify_message(user, sender_name: str = "", sender_id: str = "", text: str = "", chat_name: str = "", **kwargs):
     """Legacy classify_message interface for backward compatibility.
 
     Original signature: classify_message(user, sender_name, sender_id, text, chat_name)
@@ -26,6 +25,7 @@ def classify_message(user, sender_name: str = "", sender_id: str = "",
     try:
         from core.classification_engine import classify as _classify
         from core.sender_profile import SenderProfile
+
         sp = SenderProfile(name=sender_name, open_id=sender_id)
         result = _classify(user, sp, text, chat_type="group" if chat_name else "p2p")
         return {"level": result.priority, "reason": result.reason, "score": result.final_score}

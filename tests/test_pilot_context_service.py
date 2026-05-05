@@ -1,4 +1,5 @@
 """P4 · ContextService 上下文构建测试 (PRD §7 + Q4)."""
+
 from __future__ import annotations
 
 import pytest
@@ -50,8 +51,11 @@ def svc(tmp_path):
 
 def test_build_minimum_pack(svc):
     opts = ContextBuildOptions(
-        task_id="t1", task_goal="活动复盘", owner_open_id="u1",
-        output_primary="ppt", output_audience="leader",
+        task_id="t1",
+        task_goal="活动复盘",
+        owner_open_id="u1",
+        output_primary="ppt",
+        output_audience="leader",
     )
     cp = svc.build(opts)
     assert cp.task_id == "t1"
@@ -157,6 +161,7 @@ def test_history_recaller_injected(tmp_path):
 def test_history_recaller_failure_does_not_break_build(tmp_path):
     def recaller(query: str, top_k: int):
         raise RuntimeError("recall service down")
+
     svc = ContextService(history_recaller=recaller, upload_root=str(tmp_path))
     cp = svc.build(ContextBuildOptions(task_id="t1", task_goal="x", owner_open_id="u1"))
     assert cp is not None  # 没有抛异常
@@ -181,8 +186,11 @@ def test_add_user_upload(svc, tmp_path):
 def test_render_confirm_summary(svc):
     cp = svc.build(
         ContextBuildOptions(
-            task_id="t1", task_goal="活动复盘", owner_open_id="u1",
-            output_primary="ppt", output_audience="leader",
+            task_id="t1",
+            task_goal="活动复盘",
+            owner_open_id="u1",
+            output_primary="ppt",
+            output_audience="leader",
         ),
         im_messages=[SourceMessage(sender_open_id="u1", text="msg")],
     )
@@ -203,9 +211,15 @@ def test_memory_resolver_injected(tmp_path):
 
     svc = ContextService(memory_resolver=resolver, upload_root=str(tmp_path))
     opts = ContextBuildOptions(
-        task_id="t1", task_goal="x", owner_open_id="u1",
-        tenant_id="T1", workspace_id="W1", department_id="D1",
-        chat_id="g1", user_id="u1", session_id="s1",
+        task_id="t1",
+        task_goal="x",
+        owner_open_id="u1",
+        tenant_id="T1",
+        workspace_id="W1",
+        department_id="D1",
+        chat_id="g1",
+        user_id="u1",
+        session_id="s1",
     )
     md = svc.resolve_memory_md(opts)
     assert "财年" in md
@@ -222,6 +236,7 @@ def test_memory_resolver_missing_returns_empty(svc):
 def test_memory_resolver_failure_returns_empty(tmp_path):
     def resolver(**kwargs):
         raise RuntimeError("oops")
+
     svc = ContextService(memory_resolver=resolver, upload_root=str(tmp_path))
     opts = ContextBuildOptions(task_id="t1", task_goal="x", owner_open_id="u1")
     assert svc.resolve_memory_md(opts) == ""

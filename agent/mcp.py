@@ -54,8 +54,12 @@ class StdioClient:
         try:
             self.proc = subprocess.Popen(
                 cmd_expanded,
-                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                env=env, text=True, bufsize=1,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+                bufsize=1,
             )
             logger.info("stdio %s started: pid=%s", self.server.alias, self.proc.pid)
             # Initialize
@@ -87,11 +91,14 @@ class StdioClient:
                 return None
 
     def _initialize(self) -> None:
-        self._send("initialize", {
-            "protocolVersion": "2024-11-05",
-            "clientInfo": {"name": "larkmentor-v4", "version": "4.0.0"},
-            "capabilities": {},
-        })
+        self._send(
+            "initialize",
+            {
+                "protocolVersion": "2024-11-05",
+                "clientInfo": {"name": "larkmentor-v4", "version": "4.0.0"},
+                "capabilities": {},
+            },
+        )
 
     def _list_tools(self) -> None:
         resp = self._send("tools/list", {})
@@ -127,6 +134,7 @@ class HttpClient:
         # Just list tools (stateless for HTTP streamable)
         try:
             import requests  # noqa
+
             self._list_tools()
             return True
         except ImportError:
@@ -186,16 +194,18 @@ class MCPManager:
             try:
                 cfg = json.loads(cfg_path.read_text())
                 for s in cfg.get("servers", []):
-                    self.servers.append(MCPServer(
-                        alias=s["alias"],
-                        transport=s.get("transport", "stdio"),
-                        command=s.get("command"),
-                        args=s.get("args", []),
-                        env={k: os.getenv(k, "") for k in s.get("env_pass", [])} | s.get("env", {}),
-                        url=s.get("url"),
-                        headers=s.get("headers", {}),
-                        enabled=s.get("enabled", True),
-                    ))
+                    self.servers.append(
+                        MCPServer(
+                            alias=s["alias"],
+                            transport=s.get("transport", "stdio"),
+                            command=s.get("command"),
+                            args=s.get("args", []),
+                            env={k: os.getenv(k, "") for k in s.get("env_pass", [])} | s.get("env", {}),
+                            url=s.get("url"),
+                            headers=s.get("headers", {}),
+                            enabled=s.get("enabled", True),
+                        )
+                    )
                 logger.info("MCP config loaded: %d servers", len(self.servers))
                 return
             except Exception as e:
@@ -204,21 +214,34 @@ class MCPManager:
         app_id = os.getenv("FEISHU_APP_ID", "")
         app_secret = os.getenv("FEISHU_APP_SECRET", "")
         if app_id and app_secret:
-            self.servers.append(MCPServer(
-                alias="lark-local",
-                transport="stdio",
-                command="npx",
-                args=["-y", "@larksuiteoapi/lark-mcp", "mcp", "-a", app_id, "-s", app_secret,
-                      "-t", "preset.default,preset.im.default,preset.doc.default,preset.calendar.default,preset.base.default"],
-            ))
+            self.servers.append(
+                MCPServer(
+                    alias="lark-local",
+                    transport="stdio",
+                    command="npx",
+                    args=[
+                        "-y",
+                        "@larksuiteoapi/lark-mcp",
+                        "mcp",
+                        "-a",
+                        app_id,
+                        "-s",
+                        app_secret,
+                        "-t",
+                        "preset.default,preset.im.default,preset.doc.default,preset.calendar.default,preset.base.default",
+                    ],
+                )
+            )
         tat = os.getenv("FEISHU_MCP_TAT", "")
         if tat:
-            self.servers.append(MCPServer(
-                alias="lark-remote",
-                transport="http",
-                url="https://mcp.feishu.cn/mcp",
-                headers={"Authorization": f"Bearer {tat}"},
-            ))
+            self.servers.append(
+                MCPServer(
+                    alias="lark-remote",
+                    transport="http",
+                    url="https://mcp.feishu.cn/mcp",
+                    headers={"Authorization": f"Bearer {tat}"},
+                )
+            )
 
     def start(self) -> None:
         if self._started:
@@ -265,10 +288,15 @@ class MCPManager:
         return {
             "started": self._started,
             "servers": [
-                {"alias": s.alias, "transport": s.transport, "enabled": s.enabled,
-                 "url": s.url, "command": s.command,
-                 "connected": s.alias in self.clients,
-                 "tools": len(self.clients.get(s.alias).tools) if s.alias in self.clients else 0}
+                {
+                    "alias": s.alias,
+                    "transport": s.transport,
+                    "enabled": s.enabled,
+                    "url": s.url,
+                    "command": s.command,
+                    "connected": s.alias in self.clients,
+                    "tools": len(self.clients.get(s.alias).tools) if s.alias in self.clients else 0,
+                }
                 for s in self.servers
             ],
         }

@@ -104,8 +104,12 @@ def test_search_empty_kb_returns_empty(tmp_kb):
 
 def test_render_citations_format(tmp_kb):
     chunk = tmp_kb.Chunk(
-        id=1, open_id="ou_x", source="rules.md", chunk_idx=2,
-        text="规则原文", ts=0,
+        id=1,
+        open_id="ou_x",
+        source="rules.md",
+        chunk_idx=2,
+        text="规则原文",
+        ts=0,
     )
     hit = tmp_kb.SearchHit(chunk=chunk, score=0.9, method="embedding")
     rendered = tmp_kb.render_citations([hit])
@@ -115,8 +119,12 @@ def test_render_citations_format(tmp_kb):
 
 def test_to_dict_serialisable(tmp_kb):
     chunk = tmp_kb.Chunk(
-        id=1, open_id="ou_x", source="rules.md", chunk_idx=0,
-        text="规则", ts=0,
+        id=1,
+        open_id="ou_x",
+        source="rules.md",
+        chunk_idx=0,
+        text="规则",
+        ts=0,
     )
     hit = tmp_kb.SearchHit(chunk=chunk, score=0.812345, method="embedding")
     d = tmp_kb.to_dict(hit)
@@ -128,7 +136,8 @@ def test_to_dict_serialisable(tmp_kb):
 def test_import_chunks_concatenates(tmp_kb):
     with mock.patch.object(tmp_kb, "_embed", return_value=[[]]):
         res = tmp_kb.import_chunks(
-            "ou_chunks", "wiki.md",
+            "ou_chunks",
+            "wiki.md",
             ["段一", "段二"],
         )
     assert res.ok is True

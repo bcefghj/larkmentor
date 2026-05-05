@@ -12,6 +12,7 @@ import json
 def cmd_chat(args) -> None:
     """Interactive chat loop."""
     from bot.handlers_v4 import handle_message
+
     print("🤖 LarkMentor v4 CLI (输入 /quit 退出, /help 查看命令)")
     print()
     while True:
@@ -25,8 +26,11 @@ def cmd_chat(args) -> None:
         if not text:
             continue
         result = handle_message(
-            text=text, user_open_id="cli_user", chat_id="cli_chat",
-            chat_type="p2p", tenant_id=args.tenant,
+            text=text,
+            user_open_id="cli_user",
+            chat_id="cli_chat",
+            chat_type="p2p",
+            tenant_id=args.tenant,
         )
         if isinstance(result, dict):
             reply = result.get("reply", "")
@@ -47,6 +51,7 @@ def cmd_status(args) -> None:
     from agent.named_agents import default_named_agents
     from agent.providers import default_providers
     from agent.tools import get_registry
+
     status = {
         "providers": default_providers().snapshot(),
         "memory": default_memory().snapshot(),
@@ -62,12 +67,14 @@ def cmd_status(args) -> None:
 
 def cmd_plan(args) -> None:
     from bot.handlers_v4 import _cmd_plan
+
     result = _cmd_plan(" ".join(args.intent), user_open_id="cli", tenant_id=args.tenant)
     print(result.get("reply", ""))
 
 
 def cmd_pilot(args) -> None:
     from bot.handlers_v4 import _run_pilot
+
     task = " ".join(args.intent)
     result = _run_pilot(task, user_open_id="cli", chat_id="cli_chat", tenant_id=args.tenant)
     print(result.get("reply", ""))
@@ -75,6 +82,7 @@ def cmd_pilot(args) -> None:
 
 def cmd_mcp(args) -> None:
     from agent import default_mcp_manager
+
     mgr = default_mcp_manager()
     mgr.start()
     print(json.dumps(mgr.snapshot(), ensure_ascii=False, indent=2))
@@ -82,6 +90,7 @@ def cmd_mcp(args) -> None:
 
 def cmd_skills(args) -> None:
     from agent import default_skills_loader
+
     loader = default_skills_loader()
     print(f"Loaded {len(loader.skills)} skills:")
     for name, s in loader.skills.items():
@@ -90,6 +99,7 @@ def cmd_skills(args) -> None:
 
 def cmd_learner(args) -> None:
     from agent.learner import default_learner
+
     print(json.dumps(default_learner().stats(), ensure_ascii=False, indent=2))
 
 

@@ -53,8 +53,10 @@ def _cap_prompt(prompt: str) -> str:
     keep_head = _LLM_PROMPT_CHAR_CAP // 3
     keep_tail = _LLM_PROMPT_CHAR_CAP - keep_head - 64
     return (
-        prompt[:keep_head] + "\n\n...（prompt 超长，已裁剪 "
-        + str(len(prompt) - _LLM_PROMPT_CHAR_CAP) + " 字）...\n\n"
+        prompt[:keep_head]
+        + "\n\n...（prompt 超长，已裁剪 "
+        + str(len(prompt) - _LLM_PROMPT_CHAR_CAP)
+        + " 字）...\n\n"
         + prompt[-keep_tail:]
     )
 
@@ -92,6 +94,7 @@ def _build_system_prompt(
     if _AUTO_INJECT:
         try:
             from core.flow_memory.flow_memory_md import resolve_memory_md
+
             md = resolve_memory_md(
                 enterprise_id=enterprise_id,
                 workspace_id=workspace_id,
@@ -131,9 +134,12 @@ def chat(
         client = _get_client()
         messages = []
         sys_text = _build_system_prompt(
-            system=system, user_open_id=user_open_id,
-            enterprise_id=enterprise_id, workspace_id=workspace_id,
-            department_id=department_id, group_id=group_id,
+            system=system,
+            user_open_id=user_open_id,
+            enterprise_id=enterprise_id,
+            workspace_id=workspace_id,
+            department_id=department_id,
+            group_id=group_id,
             session_id=session_id,
         )
         sys_text = (sys_text or "") + _INJECTION_GUARD
@@ -153,9 +159,10 @@ def chat(
                 return resp.choices[0].message.content.strip()
             except Exception as exc:  # noqa: BLE001 - we capture and retry
                 last_err = exc
-                sleep = min(8, 2 ** attempt)
-                logger.warning("LLM attempt %d/%d failed: %s; sleeping %ss",
-                               attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep)
+                sleep = min(8, 2**attempt)
+                logger.warning(
+                    "LLM attempt %d/%d failed: %s; sleeping %ss", attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep
+                )
                 if attempt >= _LLM_MAX_RETRY:
                     break
                 time.sleep(sleep)
@@ -180,10 +187,15 @@ def chat_json(
 ) -> dict:
     """Call LLM and parse the response as JSON. Same memory-inject options as ``chat``."""
     raw = chat(
-        prompt, temperature,
-        system=system, user_open_id=user_open_id,
-        enterprise_id=enterprise_id, workspace_id=workspace_id,
-        department_id=department_id, group_id=group_id, session_id=session_id,
+        prompt,
+        temperature,
+        system=system,
+        user_open_id=user_open_id,
+        enterprise_id=enterprise_id,
+        workspace_id=workspace_id,
+        department_id=department_id,
+        group_id=group_id,
+        session_id=session_id,
     )
     if not raw:
         return {}

@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 @dataclass
 class ContextSnapshot:
     """Captures user work context at focus-start time."""
+
     user_open_id: str
     calendar_events: List[str] = field(default_factory=list)
     active_tasks: List[str] = field(default_factory=list)

@@ -11,9 +11,11 @@ from typing import Any, Dict
 
 try:
     import structlog
+
     logger = structlog.get_logger("agent.tools.slides")
 except ImportError:
     import logging
+
     logger = logging.getLogger("agent.tools.slides")
 
 from .registry import tool
@@ -21,19 +23,22 @@ from .registry import tool
 try:
     from core.resilience import retry_with_backoff, RetryConfig
 except ImportError:
-    class RetryConfig:                                    # type: ignore[no-redef]
+
+    class RetryConfig:  # type: ignore[no-redef]
         def __init__(self, max_attempts=3, base_delay_sec=1.0, **kw):
             pass
 
-    def retry_with_backoff(config=None):                  # type: ignore[no-redef]
+    def retry_with_backoff(config=None):  # type: ignore[no-redef]
         def decorator(fn):
             return fn
+
         return decorator
 
 
 # ---------------------------------------------------------------------------
 # Custom exception hierarchy
 # ---------------------------------------------------------------------------
+
 
 class SlidesError(Exception):
     """Base exception for all slides-tool failures."""
@@ -72,10 +77,11 @@ def _ensure_artifacts() -> Path:
 def _create_via_feishu_sdk(title: str, markdown: str, folder_token: str) -> Dict[str, Any]:
     """Primary path: create a Feishu Docx via ``lark_oapi`` and write content blocks."""
     from config import Config
+
     if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
         raise FeishuSlidesAPIError("FEISHU_APP_ID / APP_SECRET not configured")
 
-    import lark_oapi as lark                                      # noqa: F811
+    import lark_oapi as lark  # noqa: F811
     import lark_oapi.api.docx.v1 as docx_api
     from bot.feishu_client import get_client
 
@@ -84,19 +90,14 @@ def _create_via_feishu_sdk(title: str, markdown: str, folder_token: str) -> Dict
     req_body_builder = docx_api.CreateDocumentRequestBody.builder().title(title)
     if folder_token:
         req_body_builder = req_body_builder.folder_token(folder_token)
-    req = (
-        docx_api.CreateDocumentRequest.builder()
-        .request_body(req_body_builder.build())
-        .build()
-    )
+    req = docx_api.CreateDocumentRequest.builder().request_body(req_body_builder.build()).build()
 
     logger.info("feishu_sdk.create_document", title=title)
     resp = client.docx.v1.document.create(req)
 
     if not resp.success() or not resp.data or not resp.data.document:
         raise FeishuSlidesAPIError(
-            f"CreateDocument failed: code={getattr(resp, 'code', '?')} "
-            f"msg={getattr(resp, 'msg', '?')}",
+            f"CreateDocument failed: code={getattr(resp, 'code', '?')} msg={getattr(resp, 'msg', '?')}",
             code=str(getattr(resp, "code", "")),
             log_id=str(getattr(resp, "log_id", "")),
         )
@@ -118,12 +119,18 @@ def _create_via_feishu_sdk(title: str, markdown: str, folder_token: str) -> Dict
 
 
 def _append_blocks_to_doc(
-    client: Any, doc_token: str, title: str, markdown: str,
+    client: Any,
+    doc_token: str,
+    title: str,
+    markdown: str,
 ) -> None:
     """Best-effort: convert markdown slides into Docx blocks and append."""
     try:
         from lark_oapi.api.docx.v1 import (
-            Block, Text, TextElement, TextRun,
+            Block,
+            Text,
+            TextElement,
+            TextRun,
             CreateDocumentBlockChildrenRequest,
             CreateDocumentBlockChildrenRequestBody,
         )
@@ -154,11 +161,7 @@ def _append_blocks_to_doc(
             CreateDocumentBlockChildrenRequest.builder()
             .document_id(doc_token)
             .block_id(doc_token)
-            .request_body(
-                CreateDocumentBlockChildrenRequestBody.builder()
-                .children(blocks)
-                .build()
-            )
+            .request_body(CreateDocumentBlockChildrenRequestBody.builder().children(blocks).build())
             .build()
         )
         resp = client.docx.v1.document_block_children.create(req)
@@ -179,9 +182,10 @@ def _create_via_lark_cli(title: str, markdown: str) -> Dict[str, Any]:
 
     try:
         result = subprocess.run(
-            ["lark-cli", "slides", "create", "--title", title,
-             "--markdown", markdown[:10_000]],
-            capture_output=True, text=True, timeout=60,
+            ["lark-cli", "slides", "create", "--title", title, "--markdown", markdown[:10_000]],
+            capture_output=True,
+            text=True,
+            timeout=60,
         )
     except subprocess.TimeoutExpired as exc:
         raise LarkCLIError(f"lark-cli timed out after 60s") from exc
@@ -189,9 +193,7 @@ def _create_via_lark_cli(title: str, markdown: str) -> Dict[str, Any]:
         raise LarkCLIError("lark-cli binary not executable") from exc
 
     if result.returncode != 0:
-        raise LarkCLIError(
-            f"lark-cli exited {result.returncode}: {result.stderr[:300]}"
-        )
+        raise LarkCLIError(f"lark-cli exited {result.returncode}: {result.stderr[:300]}")
 
     try:
         data = json.loads(result.stdout)
@@ -209,10 +211,7 @@ def _create_via_marp(title: str, markdown: str) -> Dict[str, Any]:
     md_path = artifacts / f"slides-{ts}.md"
     html_path = artifacts / f"slides-{ts}.html"
 
-    marp_md = (
-        "---\nmarp: true\ntheme: gaia\npaginate: true\n---\n\n"
-        f"# {title}\n\n{markdown}\n"
-    )
+    marp_md = f"---\nmarp: true\ntheme: gaia\npaginate: true\n---\n\n# {title}\n\n{markdown}\n"
     md_path.write_text(marp_md, encoding="utf-8")
     logger.info("marp.markdown_saved", path=str(md_path))
 
@@ -220,7 +219,9 @@ def _create_via_marp(title: str, markdown: str) -> Dict[str, Any]:
         try:
             subprocess.run(
                 ["marp", str(md_path), "-o", str(html_path), "--html"],
-                check=True, capture_output=True, timeout=60,
+                check=True,
+                capture_output=True,
+                timeout=60,
             )
             logger.info("marp.html_exported", path=str(html_path))
             return {
@@ -244,6 +245,7 @@ def _create_via_marp(title: str, markdown: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Public tool: slides.create
 # ---------------------------------------------------------------------------
+
 
 @tool(
     name="slides.create",
@@ -292,6 +294,7 @@ def create_slides(
 # ---------------------------------------------------------------------------
 # Public tool: slides.rehearse
 # ---------------------------------------------------------------------------
+
 
 @tool(
     name="slides.rehearse",

@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ── Mentor Router (5 cases) ────────────────────────────────────────────────
 
+
 def test_router_keyword_short_circuit_writing(monkeypatch):
     from core.mentor.mentor_router import route
 
@@ -67,6 +68,7 @@ def test_router_empty_input_is_chitchat():
 
 
 # ── Writing mentor (10 cases) ──────────────────────────────────────────────
+
 
 @pytest.fixture
 def stub_kb_empty(monkeypatch):
@@ -143,10 +145,13 @@ def test_writing_review_with_citations(monkeypatch):
     hit = SearchHit(chunk=chunk, score=0.9, method="embedding")
     monkeypatch.setattr(mentor_write.kb, "search", lambda *a, **k: [hit])
     monkeypatch.setattr(
-        mentor_write.kb, "render_citations", lambda hits: "[来源: rules.md #0]\n规则",
+        mentor_write.kb,
+        "render_citations",
+        lambda hits: "[来源: rules.md #0]\n规则",
     )
     monkeypatch.setattr(
-        mentor_write, "chat_json",
+        mentor_write,
+        "chat_json",
         lambda *a, **k: {
             "risk_level": "low",
             "three_versions": {"conservative": "a", "neutral": "b", "direct": "c"},
@@ -213,7 +218,9 @@ def test_writing_review_truncates_nvc_fields(monkeypatch, stub_kb_empty):
         lambda *a, **k: {
             "nvc_diagnosis": {
                 "observation": "x" * 1000,
-                "feeling": "", "need": "", "request": "",
+                "feeling": "",
+                "need": "",
+                "request": "",
             },
             "three_versions": {"conservative": "a", "neutral": "b", "direct": "c"},
         },
@@ -224,6 +231,7 @@ def test_writing_review_truncates_nvc_fields(monkeypatch, stub_kb_empty):
 
 
 # ── Task mentor (8 cases) ──────────────────────────────────────────────────
+
 
 @pytest.fixture
 def stub_kb_for_task(monkeypatch):
@@ -342,13 +350,16 @@ def test_task_clarify_to_dict_includes_needs_flag(monkeypatch, stub_kb_for_task)
 
 # ── Weekly mentor (7 cases) ────────────────────────────────────────────────
 
+
 @pytest.fixture
 def stub_weekly_deps(monkeypatch):
     monkeypatch.setattr(
-        "core.mentor.mentor_review.kb.search", lambda *a, **k: [],
+        "core.mentor.mentor_review.kb.search",
+        lambda *a, **k: [],
     )
     monkeypatch.setattr(
-        "core.mentor.mentor_review.kb.render_citations", lambda hits: "（无组织文档）",
+        "core.mentor.mentor_review.kb.render_citations",
+        lambda hits: "（无组织文档）",
     )
 
 
@@ -385,7 +396,8 @@ def test_weekly_draft_used_star_detection(monkeypatch, stub_weekly_deps):
     from core.mentor.mentor_review import draft
 
     monkeypatch.setattr(
-        "core.mentor.mentor_review.chat", lambda *a, **k: "no markers here",
+        "core.mentor.mentor_review.chat",
+        lambda *a, **k: "no markers here",
     )
     wk = draft("ou_x")
     assert wk.used_star is False
