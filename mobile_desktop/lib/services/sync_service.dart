@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 
@@ -42,7 +43,7 @@ class SyncService {
           try {
             final msg = jsonDecode(data as String);
             if (msg is Map<String, dynamic>) _msgs.add(msg);
-          } catch (_) {}
+          } catch (e) { debugPrint('SyncService decode error: $e'); }
         },
         onDone: _onDone,
         onError: (_) => _onDone(),
@@ -54,7 +55,8 @@ class SyncService {
       }
       _pinger?.cancel();
       _pinger = Timer.periodic(const Duration(seconds: 25), (_) => send({'op': 'ping'}));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('SyncService connect failed: $e');
       _channel = null;
     } finally {
       _connecting = false;
@@ -90,7 +92,7 @@ class SyncService {
   void send(Map<String, dynamic> payload) {
     try {
       _channel?.sink.add(jsonEncode(payload));
-    } catch (_) {}
+    } catch (e) { debugPrint('SyncService send failed: $e'); }
   }
 
   Future<void> close() async {

@@ -8,7 +8,7 @@ Three public entry points correspond to the three Good-to-have bullets:
 * ``summarize_discussion(messages)`` — condenses an IM thread into
   Decision / Action-Item / Open-Questions using the harness LLM.
 * ``recommend_next_steps(plan, user)`` — suggests follow-up actions based
-  on LARKMENTOR.md rules + recent transcripts stored in Mem0g.
+  on AGENT_PILOT.md rules + recent transcripts stored in Mem0g.
 
 All three degrade gracefully when the LLM / Mem0g are unavailable — they
 return empty results rather than raising.
@@ -101,7 +101,7 @@ def _render_options(missing: List[str]) -> List[str]:
 # ── Summarise discussion ──────────────────────────────────────────────────────
 
 
-_SUMMARY_PROMPT = """你是 LarkMentor 的总结助手。读完下列 IM 讨论后，用中文输出 3 段：
+_SUMMARY_PROMPT = """你是 Agent-Pilot 的总结助手。读完下列 IM 讨论后，用中文输出 3 段：
 
 1. **决议（Decision）**：落地结论或已形成的共识，没有则写「无」
 2. **行动项（Action Items）**：责任人@名 → 动作 → 截止时间（逐行 `- `）
@@ -173,7 +173,7 @@ def recommend_next_steps(
 
     Strategy:
     1. Pull the last ~10 plan outcomes from MemoryLayer (Mem0g recall).
-    2. Ask the LLM to propose next-step intents grounded in LARKMENTOR.md.
+    2. Ask the LLM to propose next-step intents grounded in AGENT_PILOT.md.
     3. De-dup against the current plan's deliverables.
     """
     try:
@@ -186,7 +186,7 @@ def recommend_next_steps(
 
     deliv = ", ".join((d.get("label", "") for d in plan_summary.get("deliverables") or []))
     sys_prompt = (
-        "你是 LarkMentor 的下一步推荐器。基于用户 LARKMENTOR.md 风格与最近记忆，"
+        "你是 Agent-Pilot 的下一步推荐器。基于用户 AGENT_PILOT.md 风格与最近记忆，"
         "只输出 3 条下一步建议，每条 ≤ 20 字，不编号、换行分隔、不要解释。"
     )
     user_prompt = (

@@ -284,8 +284,8 @@ class PilotRouter:
         )
         try:
             self.card_sender(msg.chat_id, card, scope="chat")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("card_sender chat failed: %s", e)
         return RouterResult(handled=True, verdict="explicit_ready", task_id=task.task_id, card=card)
 
     def _action_confirm(self, task_id: str, actor: str, skip_clarify: bool = False) -> RouterResult:
@@ -299,8 +299,8 @@ class PilotRouter:
         card = cards_pilot.context_confirm_card(task_id=task_id, summary=cp_summary)
         try:
             self.card_sender(actor, card, scope="user")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("card_sender user failed: %s", e)
         return RouterResult(
             handled=True, verdict="confirmed", task_id=task_id, card=card, next_action="awaiting_context_confirm"
         )
@@ -353,19 +353,19 @@ class PilotRouter:
         if task.state == TaskState.SUGGESTED:
             try:
                 self.task_service.fire(task_id, TaskEvent.USER_CONFIRM, actor_open_id=actor)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("task fire USER_CONFIRM fallback: %s", e)
         if task.state == TaskState.ASSIGNED:
             try:
                 self.task_service.fire(task_id, TaskEvent.USER_ADD_CONTEXT, actor_open_id=actor)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("task fire USER_ADD_CONTEXT fallback: %s", e)
         cp_summary = self._build_initial_context(task)
         card = cards_pilot.context_confirm_card(task_id=task_id, summary=cp_summary)
         try:
             self.card_sender(actor, card, scope="user")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("card_sender ctx_pending failed: %s", e)
         return RouterResult(handled=True, verdict="ctx_pending", task_id=task_id, card=card)
 
     def _action_open_assign(self, task_id: str, actor: str) -> RouterResult:
@@ -377,8 +377,8 @@ class PilotRouter:
         )
         try:
             self.card_sender(actor, card, scope="user")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("card_sender assign_picker failed: %s", e)
         return RouterResult(handled=True, verdict="assign_picker", task_id=task_id, card=card)
 
     def _action_assign_to(self, task_id: str, actor: str, to_open_id: str) -> RouterResult:
@@ -545,8 +545,8 @@ class PilotRouter:
                 )
                 try:
                     self.card_sender(task.source_chat_id, card, scope="chat")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("card_sender delivered card failed: %s", e)
 
             logger.info("streaming orchestration completed for task %s, artifacts=%d", task_id, len(artifacts))
 
@@ -577,8 +577,8 @@ class PilotRouter:
                 streaming_content=f"@pilot {step}",
             )
             self.card_sender(target, card, scope="user")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("card_sender progress card failed: %s", e)
 
     def _async_generate_ppt(self, task: Task, actor_open_id: str) -> None:
         """Generate PPT from existing doc artifacts."""

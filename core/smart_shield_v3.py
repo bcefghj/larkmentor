@@ -245,8 +245,8 @@ def process_message_v3(
     try:
         post_payload = {**payload, **result}
         result = {**result, **(hooks.fire(HookEvent.POST_CLASSIFY, post_payload) or {})}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("POST_CLASSIFY hook failed: %s", e)
 
     # 8. PRE_REPLY hook for last-mile veto on auto replies.
     if result.get("action") == "auto_reply":
@@ -257,7 +257,7 @@ def process_message_v3(
                 result["action"] = "archive"
                 result["auto_reply_text"] = ""
                 result["reason"] = (result.get("reason") or "") + " | reply_vetoed"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("PRE_REPLY hook failed: %s", e)
 
     return result

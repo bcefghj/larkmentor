@@ -171,6 +171,6 @@ _singleton: Optional[YWSServer] = None
 def default_yws_server() -> YWSServer:
     global _singleton
     if _singleton is None:
-        port = int(os.getenv("LARKMENTOR_SYNC_PORT", "8002"))
+        port = int(os.getenv("AGENT_PILOT_SYNC_PORT", "8002"))
         _singleton = YWSServer(port=port)
     return _singleton

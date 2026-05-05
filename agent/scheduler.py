@@ -5,7 +5,7 @@
 - 每日 9:00 daily digest
 - 每小时检查 pending tasks
 
-Cron 定义存 .larkmentor/schedules/*.yaml
+Cron 定义存 .agent-pilot/schedules/*.yaml
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class CronScheduler:
     def __init__(self) -> None:
         self._apscheduler = None
         self.jobs: List[Dict[str, Any]] = []
-        self.schedules_dir = Path.cwd() / ".larkmentor" / "schedules"
+        self.schedules_dir = Path.cwd() / ".agent-pilot" / "schedules"
         self.schedules_dir.mkdir(parents=True, exist_ok=True)
         self._load_schedules()
 

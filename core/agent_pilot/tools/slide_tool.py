@@ -131,7 +131,7 @@ def _default_outline_from_ctx(ctx: Dict[str, Any], title: str) -> List[Dict[str,
             canvas_url = r["url"]
 
     return [
-        {"title": title, "bullets": [f"Plan `{plan_id}`", "LarkMentor · Agent-Pilot"]},
+        {"title": title, "bullets": [f"Plan `{plan_id}`", "Agent-Pilot · 一键智能闭环"]},
         {
             "title": "背景与目标",
             "bullets": [
@@ -169,7 +169,7 @@ def _default_outline_from_ctx(ctx: Dict[str, Any], title: str) -> List[Dict[str,
             "bullets": [
                 "戴尚好 · 中科大",
                 "李洁盈 · 港科大",
-                "GitHub: bcefghj/larkmentor",
+                "GitHub: bcefghj/Agent-Pilot",
             ],
         },
     ]
@@ -210,7 +210,7 @@ def _outline_to_slidev_md(title: str, outline: List[Dict[str, Any]]) -> str:
         "",
         f"# {title}",
         "",
-        "LarkMentor · Agent-Pilot",
+        "Agent-Pilot · 从 IM 对话到演示稿的一键智能闭环",
         "",
     ]
     for page in outline:
@@ -228,7 +228,8 @@ def _parse_slidev_md(path: str) -> List[Dict[str, Any]]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             raw = f.read()
-    except Exception:
+    except Exception as e:
+        logger.debug("slidev md read failed: %s", e)
         return []
     pages: List[Dict[str, Any]] = []
     for chunk in raw.split("\n---\n"):

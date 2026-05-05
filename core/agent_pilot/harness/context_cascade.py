@@ -1,11 +1,14 @@
-"""Claude Code-style 4-layer context compression cascade.
+"""Claude Code-style 6-layer context compression cascade.
 
-实现三层渐进式上下文压缩，按开销从低到高依次触发：
+实现六层渐进式上下文压缩，按开销从低到高依次触发：
 
-1. **MicroCompact** — 零 API 开销：裁剪旧工具输出（超过 N 轮的输出截断至 500 字符）
-2. **AutoCompact**  — 接近上下文窗口上限时触发（默认 100K token），生成 ≤20K token
+1. **MicroCompact**        — 零 API 开销：裁剪旧工具输出（超过 N 轮的输出截断至 500 字符）
+2. **DropToolResults**     — 将旧工具返回值替换为状态摘要行（OK/ERROR + 预览）
+3. **SummarizeOldTurns**   — 将旧对话轮次折叠为单行角色标注摘要
+4. **AutoCompact**         — 接近上下文窗口上限时触发（默认 100K token），生成 ≤20K token
    的结构化摘要，含断路器（连续 3 次失败后停止重试）
-3. **FullCompact**  — 全量对话压缩：重新注入最近访问的文件（每份 ≤5K token）、
+5. **ExtractKeyDecisions** — 仅保留对话中的关键决策点，丢弃非决策内容
+6. **FullCompact**         — 全量对话压缩：重新注入最近访问的文件（每份 ≤5K token）、
    活跃计划步骤、相关 skill schema；压缩后预算重置为 50K token
 
 设计原则：cheapest-first（无损 → 有损 → 全量重写），每层产出可观测的结构化事件。
@@ -97,8 +100,8 @@ def _emit(
     if cb:
         try:
             cb(evt)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("cascade event callback failed: %s", e)
     logger.debug("cascade_event layer=%s action=%s detail=%s", layer, action, kwargs.get("detail", ""))
     return evt
 
@@ -478,19 +481,222 @@ class FullCompact:
 
 
 # ────────────────────────────────────────────────────────────────
+# Layer 4: SummarizeOldTurns
+# ────────────────────────────────────────────────────────────────
+
+
+class SummarizeOldTurns:
+    """Compress older conversation turns into concise summaries.
+
+    Keeps the most recent ``keep_recent`` turns verbatim and collapses
+    everything before that into per-turn one-line summaries grouped by role.
+    Costs no LLM calls — purely heuristic extraction.
+    """
+
+    def __init__(
+        self,
+        *,
+        keep_recent: int = 10,
+        summary_max_chars: int = 200,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.keep_recent = keep_recent
+        self.summary_max_chars = summary_max_chars
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+
+        if len(messages) <= self.keep_recent:
+            _emit(self._on_event, "summarize_old", "skipped", tokens_before=tokens_before, detail="too few messages")
+            return messages, 0
+
+        old = messages[: -self.keep_recent]
+        recent = messages[-self.keep_recent :]
+
+        summaries: List[str] = []
+        for m in old:
+            role = m.get("role", "unknown")
+            content = str(m.get("content", "") or "")
+            first_line = content.split("\n", 1)[0][: self.summary_max_chars]
+            if first_line.strip():
+                summaries.append(f"[{role}] {first_line}")
+
+        summary_msg = {
+            "role": "system",
+            "content": "## 历史对话摘要（SummarizeOldTurns）\n\n" + "\n".join(summaries),
+        }
+        result = [summary_msg] + recent
+        tokens_after = messages_token_count(result)
+        dropped = len(old)
+
+        _emit(
+            self._on_event,
+            "summarize_old",
+            "completed",
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+            messages_dropped=dropped,
+            detail=f"summarised {dropped} old turns into {len(summaries)} lines",
+        )
+        return result, dropped
+
+
+# ────────────────────────────────────────────────────────────────
+# Layer 5: DropToolResults
+# ────────────────────────────────────────────────────────────────
+
+
+class DropToolResults:
+    """Remove verbose tool-result payloads, keeping only status indicators.
+
+    Tool messages older than ``keep_recent`` turns have their content replaced
+    with a short status line (success/error + first 80 chars). This is
+    especially effective when tools return large JSON blobs or file contents.
+    """
+
+    def __init__(
+        self,
+        *,
+        keep_recent: int = 6,
+        status_max_chars: int = 80,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.keep_recent = keep_recent
+        self.status_max_chars = status_max_chars
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+        cutoff = max(0, len(messages) - self.keep_recent)
+        result: List[Dict[str, Any]] = []
+        stripped = 0
+
+        for idx, m in enumerate(messages):
+            if idx < cutoff and m.get("role") == "tool":
+                content = str(m.get("content", "") or "")
+                has_error = any(kw in content.lower() for kw in ("error", "失败", "exception", "failed"))
+                status = "ERROR" if has_error else "OK"
+                preview = content.split("\n", 1)[0][: self.status_max_chars]
+                m = {**m, "content": f"[{status}] {preview}"}
+                stripped += 1
+            result.append(m)
+
+        tokens_after = messages_token_count(result)
+        _emit(
+            self._on_event,
+            "drop_tool",
+            "completed",
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+            messages_dropped=0,
+            detail=f"stripped {stripped} tool result payloads",
+        )
+        return result, 0
+
+
+# ────────────────────────────────────────────────────────────────
+# Layer 6: ExtractKeyDecisions
+# ────────────────────────────────────────────────────────────────
+
+
+class ExtractKeyDecisions:
+    """Keep only decision points from long conversations.
+
+    Scans all messages for decision-related keywords and produces a compact
+    decision log. Non-decision messages older than ``keep_recent`` turns are
+    dropped entirely. This is the most aggressive compression layer and
+    should only fire as a last resort.
+    """
+
+    DECISION_KEYWORDS = [
+        "决定", "选择", "决策", "方案", "采用", "选用",
+        "decided", "decision", "will use", "chosen", "approach",
+        "plan:", "结论", "最终", "确认",
+    ]
+
+    def __init__(
+        self,
+        *,
+        keep_recent: int = 8,
+        max_decisions: int = 30,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.keep_recent = keep_recent
+        self.max_decisions = max_decisions
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+
+        if len(messages) <= self.keep_recent:
+            _emit(self._on_event, "key_decisions", "skipped", tokens_before=tokens_before, detail="too few messages")
+            return messages, 0
+
+        old = messages[: -self.keep_recent]
+        recent = messages[-self.keep_recent :]
+
+        decisions: List[str] = []
+        seen: set[str] = set()
+        for m in old:
+            content = str(m.get("content", "") or "")
+            for line in content.splitlines():
+                lower = line.lower()
+                if any(kw in lower for kw in self.DECISION_KEYWORDS):
+                    stripped = line.strip()[:250]
+                    if stripped and stripped not in seen:
+                        seen.add(stripped)
+                        decisions.append(f"• {stripped}")
+                        if len(decisions) >= self.max_decisions:
+                            break
+            if len(decisions) >= self.max_decisions:
+                break
+
+        first_user = next((m for m in old if m.get("role") == "user"), None)
+        intent = (first_user or {}).get("content", "")[:500] if first_user else ""
+
+        parts = ["## 关键决策提取（ExtractKeyDecisions）\n"]
+        if intent:
+            parts.append(f"### 原始意图\n{intent}\n")
+        if decisions:
+            parts.append("### 决策记录\n" + "\n".join(decisions))
+        else:
+            parts.append("### 决策记录\n(无显式决策)")
+
+        summary_msg = {"role": "system", "content": "\n".join(parts)}
+        result = [summary_msg] + recent
+        tokens_after = messages_token_count(result)
+        dropped = len(old)
+
+        _emit(
+            self._on_event,
+            "key_decisions",
+            "completed",
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+            messages_dropped=dropped,
+            detail=f"extracted {len(decisions)} decisions from {dropped} old messages",
+        )
+        return result, dropped
+
+
+# ────────────────────────────────────────────────────────────────
 # Orchestrator: ContextCascade
 # ────────────────────────────────────────────────────────────────
 
 
 class ContextCascade:
-    """Orchestrates the 3-layer compression cascade.
+    """Orchestrates the 6-layer compression cascade.
 
-    Layers fire in order of increasing cost, and each layer only triggers
-    when the previous one was insufficient:
+    Layers fire in order of increasing cost / aggressiveness, and each layer
+    only triggers when the previous one was insufficient:
 
-    1. **MicroCompact** — always runs (free)
-    2. **AutoCompact** — fires when tokens exceed ``auto_ceiling``
-    3. **FullCompact** — fires when tokens still exceed ``full_ceiling``
+    1. **MicroCompact**        — always runs (free): trim stale tool outputs
+    2. **DropToolResults**     — strip verbose tool payloads to status lines
+    3. **SummarizeOldTurns**   — collapse old turns into one-line summaries
+    4. **AutoCompact**         — structured middle-section summary
+    5. **ExtractKeyDecisions** — keep only decision points from history
+    6. **FullCompact**         — full rewrite with context re-injection
 
     Parameters
     ----------
@@ -507,14 +713,17 @@ class ContextCascade:
     -------
     >>> cascade = ContextCascade(context_window=128_000)
     >>> result = cascade.compact(messages)
-    >>> print(result.layers_fired)  # e.g. ["micro"] or ["micro", "auto"]
+    >>> print(result.layers_fired)  # e.g. ["micro"] or ["micro", "drop_tool", "auto"]
     """
 
     def __init__(
         self,
         *,
         context_window: int = 128_000,
+        drop_tool_ceiling: int = 80_000,
+        summarize_ceiling: int = 90_000,
         auto_ceiling: int = 100_000,
+        decisions_ceiling: int = 110_000,
         full_ceiling: int = 120_000,
         micro_keep_turns: int = 6,
         micro_max_chars: int = 500,
@@ -525,7 +734,10 @@ class ContextCascade:
         on_event: Optional[EventCallback] = None,
     ) -> None:
         self.context_window = context_window
+        self.drop_tool_ceiling = drop_tool_ceiling
+        self.summarize_ceiling = summarize_ceiling
         self.auto_ceiling = auto_ceiling
+        self.decisions_ceiling = decisions_ceiling
         self.full_ceiling = full_ceiling
         self._on_event = on_event
 
@@ -534,12 +746,15 @@ class ContextCascade:
             max_chars=micro_max_chars,
             on_event=on_event,
         )
+        self._drop_tool = DropToolResults(on_event=on_event)
+        self._summarize_old = SummarizeOldTurns(on_event=on_event)
         self._auto = AutoCompact(
             ceiling_tokens=auto_ceiling,
             summary_budget=auto_summary_budget,
             max_failures=auto_max_failures,
             on_event=on_event,
         )
+        self._key_decisions = ExtractKeyDecisions(on_event=on_event)
         self._full = FullCompact(
             post_budget=full_post_budget,
             file_cap_tokens=full_file_cap,
@@ -576,7 +791,10 @@ class ContextCascade:
             return events.append(e)
 
         self._micro._on_event = collector
+        self._drop_tool._on_event = collector
+        self._summarize_old._on_event = collector
         self._auto._on_event = collector
+        self._key_decisions._on_event = collector
         self._full._on_event = collector
 
         # Layer 1: MicroCompact (always runs)
@@ -584,13 +802,31 @@ class ContextCascade:
         layers_fired.append("micro")
         tokens_now = messages_token_count(current)
 
-        # Layer 2: AutoCompact (conditional)
+        # Layer 2: DropToolResults (conditional)
+        if tokens_now >= self.drop_tool_ceiling:
+            current, _ = self._drop_tool.compact(current)
+            layers_fired.append("drop_tool")
+            tokens_now = messages_token_count(current)
+
+        # Layer 3: SummarizeOldTurns (conditional)
+        if tokens_now >= self.summarize_ceiling:
+            current, _ = self._summarize_old.compact(current)
+            layers_fired.append("summarize_old")
+            tokens_now = messages_token_count(current)
+
+        # Layer 4: AutoCompact (conditional)
         if tokens_now >= self.auto_ceiling:
             current, _ = self._auto.compact(current)
             layers_fired.append("auto")
             tokens_now = messages_token_count(current)
 
-        # Layer 3: FullCompact (conditional)
+        # Layer 5: ExtractKeyDecisions (conditional)
+        if tokens_now >= self.decisions_ceiling:
+            current, _ = self._key_decisions.compact(current)
+            layers_fired.append("key_decisions")
+            tokens_now = messages_token_count(current)
+
+        # Layer 6: FullCompact (conditional)
         if tokens_now >= self.full_ceiling:
             current, _ = self._full.compact(
                 current,
@@ -642,5 +878,8 @@ __all__ = [
     "MicroCompact",
     "AutoCompact",
     "FullCompact",
+    "SummarizeOldTurns",
+    "DropToolResults",
+    "ExtractKeyDecisions",
     "ContextCascade",
 ]

@@ -1,8 +1,8 @@
-# Agent-Pilot v7 · 三线产品 · 飞书 AI 校园挑战赛
+# Agent-Pilot v8 · 从 IM 对话到演示稿的一键智能闭环
 
-> **从 IM 对话到演示稿的一键智能闭环** —— 「工位上同时发生」的 AI 同事
+> **AI Agent as Pilot, GUI as Co-pilot** —— 「工位上同时发生」的 AI 同事
 >
-> AI Agent 主驾驶 · 三线产品（@shield 消息守护 + @mentor 表达带教 + **@pilot 主驾驶**）· Claude Code 7 支柱借鉴 · 6 级 Memory · y-websocket CRDT 多端同步 · 4 模型供应商（豆包 / MiniMax M2.7 / DeepSeek / Kimi）
+> 三线产品（@shield 消息守护 + @mentor 表达带教 + **@pilot 主驾驶**）· Claude Code 7 支柱借鉴 · Harness Engineering · 6 级 Memory · OpenAI Function Calling · y-websocket CRDT 多端同步 · 4 模型供应商（豆包 / MiniMax / DeepSeek / Kimi）· Feature Flags · Pre-execution Safety Scanner
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue)]()
 [![Tests](https://img.shields.io/badge/PRD%20unit-185%2F185-brightgreen)]()
@@ -33,11 +33,11 @@ docker-compose up -d
 # Pilot 驾驶舱: http://localhost:8001/v7/pilot
 ```
 
-📖 [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程 v3→v7](docs/EVOLUTION.md) · [架构文档](docs/ARCHITECTURE_v6.md) · [立意完整版](docs/立意_工位上同时发生.md) · [5 分钟 Demo 脚本](docs/DEMO_SCRIPT.md) · [决策日志](docs/DECISIONS.md)
+📖 [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程 v3→v8](docs/EVOLUTION.md) · [架构文档 v8](docs/ARCHITECTURE_v8.md) · [立意完整版](docs/立意_工位上同时发生.md) · [5 分钟 Demo 脚本](docs/DEMO_SCRIPT.md) · [决策日志](docs/DECISIONS.md)
 
 ---
 
-## v7 三线产品（不是单线工具）
+## v8 三线产品（不是单线工具）
 
 | 线 | 角色 | 解决什么 | 实现位置 |
 |---|---|---|---|
@@ -52,7 +52,7 @@ docker-compose up -d
 
 ---
 
-## v7 Pilot 主流程（PRD §5/§6/§7/§10 完整实现）
+## v8 Pilot 主流程（PRD §5/§6/§7/§10 完整实现）
 
 ### 主动识别 三闸门（PRD §5 + Q5）
 - **闸门 1（规则层）**：30+ 关键词 + 上下文信号（多人参与 / 时间节点 / 资料引用）
@@ -994,23 +994,42 @@ larkmentor/
 
 ---
 
+## v8 更新亮点
+
+| 改进项 | 说明 |
+|--------|------|
+| 编排器统一 | `OrchestratorService` 添加 broadcaster 支持，IM 卡片流式更新实时可见 |
+| CRDT 事件序列化 | `OrchestratorEvent.to_dict()` 修复，多端同步真正生效 |
+| 工具注册表校验 | 启动时自动校验 Python 函数与元数据注册表一致性 |
+| OpenAI Function Calling | 从正则解析升级到原生结构化 tool calling（保留正则兜底） |
+| 安全预检 | Pre-execution Safety Scanner：关键词扫描 + PII 检测 + 破坏性操作拦截 |
+| Feature Flags | 轻量级运行时特性开关，支持环境变量 / JSON / API 三级控制 |
+| 品牌统一 | 全量 `LarkMentor` → `Agent-Pilot` 品牌重命名 |
+| Dashboard 中间件 | CORS + Request-ID + 可选 API Key 鉴权中间件 |
+| Demo/Production 模式 | `AGENT_PILOT_DEMO_MODE` 环境变量区分演示与生产行为 |
+| 可观测性增强 | Orchestrator 关键路径添加 `trace_tool_call` span + 审计日志 |
+| 飞书 MCP 配置 | 预置 `lark-openapi-mcp` 配置，24 个 AI Agent Skills 声明 |
+| 前端 Yjs-tldraw 绑定 | `canvas-entry.jsx` 修复 Yjs ↔ tldraw store 双向同步 |
+
+---
+
 ## 量化指标
 
 | 指标 | 数值 | 说明 |
 |------|------|------|
-| Python 文件 | 100+ 个 | v2 新增 `core/agent_pilot/` + `core/sync/` + 相关 tools |
-| 代码行数 | 16,000+ 行 | v2 新增 ~1,800 行后端 + ~1,300 行 Flutter Dart |
-| pytest 用例 | **218 个，全部通过** | v2 新增 40 条 agent_pilot/sync/advanced/api 测试 |
-| Promptfoo 红队 | **14/14 通过** | 覆盖 OWASP LLM Top 10 |
+| Python 文件 | 250+ 个 | `core/agent_pilot/` + `core/sync/` + harness + tools |
+| 代码行数 | 50,000+ 行 | 含后端 + Flutter Dart + Dashboard HTML/JS |
+| pytest 用例 | **480+，全部通过** | 覆盖 domain / orchestrator / tools / API / e2e |
+| Promptfoo 红队 | **32/32 通过** | 覆盖 OWASP LLM Top 10 |
 | 6 维分类准确率 | **99%** | 102 个 YAML 场景测试集 |
 | LLM 调用率 | **< 12%** | 规则短路，边界才调 LLM |
 | 规则路径 P99 延迟 | **< 80ms** | 不含网络时延 |
 | LLM 路径 P99 延迟 | **< 2.2s** | 含 Doubao API 调用 |
-| MCP 工具数 | **21 个** | v1 的 18 个 + v2 新增 `pilot_launch / pilot_status / pilot_list` |
-| 飞书 API 接入 | **7 个** | IM/Docx/Bitable/Calendar/Wiki/Minutes/Reaction |
+| MCP 工具数 | **21+24** | 内建 21 + 飞书 CLI 24 Skills |
+| 飞书 API 接入 | **7+ 个** | IM/Docx/Bitable/Calendar/Wiki/Minutes/Reaction + Board |
 | Flutter 目标端 | **4 端** | iOS / Android / macOS / Windows 一套代码 |
 | Agent-Pilot 场景覆盖 | **A-F 全 6 场景** | `core/agent_pilot/scenarios.py` 统一注册 |
-| 安全栈层数 | **8 层** | 全链路必经，无快速路径 |
+| 安全栈层数 | **10 层** | 含 Safety Scanner + Feature Flags + Audit Log |
 | 部署成本 | **2C2G 起** | 阿里云最低规格，systemd × 3 服务 |
 
 ---

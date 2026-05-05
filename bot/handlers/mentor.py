@@ -100,7 +100,7 @@ def _cmd_start_rookie(args, open_id, user, text):
     user.rookie_mode = True
     send_text(
         open_id,
-        "✨ **LarkMentor 新人模式已开启**\n\n"
+        "✨ **Agent-Pilot 新人模式已开启**\n\n"
         "表达层带教 4 个 Skill：\n"
         "📝 `帮我看看：消息内容` · MentorWrite（消息起草：NVC + 3 版改写 + 风险）\n"
         "📋 `任务确认：任务描述` · MentorTask（任务澄清：模糊度打分 + 澄清问题）\n"
@@ -116,8 +116,8 @@ def _cmd_start_rookie(args, open_id, user, text):
         token = v4_growth.ensure_growth_doc(open_id)
         if token:
             send_text(open_id, "📓 已为你创建《我的新手成长记录》Docx，发送 `我的成长档案` 拿链接。")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("ensure_growth_doc skipped: %s", e)
     try:
         if not mentor_onboard.is_in_progress(open_id):
             sess = mentor_onboard.start(open_id)
@@ -178,8 +178,8 @@ def _cmd_rookie_task(args, open_id, user, text):
             improved=improved,
             citations=clarif.citations,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("growth_append task entry skipped: %s", e)
 
 
 def _cmd_rookie_weekly(args, open_id, user, text):

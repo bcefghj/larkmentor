@@ -7,7 +7,7 @@
 2. AI Classifier（2-stage XML，Stage1 fast yes/no，Stage2 CoT）
 3. Hook Interception Chain（Pre/PostToolUse / ConfigChange）
 4. Tool Safety Checks（Bash 25 checks 的简化版）
-5. Filesystem Protection（.git/.claude/.larkmentor 不可过）
+5. Filesystem Protection（.git/.claude/.agent-pilot 不可过）
 6. Secret Scanning（35+ gitleaks-style rules）
 7. Sandbox Adapter（Docker/subprocess）
 
@@ -84,7 +84,7 @@ DEFAULT_ASK_RULES: List[str] = [
 # bypass-immune：无论 mode 都要 ask
 BYPASS_IMMUNE_PATHS: List[str] = [
     r"\.git/",
-    r"\.larkmentor/",
+    r"\.agent-pilot/",
     r"\.claude/",
     r"\.ssh/",
     r"\.bashrc",
@@ -334,7 +334,7 @@ class PermissionGate:
         self._persistent_allows[tool] = True
         # Persist
         try:
-            home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
+            home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
             home.mkdir(parents=True, exist_ok=True)
             import json
 
@@ -344,7 +344,7 @@ class PermissionGate:
                 try:
                     cur = json.loads(path.read_text())
                 except Exception:
-                    cur = {}
+                    cur = {}  # corrupt approvals file; reset
             cur[tool] = True
             path.write_text(json.dumps(cur, indent=2))
         except Exception as e:
@@ -370,7 +370,7 @@ _singleton: Optional[PermissionGate] = None
 def default_permission_gate() -> PermissionGate:
     global _singleton
     if _singleton is None:
-        mode_env = os.getenv("LARKMENTOR_PERMISSION_MODE", "default")
+        mode_env = os.getenv("AGENT_PILOT_PERMISSION_MODE", "default")
         try:
             mode = PermissionMode(mode_env)
         except ValueError:
@@ -378,13 +378,13 @@ def default_permission_gate() -> PermissionGate:
         _singleton = PermissionGate(mode=mode)
         # Load persistent always-allow
         try:
-            home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
+            home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
             approvals = home / "approvals.json"
             if approvals.exists():
                 import json
 
                 cur = json.loads(approvals.read_text())
                 _singleton._persistent_allows = {k: bool(v) for k, v in cur.items()}
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("load persistent approvals failed: %s", e)
     return _singleton

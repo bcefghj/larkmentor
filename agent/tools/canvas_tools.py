@@ -102,7 +102,7 @@ def yjs_op(room_id: str = "", op_kind: str = "add", payload: Optional[Dict] = No
     try:
         import requests
 
-        sync_url = os.getenv("LARKMENTOR_SYNC_URL", "http://127.0.0.1:8002/yjs/op")
+        sync_url = os.getenv("AGENT_PILOT_SYNC_URL", "http://127.0.0.1:8002/yjs/op")
         r = requests.post(
             sync_url,
             json={"room_id": room_id, "kind": op_kind, "payload": payload or {}},

@@ -50,7 +50,7 @@ def _post(path: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 def create_board(*, title: str) -> str:
     """Returns the shareable URL on success, empty string otherwise."""
-    body = _post("/board/v1/whiteboards", {"name": title or "LarkMentor Canvas"})
+    body = _post("/board/v1/whiteboards", {"name": title or "Agent-Pilot Canvas"})
     if not body or body.get("code", -1) != 0:
         return ""
     wb = (body.get("data") or {}).get("whiteboard") or {}

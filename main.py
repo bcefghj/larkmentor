@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""
-LarkMentor – 飞书 AI 协作伙伴：消息守护 + 表达引导
+"""Agent-Pilot · 从 IM 对话到演示稿的一键智能闭环.
+
 主入口：启动飞书长连接 + 卡片回调 + 定时任务 + 日历轮询 + Mentor 周日摘要
+三线产品：@pilot 主驾驶 · @shield 消息守护 · @mentor 表达带教
 """
 
 import logging
@@ -27,7 +28,7 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-logger = logging.getLogger("larkmentor")
+logger = logging.getLogger("agent-pilot")
 
 
 def _validate_config():
@@ -218,13 +219,13 @@ def main():
     )
 
     logger.info("正在连接飞书长连接服务...")
-    logger.info("连接成功后，在飞书中搜索 LarkMentor 机器人开始使用")
+    logger.info("连接成功后，在飞书中搜索 Agent-Pilot 机器人开始使用")
     logger.info("按 Ctrl+C 停止")
 
     try:
         cli.start()
     except KeyboardInterrupt:
-        logger.info("LarkMentor 已停止")
+        logger.info("Agent-Pilot 已停止")
 
 
 if __name__ == "__main__":

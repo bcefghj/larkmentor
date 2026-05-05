@@ -7,8 +7,8 @@
 
 数据源：
 - 飞书官方 22 个 Skills: ~/.claude/skills/lark-*
-- 自研：.larkmentor/skills/larkmentor-{pilot,mentor,triage,debater,researcher}
-- User-Generated（Hermes 启发）：.larkmentor/skills/user-generated/
+- 自研：.agent-pilot/skills/agent-pilot-{pilot,mentor,triage,debater,researcher}
+- User-Generated（Hermes 启发）：.agent-pilot/skills/user-generated/
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ class SkillsLoader:
                         self.skills[skill.name] = skill
 
         # 2. Builtin (self)
-        builtin_dir = Path.cwd() / ".larkmentor" / "skills"
+        builtin_dir = Path.cwd() / ".agent-pilot" / "skills"
         if builtin_dir.exists():
             for d in builtin_dir.iterdir():
                 if d.is_dir():

@@ -1,6 +1,6 @@
 """Per-user work state management with persistence and multi-task support.
 
-Concurrency safety (LarkMentor v2 step8):
+Concurrency safety (Agent-Pilot v2 step8):
 - Process-internal: ``threading.Lock`` for in-memory ``_store`` mutations
 - Cross-process: ``fcntl.flock`` (POSIX) advisory file lock during disk write
 - Atomic write: write to ``<file>.tmp`` then ``os.replace`` (POSIX atomic)
@@ -66,13 +66,13 @@ def _atomic_write(path: str):
                 if os.path.exists(tmp_path):
                     os.remove(tmp_path)
             except OSError:
-                pass
+                pass  # tmp file already removed; safe to ignore
             if lock_fd is not None:
                 try:
                     fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
                     lock_fd.close()
                 except Exception:
-                    pass
+                    pass  # lock cleanup is best-effort
 
 
 class FocusMode(Enum):
@@ -432,8 +432,8 @@ def _save_org_docs():
     try:
         with _atomic_write(ORG_DOCS_FILE) as f:
             json.dump(_org_docs, f, ensure_ascii=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("save_org_docs failed: %s", e)
 
 
 def _load_org_docs():
@@ -443,8 +443,8 @@ def _load_org_docs():
     try:
         with open(ORG_DOCS_FILE, "r", encoding="utf-8") as f:
             _org_docs = json.load(f)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("load_org_docs failed: %s", e)
 
 
 # ── Name cache ──

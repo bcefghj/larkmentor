@@ -99,8 +99,8 @@ class StreamingToolExecutor:
             return
         try:
             self._emit(payload)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("streaming emit failed: %s", e)
 
     def dispatch(self, calls: List[ToolInvocation]) -> List[ToolOutcome]:
         """Execute a batch of tool calls respecting read/write semantics.

@@ -1,4 +1,4 @@
-"""Claude Code-style Agent Harness for LarkMentor Agent-Pilot.
+"""Claude Code-style Agent Harness for Agent-Pilot.
 
 This package implements the "80% harness" that production-grade agents need
 beyond simple LLM-orchestrated DAG execution. It is inspired by Anthropic's
@@ -10,7 +10,7 @@ Modules
 - orchestrator_v2   : LangGraph-style state machine
                       gather_context -> plan -> dispatch -> verify -> reflect -> replan
 - context_manager   : 4-layer compression (snip / microcompact / collapse / autocompact)
-- memory            : Long-term memory (LARKMENTOR.md + Mem0g fallback)
+- memory            : Long-term memory (AGENT_PILOT.md + Mem0g fallback)
 - permissions       : 6-mode permission gate with deny-first rule ordering
 - hooks             : 6 lifecycle event registry (SessionStart / PreTool / PostTool / PreCompact / Stop)
 - skills_loader     : 3-layer progressive disclosure skill loader
@@ -29,6 +29,7 @@ Design principles
 """
 
 from .context_manager import ContextManager, ContextSnapshot
+from .feature_flags import FeatureFlags, ff
 from .hooks import HookEvent, HookRegistry, default_hook_registry
 from .mcp_client import MCPClient, MCPTransport, default_mcp_manager
 from .memory import MemoryLayer, default_memory
@@ -44,6 +45,7 @@ from .permissions import (
     PermissionRule,
     default_permission_gate,
 )
+from .safety_scanner import RiskLevel, ScanResult, scan_tool_call
 from .skills_loader import Skill, SkillsLoader, default_skills
 from .streaming_executor import StreamingToolExecutor
 from .subagent import SubagentResult, SubagentRunner
@@ -78,4 +80,9 @@ __all__ = [
     "OrchestratorState",
     "default_orchestrator",
     "StreamingToolExecutor",
+    "FeatureFlags",
+    "ff",
+    "RiskLevel",
+    "ScanResult",
+    "scan_tool_call",
 ]

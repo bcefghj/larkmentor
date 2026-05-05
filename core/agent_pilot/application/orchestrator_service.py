@@ -30,6 +30,23 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
+try:
+    from core.observability import audit, incr, observe, span, trace_tool_call
+except ImportError:
+    from contextlib import contextmanager as _cm
+
+    def audit(*a: Any, **kw: Any) -> None: ...
+    def incr(*a: Any, **kw: Any) -> None: ...
+    def observe(*a: Any, **kw: Any) -> None: ...
+
+    @_cm
+    def span(*a: Any, **kw: Any):  # type: ignore[misc]
+        yield None
+
+    @_cm
+    def trace_tool_call(*a: Any, **kw: Any):  # type: ignore[misc]
+        yield None
+
 from ..domain import (
     Plan as DomainPlan,
 )
@@ -64,13 +81,14 @@ def _default_llm_fn(prompt: str) -> str:
             task_kind="chinese_chat",
             max_tokens=2000,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("default_llm_fn providers fallback: %s", e)
     try:
         from llm.llm_client import chat as _chat
 
         return _chat(messages=[{"role": "user", "content": prompt}], temperature=0.4, max_tokens=2000)
-    except Exception:
+    except Exception as e:
+        logger.debug("default_llm_fn llm_client fallback: %s", e)
         return ""
 
 
@@ -98,6 +116,7 @@ class OrchestratorConfig:
     max_parallel: int = 4
     fail_fast: bool = False
     max_retry_per_step: int = 1
+    demo_mode: bool = False
 
 
 class OrchestratorService:
@@ -112,8 +131,25 @@ class OrchestratorService:
         self._tools: Dict[str, ToolFn] = dict(tools or {})
         self.bus = event_bus or default_event_bus()
         self.cfg = config or OrchestratorConfig()
+        if os.environ.get("AGENT_PILOT_DEMO_MODE", "").lower() in ("1", "true", "yes"):
+            self.cfg.demo_mode = True
         self._lock = threading.Lock()
         self._llm_fn = llm_fn or _default_llm_fn
+        self._broadcaster: Optional[Callable] = None
+
+    @property
+    def orchestrator(self) -> "OrchestratorService":
+        return self
+
+    def set_broadcaster(self, fn: Callable) -> None:
+        self._broadcaster = fn
+
+    def _broadcast(self, kind: str, plan_id: str, step_id: str = "", payload: Optional[Dict[str, Any]] = None) -> None:
+        if self._broadcaster is not None:
+            try:
+                self._broadcaster({"kind": kind, "plan_id": plan_id, "step_id": step_id, "payload": payload or {}})
+            except Exception as e:
+                logger.debug("broadcaster failed: %s", e)
 
     def register_tool(self, name: str, fn: ToolFn) -> None:
         self._tools[name] = fn
@@ -123,6 +159,9 @@ class OrchestratorService:
         plan = task.plan
         if plan is None or not plan.steps:
             raise ValueError("Task.plan must be a non-empty DomainPlan")
+
+        incr("pilot_requests_total", source="orchestrator", status="started")
+        audit("plan_started", task_id=task.task_id, plan_id=plan.plan_id, step_count=plan.step_count())
 
         # 状态机：进入第一档 generating（按 ContextPack.output_requirements 决定）
         if advance_state and task.state == TaskState.PLANNING:
@@ -193,6 +232,16 @@ class OrchestratorService:
                 logger.warning("orchestrator stuck — pending steps depend on failed ones")
                 break
 
+        self._broadcast(
+            "plan_done",
+            plan_id=plan.plan_id,
+            payload={
+                "done": sum(1 for s in plan.steps if s.status == "done"),
+                "failed": sum(1 for s in plan.steps if s.status == "failed"),
+                "total": plan.step_count(),
+            },
+        )
+
         # 状态推进 → REVIEWING
         if advance_state and task.state.is_generating:
             try:
@@ -219,6 +268,12 @@ class OrchestratorService:
                 ts=step.started_ts,
             )
         )
+        self._broadcast(
+            "step_started",
+            plan_id=ctx.get("plan_id", ""),
+            step_id=step.step_id,
+            payload={"tool": step.tool, "description": step.description},
+        )
         task.log(
             agent="@pilot", kind="tool_call", content=f"{step.tool}({step.description})", meta={"step_id": step.step_id}
         )
@@ -233,20 +288,27 @@ class OrchestratorService:
 
         tool_fn = self._tools.get(step.tool)
         if tool_fn is None:
-            # tool 不在注册表 → 退化为模拟（评委环境无飞书 token 时也能跑过）
-            step.result = {"simulated": True, "tool": step.tool, "args": args}
-            step.status = "done"
-            step.error = ""
-        else:
-            try:
-                result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
-                step.result = result
+            if self.cfg.demo_mode:
+                logger.warning("tool not registered (demo_mode=True, simulating): %s", step.tool)
+                step.result = {"simulated": True, "tool": step.tool, "args": args}
                 step.status = "done"
-            except Exception as e:
-                logger.exception("step %s failed: %s", step.step_id, e)
+                step.error = ""
+            else:
+                logger.error("tool not registered: %s", step.tool)
                 step.status = "failed"
-                step.error = f"{type(e).__name__}: {e}"
-                step.result = {"error": step.error, "traceback": traceback.format_exc(limit=3)}
+                step.error = f"tool_not_registered: {step.tool}"
+                step.result = {"error": step.error}
+        else:
+            with trace_tool_call(step.tool, args):
+                try:
+                    result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
+                    step.result = result
+                    step.status = "done"
+                except Exception as e:
+                    logger.exception("step %s failed: %s", step.step_id, e)
+                    step.status = "failed"
+                    step.error = f"{type(e).__name__}: {e}"
+                    step.result = {"error": step.error, "traceback": traceback.format_exc(limit=3)}
 
         step.finished_ts = int(time.time())
         ctx["step_results"][step.step_id] = step.result or {}
@@ -264,6 +326,17 @@ class OrchestratorService:
                 },
                 ts=step.finished_ts,
             )
+        )
+        broadcast_kind = "step_done" if step.status == "done" else "step_failed"
+        self._broadcast(
+            broadcast_kind,
+            plan_id=ctx.get("plan_id", ""),
+            step_id=step.step_id,
+            payload={
+                "tool": step.tool,
+                "duration_ms": (step.finished_ts - step.started_ts) * 1000,
+                "error": step.error,
+            },
         )
         task.log(
             agent="@pilot",
@@ -331,8 +404,8 @@ class OrchestratorService:
                     try:
                         with open(path, "r", encoding="utf-8") as f:
                             doc_content = f.read()[:3000]
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("read doc content for slide outline failed: %s", e)
         prompt = (
             f"你是 Agent-Pilot，一个专业的演示文稿规划助手。\n\n"
             f"任务目标：{task.intent}\n\n"
@@ -352,8 +425,8 @@ class OrchestratorService:
                     if cleaned.endswith("```"):
                         cleaned = cleaned[:-3]
                 return _json.loads(cleaned.strip())
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("slide outline JSON parse failed: %s", e)
         return ""
 
     def _finalize_failure(self, task: Task, error: str) -> None:

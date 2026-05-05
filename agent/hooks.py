@@ -7,7 +7,7 @@ Hook 函数：`fn(event: str, payload: dict) -> Optional[dict]`
 - 返回 {"_veto": True, "_reason": "..."} → 阻断事件链
 - 返回 None → no-op
 
-支持 .larkmentor/hooks.json 声明式注册。
+支持 .agent-pilot/hooks.json 声明式注册。
 """
 
 from __future__ import annotations
@@ -125,8 +125,8 @@ class HookRegistry:
                     user=payload.get("user_open_id", ""),
                     plan_id=payload.get("plan_id", ""),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("pre_tool audit failed: %s", e)
             return None
 
         def _audit_post(event: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -141,12 +141,12 @@ class HookRegistry:
                     plan_id=payload.get("plan_id", ""),
                     ok=payload.get("ok", True),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("post_tool audit failed: %s", e)
             return None
 
         def _session_start(event: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-            """Inject LARKMENTOR.md chain."""
+            """Inject AGENT_PILOT.md chain."""
             try:
                 from .memory import default_memory
 
@@ -154,14 +154,14 @@ class HookRegistry:
                 system_prompt = mem.build_system_prompt()
                 if system_prompt:
                     return {"system_prompt": system_prompt}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("session_start memory inject failed: %s", e)
             return None
 
         def _pre_compact(event: str, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             """Backup transcript before compaction."""
             try:
-                home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
+                home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
                 sessions_dir = home / "sessions"
                 sessions_dir.mkdir(parents=True, exist_ok=True)
                 import time as _t
@@ -170,20 +170,20 @@ class HookRegistry:
                 fname.write_text(
                     json.dumps(payload.get("messages", []), ensure_ascii=False)[:1_000_000], encoding="utf-8"
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("pre_compact session backup failed: %s", e)
             return None
 
-        self.register(HookEvent.SESSION_START, _session_start, name="session_start.inject_larkmentor_md")
+        self.register(HookEvent.SESSION_START, _session_start, name="session_start.inject_agent_pilot_md")
         self.register(HookEvent.PRE_TOOL_USE, _audit_pre, name="pre_tool_use.audit")
         self.register(HookEvent.POST_TOOL_USE, _audit_post, name="post_tool_use.audit")
         self.register(HookEvent.PRE_COMPACT, _pre_compact, name="pre_compact.backup")
 
     def _load_json_hooks(self) -> None:
-        """Load declarative hooks from .larkmentor/hooks.json (best-effort)."""
+        """Load declarative hooks from .agent-pilot/hooks.json (best-effort)."""
         candidates = [
-            Path.cwd() / ".larkmentor" / "hooks.json",
-            Path.home() / ".larkmentor" / "hooks.json",
+            Path.cwd() / ".agent-pilot" / "hooks.json",
+            Path.home() / ".agent-pilot" / "hooks.json",
         ]
         for p in candidates:
             if not p.exists():
@@ -202,8 +202,8 @@ class HookRegistry:
                             import subprocess
 
                             env = os.environ.copy()
-                            env["LARKMENTOR_HOOK_EVENT"] = event
-                            env["LARKMENTOR_HOOK_PAYLOAD"] = json.dumps(payload, ensure_ascii=False)[:4000]
+                            env["AGENT_PILOT_HOOK_EVENT"] = event
+                            env["AGENT_PILOT_HOOK_PAYLOAD"] = json.dumps(payload, ensure_ascii=False)[:4000]
                             result = subprocess.run(
                                 _cmd, shell=True, capture_output=True, timeout=10, env=env, text=True
                             )
@@ -212,8 +212,8 @@ class HookRegistry:
                                     return json.loads(result.stdout)
                                 except Exception:
                                     return None
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("shell hook execution failed: %s", e)
                         return None
 
                     self.register(event, _shell_hook, name=f"json:{event_name}:{cmd[:40]}")

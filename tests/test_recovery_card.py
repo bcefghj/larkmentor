@@ -1,4 +1,4 @@
-"""Tests for core/recovery_card.py (LarkMentor v2 双线 UI 唯一交点)"""
+"""Tests for core/recovery_card.py (Agent-Pilot v2 双线 UI 唯一交点)"""
 
 from __future__ import annotations
 

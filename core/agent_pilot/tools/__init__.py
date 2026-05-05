@@ -10,7 +10,10 @@ returned if credentials are missing or the network is unreachable.
 
 from __future__ import annotations
 
+import logging
 from typing import Callable, Dict
+
+logger = logging.getLogger("pilot.tools")
 
 from .archive_tool import archive_bundle
 from .canvas_tool import canvas_add_shape, canvas_create
@@ -22,7 +25,7 @@ from .voice_tool import voice_transcribe
 
 
 def build_default_registry() -> Dict[str, Callable]:
-    return {
+    registry = {
         "im.fetch_thread": im_fetch_thread,
         "im.send": im_send_message,
         "doc.create": doc_create,
@@ -36,6 +39,16 @@ def build_default_registry() -> Dict[str, Callable]:
         "mentor.clarify": mentor_clarify,
         "mentor.summarize": mentor_summarize,
     }
+
+    try:
+        from core.agent_pilot.harness.tool_registry import default_registry
+        mismatches = default_registry().validate_against(registry)
+        if mismatches:
+            logger.warning("tool registry mismatches: %s", mismatches)
+    except Exception as e:
+        logger.debug("tool registry validation skipped: %s", e)
+
+    return registry
 
 
 __all__ = ["build_default_registry"]

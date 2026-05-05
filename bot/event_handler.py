@@ -207,8 +207,8 @@ def _handle_core_command(command: str, args: dict, open_id: str, user, text: str
                 from core.feishu_workspace_init import append_recovery_card
 
                 append_recovery_card(open_id, recovery_text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("append_recovery_card skipped: %s", e)
         check_and_send_achievements(open_id)
         return True
 

@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, Iterator, Optional, TypeVar
 
 F = TypeVar("F", bound=Callable[..., Any])
 
-logger = logging.getLogger("larkmentor.observability")
+logger = logging.getLogger("agent-pilot.observability")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Tracer setup (OpenTelemetry)
@@ -46,8 +46,8 @@ try:
         ConsoleSpanExporter,
     )
 
-    if os.getenv("LARKMENTOR_OTEL", "1") != "0":
-        resource = Resource.create({"service.name": "larkmentor-agent-pilot"})
+    if os.getenv("AGENT_PILOT_OTEL", os.getenv("LARKMENTOR_OTEL", "1")) != "0":
+        resource = Resource.create({"service.name": "agent-pilot"})
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
         try:
@@ -59,9 +59,9 @@ try:
             if endpoint:
                 provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
         except Exception:
-            pass
+            pass  # OTLP exporter is optional; tracing still works locally
         trace.set_tracer_provider(provider)
-        _tracer = trace.get_tracer("larkmentor")
+        _tracer = trace.get_tracer("agent-pilot")
         _otel_available = True
 except Exception as exc:
     logger.debug("OpenTelemetry not available: %s", exc)
@@ -161,7 +161,7 @@ def incr(metric: str, value: float = 1, **labels: str) -> None:
         else:
             m.inc(value)
     except Exception:
-        pass
+        pass  # metrics are best-effort; never block on counter errors
 
 
 def observe(metric: str, value: float, **labels: str) -> None:
@@ -175,7 +175,7 @@ def observe(metric: str, value: float, **labels: str) -> None:
         else:
             m.observe(value)
     except Exception:
-        pass
+        pass  # metrics are best-effort; never block on histogram errors
 
 
 def gauge_set(metric: str, value: float, **labels: str) -> None:
@@ -189,7 +189,7 @@ def gauge_set(metric: str, value: float, **labels: str) -> None:
         else:
             m.set(value)
     except Exception:
-        pass
+        pass  # metrics are best-effort; never block on gauge errors
 
 
 # backward-compatible alias
@@ -212,7 +212,7 @@ def span(name: str, **attrs: Any) -> Iterator[Any]:
             try:
                 sp.set_attribute(k, str(v))
             except Exception:
-                pass
+                pass  # non-serializable span attribute; skip silently
         yield sp
 
 
@@ -225,7 +225,7 @@ def trace_id() -> str:
         if ctx and ctx.trace_id:
             return f"{ctx.trace_id:032x}"
     except Exception:
-        pass
+        pass  # no active span or OTel unavailable
     return ""
 
 
@@ -369,14 +369,14 @@ try:
             _inject_trace,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer() if os.getenv("LARKMENTOR_LOG_DEV") else structlog.processors.JSONRenderer(),
+            structlog.dev.ConsoleRenderer() if os.getenv("AGENT_PILOT_LOG_DEV", os.getenv("LARKMENTOR_LOG_DEV")) else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, os.getenv("LARKMENTOR_LOG_LEVEL", "INFO").upper(), logging.INFO)
+            getattr(logging, os.getenv("AGENT_PILOT_LOG_LEVEL", os.getenv("LARKMENTOR_LOG_LEVEL", "INFO")).upper(), logging.INFO)
         ),
         context_class=dict,
     )
-    _slog = structlog.get_logger("larkmentor")
+    _slog = structlog.get_logger("agent-pilot")
 except Exception as exc:
     logger.debug("structlog not available: %s", exc)
 
@@ -390,7 +390,7 @@ def slog() -> Any:
 # Audit JSONL writer
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_AUDIT_PATH = os.path.expanduser(os.getenv("LARKMENTOR_AUDIT_LOG", os.path.join("~", ".larkmentor", "audit.jsonl")))
+_AUDIT_PATH = os.path.expanduser(os.getenv("AGENT_PILOT_AUDIT_LOG", os.getenv("LARKMENTOR_AUDIT_LOG", os.path.join("~", ".agent-pilot", "audit.jsonl"))))
 
 
 def audit(event_type: str, **kwargs: Any) -> None:
@@ -414,12 +414,36 @@ def audit(event_type: str, **kwargs: Any) -> None:
         with open(_AUDIT_PATH, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
     except Exception:
-        pass
+        pass  # audit trail is best-effort; never block main flow
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # FastAPI integration
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def get_metrics_summary() -> Dict[str, Any]:
+    """Return a snapshot of key metrics for the dashboard."""
+    summary: Dict[str, Any] = {
+        "total_plans": 0,
+        "active_plans": 0,
+        "total_tools_called": 0,
+        "avg_latency_ms": 0,
+        "error_rate": 0.0,
+        "otel_available": _otel_available,
+        "prom_available": _prom_available,
+    }
+    try:
+        if _prom_available:
+            active = _metrics.get("pilot_active_plans")
+            if active:
+                summary["active_plans"] = int(active._value.get())
+            req = _metrics.get("pilot_requests_total")
+            if req:
+                summary["total_plans"] = int(req._value.get())
+    except Exception:
+        pass
+    return summary
 
 
 def install_fastapi(app: Any) -> None:
@@ -455,6 +479,7 @@ __all__ = [
     "audit",
     "gauge",
     "gauge_set",
+    "get_metrics_summary",
     "incr",
     "install_fastapi",
     "observe",

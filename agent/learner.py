@@ -42,9 +42,9 @@ class LearningLoop:
         self.pause_every = pause_every
         self.threshold = threshold
         self.records: List[TaskRecord] = []
-        self.home = Path.cwd() / ".larkmentor" / "skills" / "user-generated"
+        self.home = Path.cwd() / ".agent-pilot" / "skills" / "user-generated"
         self.home.mkdir(parents=True, exist_ok=True)
-        self.trace_path = Path.cwd() / ".larkmentor" / "learner_trace.jsonl"
+        self.trace_path = Path.cwd() / ".agent-pilot" / "learner_trace.jsonl"
         self._load_trace()
 
     def _load_trace(self) -> None:
@@ -71,8 +71,8 @@ class LearningLoop:
         try:
             with self.trace_path.open("a") as f:
                 f.write(json.dumps(rec.__dict__, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("learner trace write failed: %s", e)
 
         # Trigger check every N records
         if len(self.records) % self.pause_every == 0:
@@ -171,7 +171,7 @@ trigger_count: {len(records)}
     def _notify_user_wow(self, slug: str, skill_path: str) -> None:
         """Emit an event for the bot/dashboard to display wow card."""
         # Append to events log
-        events_log = Path.cwd() / ".larkmentor" / "learner_events.jsonl"
+        events_log = Path.cwd() / ".agent-pilot" / "learner_events.jsonl"
         try:
             with events_log.open("a") as f:
                 f.write(
@@ -185,8 +185,8 @@ trigger_count: {len(records)}
                     )
                     + "\n"
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("learner event log write failed: %s", e)
 
     def stats(self) -> Dict[str, Any]:
         by_kind: Dict[str, int] = {}

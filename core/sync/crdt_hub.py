@@ -209,8 +209,8 @@ class _RedisBackend:
                     for cb in cbs:
                         try:
                             cb(payload)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("crdt room callback failed: %s", e)
             except Exception:
                 time.sleep(0.5)
 
@@ -291,7 +291,7 @@ class _RedisBackend:
         try:
             self._client.hincrby(_REDIS_METRICS_KEY, field_name, amount)  # type: ignore[union-attr]
         except Exception:
-            pass
+            pass  # redis metrics are best-effort
 
     def get_metrics(self) -> Dict[str, int]:
         if not self.available:
@@ -313,13 +313,13 @@ class _RedisBackend:
         try:
             if self._pubsub:
                 self._pubsub.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("pubsub close failed: %s", e)
         try:
             if self._client:
                 self._client.close()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("redis client close failed: %s", e)
 
 
 class Subscriber:
@@ -781,5 +781,5 @@ def attach_orchestrator(orch) -> None:
 
     try:
         orch.set_broadcaster(_fn)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("set_broadcaster for orchestrator failed: %s", e)

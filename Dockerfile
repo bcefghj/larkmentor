@@ -1,4 +1,4 @@
-# Agent-Pilot v7 · Production container
+# Agent-Pilot v8 · Production container
 FROM python:3.12-slim AS builder
 WORKDIR /app
 COPY requirements.txt .
@@ -23,8 +23,7 @@ RUN npx skills add larksuite/cli -y -g 2>&1 | tail -3 || echo "skills add skippe
 
 EXPOSE 8001 8002 8767
 ENV AGENT_PILOT_HOME=/data/agent-pilot
-ENV LARKMENTOR_HOME=/data/agent-pilot
-ENV LARKMENTOR_USE_V3_MAIN_CHAIN=1
+ENV AGENT_PILOT_DEMO_MODE=false
 VOLUME ["/data"]
 
 ENTRYPOINT ["/usr/bin/tini", "--"]

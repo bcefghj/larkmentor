@@ -70,7 +70,7 @@ class ContextManager:
         self.output_headroom = output_headroom
         self.usable_budget = max(1024, total_budget - output_headroom)
         self._on_pre_compact = on_pre_compact
-        self._artifact_dir = artifact_dir or os.path.expanduser("~/.larkmentor/artifacts")
+        self._artifact_dir = artifact_dir or os.path.expanduser("~/.agent-pilot/artifacts")
         os.makedirs(self._artifact_dir, exist_ok=True)
 
     # ── Layer dispatcher ──
@@ -94,8 +94,8 @@ class ContextManager:
         if self._on_pre_compact:
             try:
                 self._on_pre_compact("pre_compact_start", messages)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("pre_compact callback failed: %s", e)
 
         if ratio < 0.60:
             new_msgs, dropped = self._layer1_snip(messages)
@@ -123,8 +123,8 @@ class ContextManager:
         if self._on_pre_compact:
             try:
                 self._on_pre_compact("post_compact_done", new_msgs)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("post_compact callback failed: %s", e)
         logger.info("context compacted via %s: %d -> %d tokens, dropped=%d", layer, tokens, new_tokens, dropped)
         return snapshot
 
@@ -228,7 +228,7 @@ class ContextManager:
             "4. errors_fixed": _extract_lines(messages, ["error", "fixed", "异常", "失败"]),
             "5. pending_tasks": _extract_lines(messages, ["TODO", "待办", "pending", "下一步"]),
             "6. next_step": (recent_tail[-1] if recent_tail else {}).get("content", "")[:400],
-            "7. recent_files": "- see spilled artifacts in ~/.larkmentor/artifacts/",
+            "7. recent_files": "- see spilled artifacts in ~/.agent-pilot/artifacts/",
         }
 
         summary_md = "## 会话摘要（L4 Autocompact）\n\n"
@@ -250,8 +250,8 @@ class ContextManager:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(m, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("spill_to_disk write failed: %s", e)
         return path
 
 

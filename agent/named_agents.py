@@ -1,4 +1,4 @@
-"""Named Agents loader (ShanClaw 启发) · 从 .larkmentor/agents/*.yaml 加载。
+"""Named Agents loader (ShanClaw 启发) · 从 .agent-pilot/agents/*.yaml 加载。
 
 每个 named agent 有独立 instruction / model / tools / permission / memory scope。
 """
@@ -32,8 +32,8 @@ class NamedAgentRegistry:
 
     def _load(self) -> None:
         candidates = [
-            Path.cwd() / ".larkmentor" / "agents",
-            Path.home() / ".larkmentor" / "agents",
+            Path.cwd() / ".agent-pilot" / "agents",
+            Path.home() / ".agent-pilot" / "agents",
         ]
         for d in candidates:
             if not d.exists():

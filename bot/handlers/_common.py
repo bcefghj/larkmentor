@@ -73,8 +73,8 @@ def auto_end_focus(open_id: str):
         ws = get_workspace(open_id)
         if ws.recovery_doc_token:
             append_recovery_card(open_id, recovery_text)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("append_recovery_card skipped: %s", e)
     check_and_send_achievements(open_id)
 
 
@@ -85,7 +85,7 @@ def schedule_focus_expiry(open_id: str, duration_sec: int):
         try:
             _scheduler.remove_job(job_id)
         except Exception:
-            pass
+            pass  # job may not exist yet, safe to ignore
         from datetime import datetime, timedelta
 
         run_time = datetime.now() + timedelta(seconds=duration_sec)
@@ -105,7 +105,7 @@ def cancel_focus_expiry(open_id: str):
         try:
             _scheduler.remove_job(f"focus_expire_{open_id}")
         except Exception:
-            pass
+            pass  # job may not exist, safe to ignore
 
 
 # ── Text extraction ──

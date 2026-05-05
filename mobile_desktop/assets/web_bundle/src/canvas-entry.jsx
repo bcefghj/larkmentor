@@ -1,7 +1,6 @@
-// LarkMentor v4 · Canvas Entry (tldraw + Yjs 真协同 + IndexedDB 离线)
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Tldraw, useEditor } from 'tldraw';
+import { Tldraw, createTLStore, defaultShapeUtils, useEditor } from 'tldraw';
 import 'tldraw/tldraw.css';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
@@ -9,7 +8,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 
 function getConfig() {
   const params = new URLSearchParams(window.location.search);
-  const flutterCfg = window.LARKMENTOR_CONFIG || {};
+  const flutterCfg = window.AGENT_PILOT_CONFIG || {};
   return {
     wsUrl: params.get('wsUrl') || flutterCfg.wsUrl || 'ws://127.0.0.1:8002',
     roomId: params.get('room') || flutterCfg.roomId || 'default-canvas',
@@ -18,13 +17,12 @@ function getConfig() {
   };
 }
 
-function Bridge({ room }) {
+function Bridge() {
   const editor = useEditor();
   useEffect(() => {
     if (!editor) return;
-    // Expose a command handler for Flutter to call
-    window.larkmentor = window.larkmentor || {};
-    window.larkmentor.applyCommand = (cmd) => {
+    window.agentPilot = window.agentPilot || {};
+    window.agentPilot.applyCommand = (cmd) => {
       try {
         if (cmd.kind === 'insert_shape') {
           editor.createShapes([{ type: cmd.shape || 'geo', x: cmd.x || 100, y: cmd.y || 100, props: cmd.props || { geo: 'rectangle', w: 160, h: 80 } }]);
@@ -44,50 +42,78 @@ function postStatus(msg) {
     if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
       window.flutter_inappwebview.callHandler('bridge', { kind: 'status', message: msg });
     }
-  } catch (e) {}
+    if (window.Bridge && window.Bridge.postMessage) {
+      window.Bridge.postMessage(JSON.stringify({ type: 'status', payload: { message: msg } }));
+    }
+  } catch (_) {}
   const bar = document.getElementById('status-bar');
   if (bar) bar.textContent = msg;
 }
 
 function App() {
   const cfg = getConfig();
-  const [ready, setReady] = useState(false);
-  const docRef = useRef(null);
+  const [store, setStore] = useState(null);
+  const providerRef = useRef(null);
 
   useEffect(() => {
     const doc = new Y.Doc();
-    docRef.current = doc;
+    const tlStore = createTLStore({ shapeUtils: defaultShapeUtils });
+    const yShapes = doc.getMap('tl.shapes');
 
-    // L1: IndexedDB persistence (本地离线持久化)
-    const idb = new IndexeddbPersistence(`larkmentor-canvas-${cfg.roomId}`, doc);
+    const flushToY = () => {
+      const snapshot = tlStore.getSnapshot();
+      doc.transact(() => {
+        yShapes.clear();
+        for (const [id, rec] of Object.entries(snapshot.store)) {
+          yShapes.set(id, rec);
+        }
+      }, 'local');
+    };
+
+    const applyFromY = () => {
+      const snap = { store: {}, schema: tlStore.schema.serialize() };
+      yShapes.forEach((v, k) => (snap.store[k] = v));
+      if (Object.keys(snap.store).length) tlStore.loadSnapshot(snap);
+    };
+
+    yShapes.observe((e) => { if (e.transaction.origin !== 'local') applyFromY(); });
+    tlStore.listen(flushToY, { source: 'user', scope: 'document' });
+
+    const idb = new IndexeddbPersistence(`agent-pilot-canvas-${cfg.roomId}`, doc);
     idb.on('synced', () => postStatus('🟢 本地离线缓存已同步'));
 
-    // L2: WebSocket for真协同
     const ws = new WebsocketProvider(cfg.wsUrl, cfg.roomId, doc, { connect: true });
     ws.on('status', (ev) => {
       const icon = ev.status === 'connected' ? '🟢' : (ev.status === 'connecting' ? '🟡' : '🔴');
       postStatus(`${icon} ${ev.status} · room=${cfg.roomId}`);
     });
-    ws.awareness.setLocalStateField('user', {
-      name: cfg.displayName,
-      color: cfg.color,
-    });
+    ws.awareness.setLocalStateField('user', { name: cfg.displayName, color: cfg.color });
     ws.awareness.on('change', () => {
       const others = [...ws.awareness.getStates().values()].filter(s => s.user && s.user.name !== cfg.displayName);
       postStatus(`🟢 同步中 · 在线 ${others.length + 1} 人`);
     });
+    providerRef.current = ws;
 
-    setReady(true);
+    setStore(tlStore);
     return () => {
       ws.destroy();
       idb.destroy();
     };
   }, []);
 
-  if (!ready) return <div style={{ padding: 24 }}>初始化中…</div>;
+  if (!store) return <div style={{ padding: 24 }}>初始化中…</div>;
   return (
-    <Tldraw persistenceKey={`canvas-${cfg.roomId}`}>
-      <Bridge room={cfg.roomId} />
+    <Tldraw
+      store={store}
+      onMount={(editor) => {
+        if (providerRef.current) {
+          editor.on('change-cursor', (c) =>
+            providerRef.current.awareness.setLocalStateField('cursor', c));
+        }
+        postStatus('🟢 画布已加载');
+      }}
+    >
+      <Bridge />
     </Tldraw>
   );
 }

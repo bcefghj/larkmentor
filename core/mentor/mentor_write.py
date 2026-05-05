@@ -6,7 +6,7 @@ Replaces v3 ``rookie_buddy.review_message`` with:
 - Org-style RAG context with citations
 - Structured JSON output ready for the v4 ``mentor_review_card``
 
-Public helpers used by ``core.recovery_card`` (LarkMentor v2 双线交点)：
+Public helpers used by ``core.recovery_card`` (Agent-Pilot v2 双线交点)：
 
 * ``review(open_id, message, *, recipient)`` → ``WritingReview``
 * ``draft_three_tones(user_open_id, sender_name, content)`` →
@@ -110,7 +110,7 @@ def review(
 
     ``recipient`` accepts shorthand (``boss`` / ``peer`` / ``report``) which is
     expanded into a richer hint phrase before reaching the LLM. This realises
-    the LarkMentor v1 "3 档语气" feature.
+    the Agent-Pilot v1 "3 档语气" feature.
     """
     if not message or not message.strip():
         return WritingReview(
@@ -161,7 +161,7 @@ def review(
     )
 
 
-# ── Recovery Card adapter (LarkMentor v2 双线交点) ────────────────
+# ── Recovery Card adapter (Agent-Pilot v2 双线交点) ────────────────
 
 
 _TONE_LABELS = [

@@ -185,19 +185,19 @@ def ensure_growth_doc(open_id: str) -> str:
 
     seed = (
         "# 我的新手成长记录\n\n"
-        "本文档由 LarkMentor 自动维护。每次 Mentor 出手协助你（写消息、拆任务、写周报、起草回复），"
+        "本文档由 Agent-Pilot 自动维护。每次 Mentor 出手协助你（写消息、拆任务、写周报、起草回复），"
         "都会在这里追加一条记录。每周日 21:00 会自动生成一段成长摘要。\n\n"
         "---\n"
     )
-    token = _create_docx("LarkMentor · 我的新手成长记录", seed)
+    token = _create_docx("Agent-Pilot · 我的新手成长记录", seed)
     if token and user:
         user.growth_doc_token = token
         try:
             from memory.user_state import _save_all  # type: ignore
 
             _save_all()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("save_all after growth doc creation failed: %s", e)
     return token or ""
 
 

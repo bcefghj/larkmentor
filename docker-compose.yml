@@ -1,34 +1,35 @@
 version: "3.9"
 services:
-  larkmentor:
+  agent-pilot:
     build: .
-    container_name: agent-pilot-v7
+    container_name: agent-pilot-v8
     restart: unless-stopped
     ports:
       - "8001:8001"    # dashboard + api
       - "8002:8002"    # sync (y-websocket)
       - "8767:8767"    # mcp http
     environment:
-      - LARKMENTOR_HOME=/data/agent-pilot
+      - AGENT_PILOT_HOME=/data/agent-pilot
       - FEISHU_APP_ID=${FEISHU_APP_ID}
       - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
+      - ARK_API_KEY=${ARK_API_KEY}
       - DOUBAO_API_KEY=${DOUBAO_API_KEY}
       - MINIMAX_API_KEY=${MINIMAX_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - KIMI_API_KEY=${KIMI_API_KEY}
-      - LARKMENTOR_PILOT_SHARE_SECRET=${LARKMENTOR_PILOT_SHARE_SECRET:-default-secret}
-      - LARKMENTOR_USE_V3_MAIN_CHAIN=1
+      - AGENT_PILOT_SHARE_SECRET=${AGENT_PILOT_SHARE_SECRET:-default-secret}
+      - AGENT_PILOT_DEMO_MODE=${AGENT_PILOT_DEMO_MODE:-false}
+      - AGENT_PILOT_API_KEY=${AGENT_PILOT_API_KEY:-}
     volumes:
       - agent-pilot-data:/data
-      - ./.larkmentor:/app/.larkmentor:ro
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/healthz"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
   redis:
     image: redis:7-alpine
-    container_name: larkmentor-redis
+    container_name: agent-pilot-redis
     restart: unless-stopped
     ports: ["6379:6379"]
     volumes: [redis-data:/data]

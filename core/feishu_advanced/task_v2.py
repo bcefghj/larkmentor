@@ -40,7 +40,7 @@ def create_task_from_message(
         body = (
             InputTask.builder()
             .summary(summary[:120])
-            .description(f"LarkMentor 自动创建（来源 message_id={message_id}）")
+            .description(f"Agent-Pilot 自动创建（来源 message_id={message_id}）")
             .members(members)
             .build()
         )
@@ -50,7 +50,7 @@ def create_task_from_message(
 
                 body.due = Due.builder().timestamp(str(due_ts * 1000)).build()
             except Exception:
-                pass
+                pass  # Due type may not be available in older SDK versions
         req = CreateTaskRequest.builder().user_id_type("open_id").request_body(body).build()
         resp = client.task.v2.task.create(req)
         if not resp.success():

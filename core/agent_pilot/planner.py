@@ -113,7 +113,7 @@ class Plan:
 # ── Planner implementation ──
 
 _PLANNER_SYSTEM_PROMPT = """
-你是 LarkMentor · Agent-Pilot 的规划器。用户在飞书 IM 里用自然语言下达指令，
+你是 Agent-Pilot 的规划器。用户在飞书 IM 里用自然语言下达指令，
 你的任务是把它拆成一个 DAG（有向无环图），每个节点是一次工具调用。
 
 可用工具（务必从以下集合中选择）：

@@ -19,7 +19,7 @@ from core.mentor import proactive_hook as v4_proactive
 
 logger = logging.getLogger("flowguard.handler.shield")
 
-_USE_V3_MAIN_CHAIN = _os.getenv("LARKMENTOR_USE_V3_MAIN_CHAIN", "1") != "0"
+_USE_V3_MAIN_CHAIN = _os.getenv("AGENT_PILOT_USE_V3_MAIN_CHAIN", "1") != "0"
 _active_process_message = _process_message_v3 if _USE_V3_MAIN_CHAIN else process_message
 
 
@@ -31,8 +31,8 @@ def _resolve_sender_role(sender_name: str, focused_user) -> str:
     try:
         if sender_name and sender_name in (focused_user.whitelist or []):
             return "leader"
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("resolve_sender_role lookup failed: %s", e)
     return "peer"
 
 
@@ -58,8 +58,8 @@ def _maybe_fire_proactive(focused_user, *, sender_name, chat_name, message, leve
             from memory.user_state import _save_all
 
             _save_all()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("save_all after proactive fire failed: %s", e)
         if decision.risk_warning:
             send_text(focused_user.open_id, f"⚠️ {decision.risk_warning}")
     except Exception as e:
@@ -144,7 +144,7 @@ def handle_group_message(
                 focused_user.open_id,
                 f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
                 f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-                f"LarkMentor 已自动结束保护模式，请尽快查看。",
+                f"Agent-Pilot 已自动结束保护模式，请尽快查看。",
             )
             cancel_focus_expiry(focused_user.open_id)
             stats = focused_user.end_focus()
@@ -205,7 +205,7 @@ def handle_focusing_p2p(
             open_id,
             f"⚠️ **紧急熔断触发**：在 {Config.CIRCUIT_BREAKER_WINDOW_SEC} 秒内连续收到 "
             f"{Config.CIRCUIT_BREAKER_P0_COUNT} 条 P0 紧急消息。\n"
-            f"LarkMentor 已自动结束保护模式，请尽快查看。",
+            f"Agent-Pilot 已自动结束保护模式，请尽快查看。",
         )
         cancel_focus_expiry(open_id)
         stats = user.end_focus()

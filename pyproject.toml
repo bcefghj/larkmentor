@@ -1,6 +1,6 @@
 [project]
 name = "agent-pilot"
-version = "7.2.0"
+version = "8.0.0"
 description = "Agent-Pilot: AI-driven office automation from IM to presentations"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -8,7 +8,7 @@ authors = [
     {name = "戴尚好", email = "bcefghj@163.com"},
     {name = "李洁盈", email = "JieyingLiii@outlook.com"},
 ]
-keywords = ["ai-agent", "feishu", "lark", "office-automation", "multi-agent", "crdt"]
+keywords = ["ai-agent", "feishu", "lark", "office-automation", "multi-agent", "crdt", "mcp", "function-calling", "harness-engineering"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -26,14 +26,14 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM", "TCH", "RUF"]
 ignore = [
-    "E402", "E501", "E702", "E741",  # Module imports, line length, multiple statements, ambiguous names
-    "B007", "B008", "B904",  # Loop vars, function call defaults, exception chaining
-    "F401", "F541", "F821", "F841",  # Unused imports, f-strings, undefined names, unused vars
-    "I001",                  # Import sorting
-    "RUF001", "RUF002", "RUF003", "RUF005", "RUF006", "RUF012", "RUF013", "RUF015", "RUF022", "RUF046", "RUF059",  # Fullwidth chars and misc
-    "UP006", "UP012", "UP015", "UP034", "UP035", "UP037", "UP045",  # Type annotation modernization
-    "SIM102", "SIM105", "SIM108", "SIM110", "SIM117",  # Simplify patterns
-    "TC002", "TC003",  # Type checking imports
+    "E402", "E501", "E741",
+    "B008",
+    "F401", "F841",
+    "I001",
+    "RUF001", "RUF002", "RUF003", "RUF012", "RUF015",
+    "UP006", "UP035",
+    "SIM102", "SIM108", "SIM117",
+    "TC002", "TC003",
 ]
 
 [tool.ruff.lint.isort]

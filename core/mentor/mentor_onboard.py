@@ -1,6 +1,6 @@
 """MentorOnboard · 新人入职 5 问知识沉淀模块.
 
-LarkMentor 双线产品的"表达层带教"侧重要环节——用户首次开启新人模式后，
+Agent-Pilot 双线产品的"表达层带教"侧重要环节——用户首次开启新人模式后，
 自动触发 5 个 onboarding 问题流，把答案存入用户级 KB 作为最高优先级
 context（后续 Mentor 出手起草时会优先召回这 5 条）。
 
@@ -54,7 +54,7 @@ ONBOARDING_QUESTIONS: List[Dict[str, str]] = [
     },
     {
         "id": "want_to_know",
-        "label": "你希望 LarkMentor 优先帮你了解什么？（任务理解 / 写消息 / 写周报 / 其他）",
+        "label": "你希望 Agent-Pilot 优先帮你了解什么？（任务理解 / 写消息 / 写周报 / 其他）",
         "dim": "专业技能",
     },
 ]

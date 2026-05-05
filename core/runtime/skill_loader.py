@@ -1,6 +1,6 @@
 """SkillLoader · 可插拔 Skill 加载器 (Claude Code 支柱 3)
 
-A "Skill" in LarkMentor is a bundle of:
+A "Skill" in Agent-Pilot is a bundle of:
 - one ``SkillManifest`` (name / version / triggers / tools / system_prompt)
 - one or more tools registered to ``ToolRegistry``
 - (optional) hooks registered to ``HookRuntime``
@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger("larkmentor.runtime.skill_loader")
+logger = logging.getLogger("agent-pilot.runtime.skill_loader")
 
 
 @dataclass

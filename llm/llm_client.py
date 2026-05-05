@@ -173,6 +173,87 @@ def chat(
         return ""
 
 
+def chat_with_tools(
+    messages: list,
+    tools: list,
+    temperature: float = 0.3,
+    *,
+    system: str = "",
+    user_open_id: str = "",
+    enterprise_id: str = "default",
+    workspace_id: str = "default",
+    department_id: str = None,
+    group_id: str = None,
+    session_id: str = None,
+) -> dict:
+    """Chat completion with OpenAI function-calling ``tools`` parameter.
+
+    Returns ``{"content": str|None, "tool_calls": list[dict]|None}``.
+    Each tool_call dict has ``id``, ``function.name``, ``function.arguments`` (parsed).
+    """
+    try:
+        client = _get_client()
+        built_messages = list(messages)
+
+        sys_text = _build_system_prompt(
+            system=system,
+            user_open_id=user_open_id,
+            enterprise_id=enterprise_id,
+            workspace_id=workspace_id,
+            department_id=department_id,
+            group_id=group_id,
+            session_id=session_id,
+        )
+        if sys_text:
+            sys_text += _INJECTION_GUARD
+            built_messages.insert(0, {"role": "system", "content": sys_text})
+
+        last_err: Exception = RuntimeError("never attempted")
+        for attempt in range(_LLM_MAX_RETRY + 1):
+            try:
+                resp = client.chat.completions.create(
+                    model=Config.ARK_MODEL,
+                    messages=built_messages,
+                    tools=tools,
+                    temperature=temperature,
+                    max_tokens=_LLM_MAX_TOKENS,
+                    timeout=_LLM_TIMEOUT,
+                )
+                msg = resp.choices[0].message
+                content = (msg.content or "").strip() or None
+                parsed_calls = None
+                if msg.tool_calls:
+                    parsed_calls = []
+                    for tc in msg.tool_calls:
+                        try:
+                            args = json.loads(tc.function.arguments)
+                        except (json.JSONDecodeError, TypeError):
+                            args = {}
+                        parsed_calls.append({
+                            "id": tc.id,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": args,
+                            },
+                        })
+                return {"content": content, "tool_calls": parsed_calls}
+            except Exception as exc:
+                last_err = exc
+                sleep = min(8, 2 ** attempt)
+                logger.warning(
+                    "LLM tools attempt %d/%d failed: %s; sleeping %ss",
+                    attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep,
+                )
+                if attempt >= _LLM_MAX_RETRY:
+                    break
+                time.sleep(sleep)
+        logger.error("LLM chat_with_tools exhausted retries: %s", last_err)
+        return {"content": None, "tool_calls": None}
+    except Exception as e:
+        logger.error("chat_with_tools failed outer: %s", e)
+        return {"content": None, "tool_calls": None}
+
+
 def chat_json(
     prompt: str,
     temperature: float = 0.1,

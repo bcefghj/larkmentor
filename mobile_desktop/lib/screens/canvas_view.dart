@@ -68,12 +68,12 @@ class _CanvasViewState extends State<CanvasView> {
       ..setBackgroundColor(const Color(0xFF1F252E))
       ..addJavaScriptChannel('Bridge',
           onMessageReceived: (m) => _onBridge(m.message))
-      ..loadHtmlString(injected, baseUrl: 'https://larkmentor.local/');
+      ..loadHtmlString(injected, baseUrl: 'https://agent-pilot.local/');
     if (mounted) setState(() {});
   }
 
   Future<void> _reload() async {
-    try { await _controller.reload(); } catch (_) {}
+    try { await _controller.reload(); } catch (e) { debugPrint('CanvasView reload failed: $e'); }
   }
 
   void _onBridge(String payload) {
@@ -101,7 +101,9 @@ class _CanvasViewState extends State<CanvasView> {
           setState(() => _wsStatus = 'reconnecting');
           break;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('CanvasView bridge decode error: $e');
+    }
   }
 
   @override

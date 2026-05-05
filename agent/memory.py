@@ -1,16 +1,16 @@
 """Memory Layer · 4 层 CLAUDE.md 继承 + Auto Memory + SQLite FTS5 召回
 
 对齐 Claude Code 4 层 hierarchy（code.claude.com/docs/en/memory）：
-- Layer 1 Enterprise：/etc/larkmentor/LARKMENTOR.md
-- Layer 2 Project：./LARKMENTOR.md
-- Layer 3 User：~/.larkmentor/LARKMENTOR.md
-- Layer 4 Local：./LARKMENTOR.local.md（gitignored）
+- Layer 1 Enterprise：/etc/agent-pilot/AGENT_PILOT.md
+- Layer 2 Project：./AGENT_PILOT.md
+- Layer 3 User：~/.agent-pilot/AGENT_PILOT.md
+- Layer 4 Local：./AGENT_PILOT.local.md（gitignored）
 
 Auto Memory（Agent 自写，Claude Code 独家 + Hermes 启发）：
-- ~/.larkmentor/auto_memory/{tenant_id}/decisions.md
-- ~/.larkmentor/auto_memory/{tenant_id}/patterns.md
-- ~/.larkmentor/auto_memory/{tenant_id}/learnings.md
-- ~/.larkmentor/auto_memory/{tenant_id}/followups.md
+- ~/.agent-pilot/auto_memory/{tenant_id}/decisions.md
+- ~/.agent-pilot/auto_memory/{tenant_id}/patterns.md
+- ~/.agent-pilot/auto_memory/{tenant_id}/learnings.md
+- ~/.agent-pilot/auto_memory/{tenant_id}/followups.md
 
 跨会话召回：SQLite + FTS5 全文索引（借鉴 Hermes，10ms 级延迟，不用向量 DB）。
 """
@@ -34,24 +34,24 @@ logger = logging.getLogger("agent.memory")
 
 def _enterprise_paths() -> List[Path]:
     return [
-        Path("/etc/larkmentor/LARKMENTOR.md"),
-        Path("/Library/Application Support/LarkMentor/LARKMENTOR.md"),
-        Path("C:/ProgramData/LarkMentor/LARKMENTOR.md"),
+        Path("/etc/agent-pilot/AGENT_PILOT.md"),
+        Path("/Library/Application Support/AgentPilot/AGENT_PILOT.md"),
+        Path("C:/ProgramData/AgentPilot/AGENT_PILOT.md"),
     ]
 
 
 def _project_paths() -> List[Path]:
     cwd = Path.cwd()
-    return [cwd / "LARKMENTOR.md", cwd / ".larkmentor" / "LARKMENTOR.md"]
+    return [cwd / "AGENT_PILOT.md", cwd / ".agent-pilot" / "AGENT_PILOT.md"]
 
 
 def _user_paths() -> List[Path]:
-    home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
-    return [home / "LARKMENTOR.md", Path.home() / ".larkmentor" / "LARKMENTOR.md"]
+    home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
+    return [home / "AGENT_PILOT.md", Path.home() / ".agent-pilot" / "AGENT_PILOT.md"]
 
 
 def _local_paths() -> List[Path]:
-    return [Path.cwd() / "LARKMENTOR.local.md"]
+    return [Path.cwd() / "AGENT_PILOT.local.md"]
 
 
 @dataclass
@@ -69,7 +69,7 @@ class MemoryLayer:
     """4 层 CLAUDE.md 继承 + Auto Memory + SQLite FTS5."""
 
     def __init__(self, *, db_path: Optional[Path] = None) -> None:
-        home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
+        home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
         home.mkdir(parents=True, exist_ok=True)
         self.home = home
         self.db_path = db_path or home / "memory.sqlite"

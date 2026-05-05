@@ -49,7 +49,7 @@ def doc_create(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     doc_token = f"local_doc_{int(time.time())}"
     path = os.path.join(DATA_DIR, f"{doc_token}.md")
     with open(path, "w", encoding="utf-8") as f:
-        f.write(f"# {title}\n\n_由 LarkMentor Agent-Pilot 自动生成_\n")
+        f.write(f"# {title}\n\n_由 Agent-Pilot 自动生成_\n")
     return {
         "doc_token": doc_token,
         "url": f"file://{path}",
@@ -163,8 +163,8 @@ def _markdown_to_blocks(md: str) -> List[Any]:
     """Minimal markdown → Docx Block converter. Lark SDK types are built lazily."""
     try:
         from lark_oapi.api.docx.v1 import Block, Text, TextElement, TextRun
-    except Exception:
-        return []
+    except ImportError:
+        return []  # lark_oapi docx types not available
 
     blocks: List[Any] = []
     for raw in md.splitlines():
@@ -188,7 +188,7 @@ def _markdown_to_blocks(md: str) -> List[Any]:
                     return Block(block_type=block_type, bullet=txt)
                 return Block(block_type=block_type, text=txt)
             except Exception:
-                return Block(block_type=2, text=txt)
+                return Block(block_type=2, text=txt)  # fallback to plain text block on any block_type mismatch
 
         if line.startswith("# "):
             blocks.append(_text_block(line[2:], 3))

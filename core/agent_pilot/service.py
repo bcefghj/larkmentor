@@ -92,8 +92,8 @@ def launch(
 
         incr("plan_started", source=(meta or {}).get("source", "unknown"))
         audit("plan.launch", user=user_open_id, intent=intent[:120], source=(meta or {}).get("source", ""))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("observability audit/incr skipped: %s", e)
 
     plan = plan_from_intent(intent, user_open_id=user_open_id, meta=meta)
     _plan_cache[plan.plan_id] = plan
@@ -140,8 +140,8 @@ def _run_and_persist(plan: Plan) -> None:
                 e,
                 context=f"执行计划 {plan.plan_id[:8]}... 时出错",
             )
-        except Exception:
-            pass
+        except Exception as e2:
+            logger.debug("notify_user_error fallback failed: %s", e2)
     finally:
         _persist(plan, phase="finished")
         try:
@@ -150,8 +150,8 @@ def _run_and_persist(plan: Plan) -> None:
             done = sum(1 for s in plan.steps if s.status == "done")
             failed = sum(1 for s in plan.steps if s.status == "failed")
             incr("plan_finished", verdict="ok" if failed == 0 else "partial" if done > 0 else "failed")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("observability incr plan_finished skipped: %s", e)
 
 
 def _persist(plan: Plan, *, phase: str) -> None:

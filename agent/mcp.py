@@ -95,7 +95,7 @@ class StdioClient:
             "initialize",
             {
                 "protocolVersion": "2024-11-05",
-                "clientInfo": {"name": "larkmentor-v4", "version": "4.0.0"},
+                "clientInfo": {"name": "agent-pilot-v4", "version": "4.0.0"},
                 "capabilities": {},
             },
         )
@@ -186,10 +186,10 @@ class MCPManager:
         self._started = False
 
     def load_config(self) -> None:
-        """Load from .larkmentor/mcp.json (or environment defaults)."""
-        cfg_path = Path.cwd() / ".larkmentor" / "mcp.json"
+        """Load from .agent-pilot/mcp.json (or environment defaults)."""
+        cfg_path = Path.cwd() / ".agent-pilot" / "mcp.json"
         if not cfg_path.exists():
-            cfg_path = Path.home() / ".larkmentor" / "mcp.json"
+            cfg_path = Path.home() / ".agent-pilot" / "mcp.json"
         if cfg_path.exists():
             try:
                 cfg = json.loads(cfg_path.read_text())
@@ -267,8 +267,8 @@ class MCPManager:
         for c in self.clients.values():
             try:
                 c.stop()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("MCP client stop failed: %s", e)
         self.clients.clear()
         self._started = False
 
@@ -310,3 +310,26 @@ def default_mcp_manager() -> MCPManager:
     if _singleton is None:
         _singleton = MCPManager()
     return _singleton
+
+
+def register_feishu_mcp() -> None:
+    try:
+        from core.feishu_cli.mcp_config import (
+            FEISHU_CLI_SKILLS,
+            MCP_SERVER_CONFIG,
+            is_mcp_available,
+        )
+        if is_mcp_available():
+            logger.info("Feishu MCP server available, %d skills", len(FEISHU_CLI_SKILLS))
+            mgr = default_mcp_manager()
+            mgr.servers.append(
+                MCPServer(
+                    alias=MCP_SERVER_CONFIG["name"],
+                    transport=MCP_SERVER_CONFIG["transport"],
+                    command=MCP_SERVER_CONFIG["command"],
+                    args=MCP_SERVER_CONFIG["args"],
+                    env=MCP_SERVER_CONFIG.get("env", {}),
+                )
+            )
+    except Exception as e:
+        logger.debug("Feishu MCP not available: %s", e)

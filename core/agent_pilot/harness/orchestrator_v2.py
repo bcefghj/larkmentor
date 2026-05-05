@@ -48,6 +48,7 @@ from .hooks import HookEvent, HookRegistry, default_hook_registry
 from .memory import MemoryLayer, default_memory
 from .permissions import PermissionGate, default_permission_gate
 from .skills_loader import SkillsLoader, default_skills
+from .safety_scanner import ScanResult, scan_tool_call
 from .streaming_executor import StreamingToolExecutor, ToolInvocation
 from .tool_registry import ToolRegistry, default_registry
 
@@ -62,6 +63,16 @@ class OrchestratorEvent:
     step_id: str = ""
     payload: Dict[str, Any] = field(default_factory=dict)
     ts: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "plan_id": self.plan_id,
+            "kind": self.kind,
+            "step_id": self.step_id,
+            "payload": self.payload,
+            "ts": self.ts,
+        }
 
 
 @dataclass
@@ -186,7 +197,7 @@ class ConversationOrchestrator:
             },
         )
 
-        # Fire SessionStart hook (inject LARKMENTOR.md etc.).
+        # Fire SessionStart hook (inject AGENT_PILOT.md etc.).
         sess_payload = self._hooks.fire(
             HookEvent.SESSION_START,
             {
@@ -197,7 +208,7 @@ class ConversationOrchestrator:
         )
         memory_injected = sess_payload.payload.get("memory_injected") or ""
         if memory_injected:
-            state.messages.append({"role": "system", "content": "[LARKMENTOR.md]\n\n" + memory_injected})
+            state.messages.append({"role": "system", "content": "[AGENT_PILOT.md]\n\n" + memory_injected})
 
         # Skills metadata (always in system prompt).
         try:
@@ -266,6 +277,23 @@ class ConversationOrchestrator:
             s.error = ""
             s.result = {}
 
+    # ── Pre-execution safety scan ──
+
+    def _pre_check_safety(self, step: Any, args: Dict[str, Any], plan: Any) -> Optional[ScanResult]:
+        scan = scan_tool_call(step.tool, args)
+        if not scan.is_safe():
+            self._emit(
+                "safety_flagged",
+                plan_id=plan.plan_id,
+                step_id=step.step_id,
+                payload={
+                    "tool": step.tool,
+                    "risk_level": scan.level.value,
+                    "reasons": scan.reasons,
+                },
+            )
+        return scan
+
     # ── Node 3: dispatch_tools ──
 
     def _dispatch(self, state: OrchestratorState, ctx: Dict[str, Any]) -> None:
@@ -331,6 +359,19 @@ class ConversationOrchestrator:
                     plan_id=plan.plan_id,
                     step_id=step.step_id,
                     payload={"reason": perm.reason, "tool": step.tool, "args_keys": list(args.keys())},
+                )
+                skipped.append(step)
+                continue
+
+            scan = self._pre_check_safety(step, args, plan)
+            if scan and scan.level.value == "block":
+                step.status = "failed"
+                step.error = f"safety blocked: {'; '.join(scan.reasons)}"
+                self._emit(
+                    "step_failed",
+                    plan_id=plan.plan_id,
+                    step_id=step.step_id,
+                    payload={"error": step.error, "risk_level": "block"},
                 )
                 skipped.append(step)
                 continue
@@ -496,8 +537,8 @@ class ConversationOrchestrator:
                 scope="session",
                 tags=["agent-pilot", "run-summary"],
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("memory persist run summary failed: %s", e)
 
         self._emit(
             "plan_done",

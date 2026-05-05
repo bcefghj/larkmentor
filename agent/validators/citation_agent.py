@@ -113,8 +113,8 @@ class CitationAgent:
                 if claim.source_refs and not claim.verified:
                     claim.verified = True
                     claim.confidence = 0.7
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("citation memory cross-ref failed: %s", e)
 
         return claim
 

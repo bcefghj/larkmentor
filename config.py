@@ -1,4 +1,4 @@
-"""LarkMentor runtime configuration with Pydantic validation.
+"""Agent-Pilot runtime configuration with Pydantic validation.
 
 All settings loaded from environment variables (.env file supported).
 Startup fails fast with clear error messages if required fields are missing.
@@ -125,9 +125,12 @@ class Settings(BaseSettings):
         "by EOD",
     ]
 
+    # ── Agent-Pilot orchestrator ──
+    AGENT_PILOT_DEMO_MODE: bool = False
+
     # ── Sync & Security ──
     SYNC_HUB_PORT: int = 8002
-    LARKMENTOR_PILOT_SHARE_SECRET: str = ""
+    AGENT_PILOT_SHARE_SECRET: str = ""  # previously LARKMENTOR_PILOT_SHARE_SECRET
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

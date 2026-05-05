@@ -24,6 +24,7 @@ import os
 import random
 import sys
 import time
+import uuid as _uuid
 from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List
@@ -35,19 +36,57 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 try:
     from fastapi import FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.requests import Request
 except ImportError as e:
     raise RuntimeError("Install fastapi & uvicorn: pip install fastapi uvicorn") from e
 
 
 app = FastAPI(
     title="Agent-Pilot API",
-    description="Agent-Pilot v7 · 从 IM 对话到演示稿的一键智能闭环",
-    version="7.0.0",
+    description="Agent-Pilot v8 · 从 IM 对话到演示稿的一键智能闭环",
+    version="8.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or f"req_{_uuid.uuid4().hex[:12]}"
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+app.add_middleware(RequestIDMiddleware)
+
+
+class OptionalAPIKeyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        api_key = os.getenv("AGENT_PILOT_API_KEY", "")
+        if api_key and request.url.path.startswith("/api/"):
+            provided = request.headers.get("X-API-Key") or request.query_params.get("api_key") or ""
+            if provided != api_key:
+                from starlette.responses import JSONResponse as _JR
+
+                return _JR({"error": "unauthorized"}, status_code=401)
+        return await call_next(request)
+
+
+app.add_middleware(OptionalAPIKeyMiddleware)
 
 # P5.1: Prometheus /metrics + OpenTelemetry tracing; both optional.
 try:
@@ -55,7 +94,7 @@ try:
 
     _install_obs(app)
 except Exception as _e_obs:  # noqa: BLE001
-    pass
+    pass  # observability is optional; dashboard works without it
 
 # P10/v7: Pilot 三视角驾驶舱（任务列表 / 6 级 Memory / 三线雷达）
 try:
@@ -78,7 +117,7 @@ def _read_json(path: Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return default
+        return default  # corrupt JSON on disk; return safe default
 
 
 def _decisions() -> List[Dict[str, Any]]:
@@ -405,7 +444,7 @@ async def _broadcast_loop():
             try:
                 await ws.send_text(msg)
             except Exception:
-                dead.append(ws)
+                dead.append(ws)  # stale websocket, will be removed below
         for d in dead:
             if d in WS_CLIENTS:
                 WS_CLIENTS.remove(d)
@@ -528,16 +567,16 @@ async def dashboard_v3():
     return "<h1>Dashboard v3</h1><p>Static page missing.</p>"
 
 
-# ── LarkMentor v1: My Mentor Stats ──
+# ── Agent-Pilot v1: My Mentor Stats ──
 try:
     from dashboard.mentor_stats import register as _register_mentor_stats
 
     _register_mentor_stats(app)
 except Exception as _e:  # noqa: BLE001
-    pass
+    pass  # mentor stats routes are optional
 
 
-# ── LarkMentor v2: Agent-Pilot endpoints ──
+# ── Agent-Pilot v2: Agent-Pilot endpoints ──
 @app.get("/api/pilot/plans")
 async def pilot_plans(limit: int = Query(20, ge=1, le=100), open_id: str = Query("")):
     try:
@@ -551,10 +590,10 @@ async def pilot_plans(limit: int = Query(20, ge=1, le=100), open_id: str = Query
 @app.get("/api/pilot/plan/{plan_id}")
 async def pilot_plan_detail(plan_id: str, sig: str = Query("")):
     try:
-        # P1.6: if LARKMENTOR_PILOT_SHARE_SECRET is configured, verify the
+        # P1.6: if AGENT_PILOT_SHARE_SECRET is configured, verify the
         # HMAC signature and refuse unsigned / expired URLs. When the env
         # var is absent we run in legacy "open" mode for local dev.
-        secret = os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", "")
+        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
         if secret:
             from core.agent_pilot.share_sig import verify as _verify
 
@@ -576,7 +615,7 @@ async def pilot_sign(plan_id: str, ttl: int = Query(7 * 86400, ge=60, le=30 * 86
     try:
         from core.agent_pilot.share_sig import sign_url
 
-        base = os.getenv("LARKMENTOR_DASHBOARD_URL", "")
+        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", os.getenv("LARKMENTOR_DASHBOARD_URL", ""))
         return sign_url(plan_id, base_path=f"{base}/pilot/{plan_id}", ttl_sec=ttl)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -857,7 +896,7 @@ try:
     if _sync_router is not None:
         app.include_router(_sync_router)
 except Exception as _e_sync:  # noqa: BLE001
-    pass
+    pass  # sync router is optional; CRDT features disabled
 
 
 # ── Artifacts (doc/slide/canvas outputs served as downloads) ──
@@ -866,7 +905,7 @@ try:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/artifacts", StaticFiles(directory=str(ARTIFACT_DIR)), name="artifacts")
 except Exception:
-    pass
+    pass  # artifact serving is best-effort; dir may not exist in test envs
 
 
 # Static mount

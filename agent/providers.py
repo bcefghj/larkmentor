@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("agent.providers")
 
-STATS_FILE = Path.cwd() / ".larkmentor" / "provider_stats.json"
+STATS_FILE = Path.cwd() / ".agent-pilot" / "provider_stats.json"
 SLIDING_WINDOW_SIZE = 100
 HEALTH_CONSECUTIVE_FAILURES = 3
 HEALTH_RECOVERY_SEC = 60.0
@@ -204,8 +204,8 @@ class ProviderRouter:
     # ─── Config loading ───────────────────────────────────────────────────
 
     def _load_config(self) -> None:
-        """Load .larkmentor/models.yaml if exists."""
-        cfg_path = Path.cwd() / ".larkmentor" / "models.yaml"
+        """Load .agent-pilot/models.yaml if exists."""
+        cfg_path = Path.cwd() / ".agent-pilot" / "models.yaml"
         if not cfg_path.exists():
             return
         try:

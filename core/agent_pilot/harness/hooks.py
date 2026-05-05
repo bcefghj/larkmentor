@@ -2,7 +2,7 @@
 
 Events
 ------
-SessionStart        – when an agent session begins (inject LARKMENTOR.md)
+SessionStart        – when an agent session begins (inject AGENT_PILOT.md)
 UserPromptSubmit    – when the user sends a new intent (pre-planning)
 PreToolUse          – before every tool dispatch (audit log / permission re-check / input rewrite)
 PostToolUse         – after tool result is available (auto-format / progress card update)
@@ -17,7 +17,7 @@ Return a dict to *merge* into the payload (the new dict wins).
 Return ``{"_veto": True, "_reason": ..., "_error": ...}`` to block the event chain.
 Return ``None`` for no-op.
 
-Hooks can also be registered declaratively via JSON in ``.larkmentor/hooks.json``.
+Hooks can also be registered declaratively via JSON in ``.agent-pilot/hooks.json``.
 """
 
 from __future__ import annotations
@@ -106,7 +106,7 @@ class HookRegistry:
             {"type": "log_audit"}
           ],
           "session_start": [
-            {"type": "inject_memory", "file": "LARKMENTOR.md"}
+            {"type": "inject_memory", "file": "AGENT_PILOT.md"}
           ]
         }
         """
@@ -186,23 +186,23 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
                         )
                         + "\n"
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("declarative audit log write failed: %s", e)
             return None
 
         _fn.__name__ = "log_audit"
         return _fn
 
     if kind == "inject_memory":
-        fpath = cfg.get("file", "LARKMENTOR.md")
+        fpath = cfg.get("file", "AGENT_PILOT.md")
 
         def _fn(ev, payload):
             try:
                 if os.path.exists(fpath):
                     content = open(fpath, "r", encoding="utf-8").read()
                     return {"memory_injected": content[:8000]}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("inject_memory read failed: %s", e)
             return None
 
         _fn.__name__ = f"inject_memory_{os.path.basename(fpath)}"
@@ -242,7 +242,7 @@ def default_hook_registry() -> HookRegistry:
 
 def _seed_defaults(reg: HookRegistry) -> None:
     """Register built-in hooks: audit log + sensitive tool gate + session memory inject."""
-    audit_path = os.path.expanduser("~/.larkmentor/audit.jsonl")
+    audit_path = os.path.expanduser("~/.agent-pilot/audit.jsonl")
 
     def _audit(ev, payload):
         try:
@@ -262,8 +262,8 @@ def _seed_defaults(reg: HookRegistry) -> None:
                     )
                     + "\n"
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("audit log write failed: %s", e)
         return None
 
     _audit.__name__ = "audit_log"
@@ -283,14 +283,14 @@ def _seed_defaults(reg: HookRegistry) -> None:
 
     def _session_inject(ev, payload):
         root = payload.get("project_root") or os.getcwd()
-        md_path = os.path.join(root, "LARKMENTOR.md")
+        md_path = os.path.join(root, "AGENT_PILOT.md")
         if os.path.exists(md_path):
             try:
                 content = open(md_path, "r", encoding="utf-8").read()
                 return {"memory_injected": content[:8000]}
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("session inject AGENT_PILOT.md read failed: %s", e)
         return None
 
-    _session_inject.__name__ = "inject_larkmentor_md"
-    reg.register(HookEvent.SESSION_START, _session_inject, name="inject_larkmentor_md")
+    _session_inject.__name__ = "inject_agent_pilot_md"
+    reg.register(HookEvent.SESSION_START, _session_inject, name="inject_agent_pilot_md")

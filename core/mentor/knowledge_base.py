@@ -49,7 +49,7 @@ _DB_LOCK = threading.Lock()
 def _connect() -> sqlite3.Connection:
     """Open a sqlite connection with WAL + sane concurrency defaults.
 
-    LarkMentor v2 step8: WAL journal mode lets multiple readers + one writer
+    Agent-Pilot v2 step8: WAL journal mode lets multiple readers + one writer
     run concurrently across processes (e.g. main bot + mcp_server + tests),
     which our threading.Lock alone cannot guarantee.
     """
@@ -60,7 +60,7 @@ def _connect() -> sqlite3.Connection:
         conn.execute("PRAGMA synchronous=NORMAL")
         conn.execute("PRAGMA busy_timeout=10000")
     except sqlite3.DatabaseError:
-        pass
+        pass  # PRAGMAs are optional performance hints; safe to skip
     conn.execute("BEGIN")
     conn.execute(
         """
@@ -208,8 +208,8 @@ def _bm25_rank(query: str, docs: List[str]) -> List[float]:
         if any(tokenized):
             bm25 = BM25Okapi(tokenized)
             bm_scores = list(bm25.get_scores(_tokenize_zh(query)))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("BM25 scoring skipped: %s", e)
 
     overlap_scores: List[float] = []
     for d in docs:
@@ -399,7 +399,7 @@ def delete_user_kb(open_id: str) -> int:
 def delete_source(open_id: str, source: str) -> int:
     """Delete all chunks of a single source for a user.
 
-    LarkMentor v1 GDPR finer-grained delete: when the user only wants to
+    Agent-Pilot v1 GDPR finer-grained delete: when the user only wants to
     retract one document but keep other onboarding context.
     """
     if not open_id or not source:

@@ -1,4 +1,4 @@
-"""LarkMentor v4 IM handlers · 统一入口（取代旧 event_handler.py 三座分叉）
+"""Agent-Pilot v4 IM handlers · 统一入口（取代旧 event_handler.py 三座分叉）
 
 核心原则：
 - 所有自然语言 → intent_router（LLM 短判）→ Named Agent → agent.loop.run
@@ -117,7 +117,7 @@ def _handle_command(intent: Dict, *, user_open_id: str, chat_id: str, tenant_id:
 
 
 def _cmd_help() -> Dict[str, Any]:
-    text = """**LarkMentor v4 命令列表**
+    text = """**Agent-Pilot v4 命令列表**
 
 - `/pilot <意图>` — 启动 Agent-Pilot 全链路（IM→Doc→Canvas→Slides→归档）
 - `/plan <意图>` — Plan Mode，只生成规划不执行
@@ -241,7 +241,8 @@ def _cmd_quality(plan_id: str) -> Dict[str, Any]:
         if not candidates:
             return {"ok": True, "reply": "未找到 plan，先跑 /pilot <任务>"}
         content = candidates[0].read_text()
-    except Exception:
+    except Exception as e:
+        logger.debug("plan file read failed, using raw plan_id: %s", e)
         content = plan_id
     report = runner.run(content)
     return {"ok": True, "reply": json.dumps(report.as_dict(), ensure_ascii=False, indent=2), "data": report.as_dict()}
@@ -320,7 +321,7 @@ def _run_chat(text: str, *, user_open_id: str, tenant_id: str) -> Dict[str, Any]
 
     out = default_providers().chat(
         messages=[
-            {"role": "system", "content": "你是 LarkMentor，一个对标 Claude Code 的办公协同 AI。"},
+            {"role": "system", "content": "你是 Agent-Pilot，一个对标 Claude Code 的办公协同 AI。"},
             {"role": "user", "content": text},
         ],
         task_kind="chinese_chat",

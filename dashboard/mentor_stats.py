@@ -1,4 +1,4 @@
-"""LarkMentor v1 · My Mentor Stats API.
+"""Agent-Pilot v1 · My Mentor Stats API.
 
 Returns per-user stats for the dashboard:
 - this week's mentor invocations by kind

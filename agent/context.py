@@ -73,7 +73,7 @@ class ContextManager:
         self.max_tokens = max_tokens
         self.single_result_cap = single_result_cap
         self.hot_tail_size = hot_tail_size
-        self.artifacts_dir = artifacts_dir or Path.home() / ".larkmentor" / "ctx"
+        self.artifacts_dir = artifacts_dir or Path.home() / ".agent-pilot" / "ctx"
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         self.history: List[CompactionEvent] = []
 
@@ -352,6 +352,6 @@ _singleton: Optional[ContextManager] = None
 def default_context_manager() -> ContextManager:
     global _singleton
     if _singleton is None:
-        max_tokens = int(os.getenv("LARKMENTOR_CTX_MAX_TOKENS", "128000"))
+        max_tokens = int(os.getenv("AGENT_PILOT_CTX_MAX_TOKENS", "128000"))
         _singleton = ContextManager(max_tokens=max_tokens)
     return _singleton

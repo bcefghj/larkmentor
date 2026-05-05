@@ -24,7 +24,7 @@ PILOT_COMMANDS = frozenset(
 
 def pilot_help_text() -> str:
     return (
-        "🚀 **LarkMentor Agent-Pilot 使用指南**\n\n"
+        "🚀 **Agent-Pilot 使用指南**\n\n"
         "**核心指令**：\n"
         "  `/pilot <你的需求>` - 自动生成文档/PPT/画布\n\n"
         "**快速示例**：\n"
@@ -48,7 +48,7 @@ def pilot_help_text() -> str:
         "**在线Dashboard**：\n"
         "  http://118.178.242.26/dashboard/pilot\n\n"
         "**详细文档**：\n"
-        "  https://github.com/bcefghj/larkmentor\n\n"
+        "  https://github.com/bcefghj/agent-pilot\n\n"
         "💡 提示：需求描述越具体，生成效果越好！"
     )
 
@@ -253,13 +253,13 @@ def _schedule_completion_notify(open_id: str, plan):
                     summary.append(f"\n汇总链接：http://118.178.242.26/pilot/{plan.plan_id}")
                     try:
                         send_text(open_id, "\n".join(summary))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("pilot notify send_text failed: %s", e)
                     return
 
         _th.Thread(target=_notify_when_done, daemon=True).start()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("pilot async run launch failed: %s", e)
 
 
 # Command dispatch table

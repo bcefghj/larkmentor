@@ -1,8 +1,8 @@
-"""Persistent memory layer: LARKMENTOR.md + Mem0g / FlowMemory fallback.
+"""Persistent memory layer: AGENT_PILOT.md + Mem0g / FlowMemory fallback.
 
 Two memory tiers:
 
-1. **System memory** – ``LARKMENTOR.md`` at repo root (additive, loaded on
+1. **System memory** – ``AGENT_PILOT.md`` at repo root (additive, loaded on
    every session). This is our ``CLAUDE.md`` equivalent: company style,
    approval rules, sensitive domains. Never touched by compaction.
 
@@ -41,21 +41,21 @@ class MemoryLayer:
         self,
         *,
         project_root: str = ".",
-        memory_md_name: str = "LARKMENTOR.md",
+        memory_md_name: str = "AGENT_PILOT.md",
         storage_dir: Optional[str] = None,
     ) -> None:
         self.project_root = os.path.abspath(project_root)
         self.memory_md_path = os.path.join(self.project_root, memory_md_name)
-        self.storage_dir = storage_dir or os.path.expanduser("~/.larkmentor/memory")
+        self.storage_dir = storage_dir or os.path.expanduser("~/.agent-pilot/memory")
         os.makedirs(self.storage_dir, exist_ok=True)
         self._lock = threading.RLock()
         self._mem0: Optional[Any] = None
         self._try_init_mem0()
 
-    # ── System memory (LARKMENTOR.md) ──
+    # ── System memory (AGENT_PILOT.md) ──
 
     def system_prompt_memory(self) -> str:
-        """Return contents of LARKMENTOR.md verbatim (trimmed)."""
+        """Return contents of AGENT_PILOT.md verbatim (trimmed)."""
         if not os.path.exists(self.memory_md_path):
             return ""
         try:
@@ -106,7 +106,7 @@ class MemoryLayer:
     # ── Internal: Mem0 init ──
 
     def _try_init_mem0(self) -> None:
-        if os.getenv("LARKMENTOR_DISABLE_MEM0") == "1":
+        if os.getenv("AGENT_PILOT_DISABLE_MEM0") == "1":
             return
         try:
             from mem0 import Memory  # type: ignore

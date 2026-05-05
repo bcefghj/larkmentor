@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Launch all 3 LarkMentor v2 services in background.
+# Launch all 3 Agent-Pilot v8 services in background.
 # In production systemd replaces this; this script is for local dev.
 
 set -e

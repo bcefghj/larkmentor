@@ -1,4 +1,4 @@
-"""Build Feishu interactive message cards for LarkMentor."""
+"""Build Feishu interactive message cards for Agent-Pilot."""
 
 from utils.time_utils import fmt_duration
 
@@ -38,7 +38,7 @@ def focus_started_card(duration_min: int = 0) -> dict:
     card = _header("勿扰模式已开启", "blue")
     card["elements"] = [
         _md(
-            f"LarkMentor 已进入消息守护{dur_text}\n\n"
+            f"Agent-Pilot 已进入消息守护{dur_text}\n\n"
             "**消息处理策略：**\n"
             "- P0 紧急消息 - 立即推送\n"
             "- P1 重要消息 - 攒批提醒\n"
@@ -119,7 +119,7 @@ def daily_report_card(
     focus_dur = fmt_duration(focus_seconds)
     saved_min = shielded * 2
 
-    card = _header("LarkMentor 今日简报", "purple")
+    card = _header("Agent-Pilot 今日简报", "purple")
     card["elements"] = [
         _md(
             f"**今日消息统计：**\n"
@@ -132,7 +132,7 @@ def daily_report_card(
         _divider(),
         _md(
             f"**深度工作时长：** {focus_dur}\n"
-            f"**LarkMentor 帮你拦截：** {shielded} 条消息\n"
+            f"**Agent-Pilot 帮你拦截：** {shielded} 条消息\n"
             f"**预估节省：** 约 {saved_min} 分钟注意力恢复时间"
         ),
         _divider(),
@@ -142,7 +142,7 @@ def daily_report_card(
 
 
 def help_card() -> dict:
-    card = _header("LarkMentor 使用指南", "indigo")
+    card = _header("Agent-Pilot 使用指南", "indigo")
     card["elements"] = [
         _md(
             "**消息守护（Smart Shield）**\n"
@@ -242,13 +242,13 @@ def achievements_list_card(unlocked: list, all_defs: list) -> dict:
 
 def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: str, complete: bool = True) -> dict:
     """The judge-friendly welcome card showing the auto-provisioned workspace."""
-    card = _header("欢迎使用 LarkMentor - 你的专属飞书工作台已就绪", "turquoise")
+    card = _header("欢迎使用 Agent-Pilot - 你的专属飞书工作台已就绪", "turquoise")
     if complete:
         body = (
             "我已经为你在飞书里**自动开通了 3 个资源**：\n\n"
             f"📊 [我的消息分析看板（多维表格）]({bitable_url})\n"
             "  已预置 10 条演示数据，点开即可看到完整看板\n\n"
-            f"📘 [LarkMentor 使用指南（飞书文档）]({onboarding_url})\n"
+            f"📘 [Agent-Pilot 使用指南（飞书文档）]({onboarding_url})\n"
             "  5 分钟读完，了解所有用法\n\n"
             f"📝 [Recovery Card（动态文档）]({recovery_url})\n"
             "  每次退出勿扰，我会在这里追加一张恢复卡片\n\n"
@@ -275,10 +275,10 @@ def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: 
 
 def first_time_welcome_card() -> dict:
     """Lightweight first-touch welcome before workspace provisioning."""
-    card = _header("LarkMentor — 消息守护 + 表达引导", "blue")
+    card = _header("Agent-Pilot — 消息守护 + 表达引导", "blue")
     card["elements"] = [
         _md(
-            "你好！我是 LarkMentor，飞书里的 AI 协作伙伴。\n\n"
+            "你好！我是 Agent-Pilot，飞书里的 AI 协作伙伴。\n\n"
             "**两件事，一个 Bot**\n"
             "- **消息守护（Smart Shield）** — 该不该打断你？消息分级拦截 + 恢复汇总\n"
             "- **表达引导（Mentor）** — 怎么说更合适？草稿改写 + 组织语境\n\n"
@@ -434,7 +434,7 @@ def mentor_growth_card(week_count: int, total_count: int, doc_url: str = "") -> 
             f"📓 [打开《我的新手成长记录》]({doc_url})\n\n"
             f"**本周条目**：{week_count}\n"
             f"**累计条目**：{total_count}\n\n"
-            "本档案由 LarkMentor 自动维护——每次 Mentor 出手都会追加一条；"
+            "本档案由 Agent-Pilot 自动维护——每次 Mentor 出手都会追加一条；"
             "每周日 21:00 会自动写一段成长摘要。"
         )
     else:
@@ -456,14 +456,14 @@ def mentor_growth_card(week_count: int, total_count: int, doc_url: str = "") -> 
 
 
 def mentor_proactive_card(suggestion: dict, draft_id: str = "") -> dict:
-    """Card pushed when LarkMentor proactively suggests reply versions."""
+    """Card pushed when Agent-Pilot proactively suggests reply versions."""
     sender = suggestion.get("sender_name", "")
     chat_name = suggestion.get("chat_name", "")
     level = suggestion.get("level", "P1")
     original = (suggestion.get("original") or "")[:120]
     versions = suggestion.get("three_versions") or {}
     citations = suggestion.get("citations") or []
-    explain = suggestion.get("explain", "")  # LarkMentor v1: explainable line
+    explain = suggestion.get("explain", "")  # Agent-Pilot v1: explainable line
 
     color = "red" if level == "P0" else "orange"
     card = _header(f"Mentor · 建议回复（{level}）", color)
@@ -471,7 +471,7 @@ def mentor_proactive_card(suggestion: dict, draft_id: str = "") -> dict:
     head = (
         f"**来自**：{sender} · {chat_name}\n"
         f"**原文**：{original}\n\n"
-        "🤖 **Mentor 起草了 3 版回复**（你点确认才会发出，LarkMentor 不会替你发）：\n\n"
+        "🤖 **Mentor 起草了 3 版回复**（你点确认才会发出，Agent-Pilot 不会替你发）：\n\n"
         f"🔵 **保守版**\n{versions.get('conservative', '')}\n\n"
         f"🟢 **中性版**\n{versions.get('neutral', '')}\n\n"
         f"🟠 **直接版**\n{versions.get('direct', '')}\n"

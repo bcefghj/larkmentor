@@ -12,7 +12,7 @@ Tier 3 (L3) – references/ and scripts/
     Loaded on-demand via Read/Bash tools. Zero token cost until needed.
 
 Skill discovery paths (merged, later paths override):
-    $LARKMENTOR_SKILLS_HOME (if set)
+    $AGENT_PILOT_SKILLS_HOME (if set)
     ~/.claude/skills/                (where lark-cli installs official Skills)
     ~/.larkmentor/skills/            (user-level custom Skills)
     ./.larkmentor/skills/            (project-level Skills, shared via git)
@@ -60,8 +60,8 @@ class SkillsLoader:
     @staticmethod
     def _default_search_paths() -> List[str]:
         out = []
-        if os.getenv("LARKMENTOR_SKILLS_HOME"):
-            out.append(os.getenv("LARKMENTOR_SKILLS_HOME"))
+        if os.getenv("AGENT_PILOT_SKILLS_HOME"):
+            out.append(os.getenv("AGENT_PILOT_SKILLS_HOME"))
         out.extend(
             [
                 os.path.expanduser("~/.claude/skills"),

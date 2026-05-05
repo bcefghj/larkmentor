@@ -159,6 +159,72 @@ class TestPlannerService:
         assert len(plan.steps) > 0
 
 
+class TestOrchestratorServiceBroadcasting:
+    """Test OrchestratorService broadcasting to streaming cards."""
+
+    def test_broadcaster_receives_events(self):
+        from core.agent_pilot.application.orchestrator_service import (
+            OrchestratorConfig,
+            OrchestratorService,
+        )
+        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task
+
+        events = []
+        svc = OrchestratorService(
+            tools={"test.tool": lambda step, ctx: {"ok": True}},
+            config=OrchestratorConfig(demo_mode=True),
+        )
+        svc.set_broadcaster(lambda ev: events.append(ev))
+
+        task = Task(task_id="t_broadcast", intent="test broadcasting", source_chat_id="chat_test")
+        task.apply_unsafe(state="planning")
+        task.plan = DomainPlan(
+            plan_id="p_broadcast",
+            intent="test",
+            steps=[
+                DomainPlanStep(step_id="s1", tool="test.tool", description="test step"),
+            ],
+            owner_open_id="u1",
+        )
+
+        svc.run(task, advance_state=False)
+
+        kinds = [e.get("kind") for e in events]
+        assert "plan_started" in kinds
+        assert "step_started" in kinds
+        assert "step_done" in kinds
+        assert "plan_done" in kinds
+
+    def test_orchestrator_property_returns_self(self):
+        from core.agent_pilot.application.orchestrator_service import OrchestratorService
+
+        svc = OrchestratorService()
+        assert svc.orchestrator is svc
+
+    def test_demo_mode_simulates_missing_tools(self):
+        from core.agent_pilot.application.orchestrator_service import (
+            OrchestratorConfig,
+            OrchestratorService,
+        )
+        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task
+
+        svc = OrchestratorService(
+            tools={},
+            config=OrchestratorConfig(demo_mode=True),
+        )
+        task = Task(task_id="t_demo", intent="test demo", source_chat_id="c")
+        task.apply_unsafe(state="planning")
+        task.plan = DomainPlan(
+            plan_id="p_demo",
+            intent="test",
+            steps=[PlanStep(step_id="s1", tool="missing.tool", description="test")],
+            owner_open_id="u1",
+        )
+        result = svc.run(task, advance_state=False)
+        assert result.plan.steps[0].status == "done"
+        assert result.plan.steps[0].result.get("simulated") is True
+
+
 class TestMultiProviderRouter:
     """Test multi-model provider routing."""
 

@@ -1,6 +1,6 @@
 """ToolRegistry · 统一工具注册中心 (Claude Code 支柱 1)
 
-每个 LarkMentor 能力（消息分流/写作起草/任务澄清/周报生成/...）以一个
+每个 Agent-Pilot 能力（消息分流/写作起草/任务澄清/周报生成/...）以一个
 ``ToolMetadata`` 注册到 ``ToolRegistry``。所有调用经过 ``invoke``，
 自动完成 4 件事：
 
@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
-logger = logging.getLogger("larkmentor.runtime.tool_registry")
+logger = logging.getLogger("agent-pilot.runtime.tool_registry")
 
 
 @dataclass

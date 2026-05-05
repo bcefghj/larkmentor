@@ -57,8 +57,8 @@ class InMemoryBus:
             for cb in self.subscribers[channel]:
                 try:
                     cb(msg)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("bus subscriber callback failed: %s", e)
 
     def subscribe(self, channel: str, callback: Callable) -> None:
         with self._lock:
@@ -114,8 +114,8 @@ class AgentTeam:
         try:
             with self.message_log_path.open("a") as f:
                 f.write(json.dumps(data, ensure_ascii=False) + "\n")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("team message log write failed: %s", e)
 
     def recent_messages(self, n: int = 20) -> List[Dict]:
         if self._bus_type == "memory":
@@ -126,8 +126,8 @@ class AgentTeam:
             if self.message_log_path.exists():
                 lines = self.message_log_path.read_text(encoding="utf-8", errors="replace").splitlines()
                 return [json.loads(l) for l in lines[-n:]]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("team message log read failed: %s", e)
         return []
 
     def task_list(self) -> List[Dict[str, Any]]:

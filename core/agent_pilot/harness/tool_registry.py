@@ -160,6 +160,27 @@ class ToolRegistry:
         with self._lock:
             return {n: s.fn for n, s in self._tools.items() if s.fn is not None}
 
+    def validate_against(self, fn_registry: Dict[str, Callable]) -> List[str]:
+        """Check metadata registry against fn_registry for mismatches."""
+        mismatches: List[str] = []
+        with self._lock:
+            meta_names = set(self._tools.keys())
+        fn_names = set(fn_registry.keys())
+
+        missing_fn = meta_names - fn_names
+        for name in sorted(missing_fn):
+            msg = f"metadata exists but no function: {name}"
+            logger.warning(msg)
+            mismatches.append(msg)
+
+        missing_meta = fn_names - meta_names
+        for name in sorted(missing_meta):
+            msg = f"function exists but no metadata: {name}"
+            logger.warning(msg)
+            mismatches.append(msg)
+
+        return mismatches
+
 
 _default: Optional[ToolRegistry] = None
 _default_lock = threading.Lock()

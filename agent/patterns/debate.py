@@ -68,8 +68,8 @@ def debate_round(
             import json
 
             data = json.loads(judgement.strip().removeprefix("```json").removeprefix("```").removesuffix("```"))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("debate judgement JSON parse failed: %s", e)
         if data.get("converged"):
             return {"answer": data.get("final_answer"), "rounds": r + 1, "paths": answers}
     return {"answer": data.get("final_answer", answers[0]["text"]), "rounds": max_rounds, "paths": answers}

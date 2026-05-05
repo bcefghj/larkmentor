@@ -145,8 +145,8 @@ class BuilderValidator:
         if self._on_event:
             try:
                 self._on_event(payload)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("builder_validator event callback failed: %s", e)
 
     def _default_builder(self, task: str, feedback: List[str]) -> str:
         """Default builder using the provider system."""

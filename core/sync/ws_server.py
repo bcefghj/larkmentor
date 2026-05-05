@@ -61,7 +61,7 @@ def _verify_ws_token(token: str) -> bool:
     - 'demo' token in demo mode
     - Any token if no secret is configured (open mode for development)
     """
-    secret = os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", "")
+    secret = os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
     if not secret or secret == "default-secret":
         return True  # open mode
     if os.getenv("DASHBOARD_DEMO_MODE", "").lower() == "true" and token == "demo":
@@ -100,7 +100,7 @@ if _FASTAPI:
             try:
                 loop.call_soon_threadsafe(queue.put_nowait, payload)
             except Exception:
-                pass
+                pass  # queue full or loop closed; drop payload silently
 
         hub.subscribe(client_id, _send)
         await ws.send_text(json.dumps({"kind": "hello", "client_id": client_id}))
@@ -160,7 +160,7 @@ if _FASTAPI:
                 else:
                     await ws.send_text(json.dumps({"kind": "error", "reason": f"unknown_op:{op}"}))
         except WebSocketDisconnect:
-            pass
+            pass  # normal client disconnect; cleanup in finally block
         except Exception as e:
             logger.debug("ws loop error client=%s: %s", client_id, e)
         finally:
@@ -169,4 +169,4 @@ if _FASTAPI:
             try:
                 await ws.close()
             except Exception:
-                pass
+                pass  # already closed

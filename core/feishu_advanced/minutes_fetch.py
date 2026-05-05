@@ -116,8 +116,8 @@ def fetch_minutes(
             mresp = client.minutes.v1.minute.get(mreq)
             if getattr(mresp, "success", lambda: False)() and getattr(mresp, "data", None):
                 out["title"] = getattr(mresp.data, "title", "") or ""
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("minutes title fetch failed: %s", e)
         return out
     except Exception as exc:
         logger.debug("fetch_minutes failed: %s", exc)
@@ -134,7 +134,7 @@ def _fetch_segments(client, minute_token: str, *, need_speaker: bool, need_times
         try:
             builder = builder.need_speaker(need_speaker).need_timestamp(need_timestamp)
         except Exception:
-            pass
+            pass  # older SDK versions may not support these builder params
         req = builder.build()
         resp = client.minutes.v1.minute_transcript.get(req)
         if not resp.success() or not resp.data:

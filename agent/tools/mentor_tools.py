@@ -84,7 +84,7 @@ def onboard_next(user_open_id: str = "", answer: str = "") -> Dict[str, Any]:
 
 @tool(
     name="mentor.recommend_next",
-    description="高级 Agent：根据上下文推荐下一步行动（LARKMENTOR.md 规则 + 最近 transcript）",
+    description="高级 Agent：根据上下文推荐下一步行动（AGENT_PILOT.md 规则 + 最近 transcript）",
     permission="readonly",
     team="any",
 )

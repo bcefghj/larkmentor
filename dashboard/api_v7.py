@@ -82,8 +82,8 @@ def _list_tasks(limit: int = 50) -> List[Dict[str, Any]]:
                     "source_chat_id": r.get("source_chat_id", ""),
                 }
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("live tasks query failed: %s", e)
 
     out.sort(key=lambda x: x.get("updated_ts", 0), reverse=True)
     return out[:limit]
@@ -132,10 +132,10 @@ def _list_skills() -> List[Dict[str, Any]]:
 
 def _triad_data() -> Dict[str, Any]:
     """三线协同雷达：Shield + Mentor + Pilot 各自指标."""
-    out = {
-        "shield": {"intercepted": 0, "p0_p1_alerts": 0, "label": "消息守护"},
-        "mentor": {"drafts": 0, "skills_used": 0, "label": "表达带教"},
-        "pilot": {"tasks_total": 0, "tasks_delivered": 0, "skills_auto": 0, "label": "主驾驶"},
+    out: Dict[str, Any] = {
+        "shield": {"intercepted": 0, "p0_p1_alerts": 0, "label": "消息守护", "score": "—"},
+        "mentor": {"drafts": 0, "skills_used": 0, "label": "表达带教", "score": "—"},
+        "pilot": {"tasks_total": 0, "tasks_delivered": 0, "skills_auto": 0, "label": "主驾驶", "score": "—"},
     }
     # shield
     try:
@@ -144,15 +144,15 @@ def _triad_data() -> Dict[str, Any]:
         decs = list_recent_decisions() or []
         out["shield"]["intercepted"] = len(decs)
         out["shield"]["p0_p1_alerts"] = sum(1 for d in decs if d.get("level", "") in ("P0", "P1"))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("shield triad data skipped: %s", e)
     # mentor
     try:
         from core.mentor.knowledge_base import KB_STATS
 
         out["mentor"]["drafts"] = KB_STATS.get("draft_count", 0)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("mentor triad data skipped: %s", e)
     # pilot
     try:
         from core.agent_pilot.application import (
@@ -165,8 +165,14 @@ def _triad_data() -> Dict[str, Any]:
         out["pilot"]["tasks_total"] = s.get("total", 0)
         out["pilot"]["tasks_delivered"] = s.get("delivered", 0)
         out["pilot"]["skills_auto"] = len(default_pilot_learner().list_skills())
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("pilot triad data skipped: %s", e)
+
+    out["shield"]["score"] = f"{out['shield']['intercepted']} 拦截"
+    out["mentor"]["score"] = f"{out['mentor']['drafts']} 草稿"
+    total = out["pilot"]["tasks_total"]
+    delivered = out["pilot"]["tasks_delivered"]
+    out["pilot"]["score"] = f"{delivered}/{total}" if total else "0"
     return out
 
 
@@ -203,8 +209,8 @@ def _memory_content(tenant: str = "default") -> Dict[str, Any]:
                 content = ""
                 try:
                     content = f.read_text(encoding="utf-8")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("memory file read failed %s: %s", f.name, e)
                 files.append({"name": f.name, "size": f.stat().st_size, "content": content[:1000]})
             if files:
                 out["tiers"].append({"tier": tier, "files": files})
@@ -268,6 +274,28 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
     def _r_memory(tenant: str = "default"):
         return JSONResponse(_memory_content(tenant))
 
+    @app.get("/api/v7/timeline")
+    def _r_timeline(limit: int = 30):
+        """Cross-line event timeline for the Triad Radar view."""
+        events: List[Dict[str, Any]] = []
+        try:
+            from core.event_store import EventStore
+            import time
+
+            store = EventStore()
+            raw = store.replay_since(int(time.time()) - 86400 * 7)
+            for ev in raw[-limit:]:
+                events.append({
+                    "ts": ev.get("ts", 0),
+                    "kind": ev.get("kind", "event"),
+                    "data": ev.get("data", ""),
+                    "content": ev.get("content", ""),
+                    "line": ev.get("line", "pilot"),
+                })
+        except Exception as e:
+            logger.debug("timeline failed: %s", e)
+        return JSONResponse(events)
+
     @app.get("/api/v7/audit")
     def _r_audit(limit: int = 100):
         """Real-time audit log stream for security panel."""
@@ -279,7 +307,8 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
 
             events = store.replay_since(int(time.time()) - 86400)
             return JSONResponse({"events": events[-limit:]})
-        except Exception:
+        except Exception as e:
+            logger.debug("event timeline query failed: %s", e)
             return JSONResponse({"events": []})
 
     @app.get("/api/v7/plans/{plan_id}/dag")
@@ -321,7 +350,8 @@ def install_v7_routes(app, *, static_dir: Optional[Path] = None) -> None:
             from core.observability import get_metrics_summary
 
             return JSONResponse(get_metrics_summary())
-        except Exception:
+        except Exception as e:
+            logger.debug("metrics summary unavailable: %s", e)
             return JSONResponse(
                 {
                     "total_plans": 0,

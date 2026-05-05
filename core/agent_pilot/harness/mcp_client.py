@@ -5,7 +5,7 @@ Implements the subset of the 2025-03 MCP spec needed for Agent-Pilot:
 * **JSON-RPC 2.0** over two transports:
   - **stdio**: local subprocess (e.g. `@larksuiteoapi/lark-mcp`)
   - **Streamable HTTP**: remote (e.g. `https://mcp.feishu.cn/mcp`)
-* Three roles: **Host** (LarkMentor agent), **Client** (per-server
+* Three roles: **Host** (Agent-Pilot agent), **Client** (per-server
   connection), **Server** (external tool provider).
 * Methods: `initialize`, `tools/list`, `tools/call`, `resources/list`,
   `resources/read`, `prompts/list`, `ping`.
@@ -108,7 +108,7 @@ class MCPClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}, "resources": {}},
-                "clientInfo": {"name": "larkmentor-agent-pilot", "version": "2.0.0"},
+                "clientInfo": {"name": "agent-pilot", "version": "2.0.0"},
             },
         )
         if "error" in result:
@@ -128,8 +128,8 @@ class MCPClient:
             except Exception:
                 try:
                     self._proc.kill()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("proc kill failed: %s", e)
             self._proc = None
 
     # ── RPC ──
@@ -262,8 +262,8 @@ class MCPManager:
             for c in self._clients.values():
                 try:
                     c.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("mcp client close failed: %s", e)
             self._clients.clear()
 
 
@@ -311,7 +311,7 @@ _default_lock = threading.Lock()
 
 
 def load_from_json(path: str) -> List[MCPServerConfig]:
-    """Load MCP server configs from ``.larkmentor/mcp.json``.
+    """Load MCP server configs from ``.agent-pilot/mcp.json``.
 
     Schema::
 
@@ -390,8 +390,8 @@ def default_mcp_manager() -> MCPManager:
             if local:
                 ok = mgr.register(local)
                 logger.info("feishu local MCP registered: %s", ok)
-            root = os.getenv("LARKMENTOR_ROOT", os.getcwd())
-            extra = load_from_json(os.path.join(root, ".larkmentor", "mcp.json"))
+            root = os.getenv("AGENT_PILOT_ROOT", os.getcwd())
+            extra = load_from_json(os.path.join(root, ".agent-pilot", "mcp.json"))
             for cfg in extra:
                 ok = mgr.register(cfg)
                 logger.info("mcp.json server %s registered: %s", cfg.alias, ok)

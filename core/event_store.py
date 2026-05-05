@@ -19,12 +19,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
+
+logger = logging.getLogger("pilot.event_store")
 
 _DEFAULT_DATA_DIR = os.path.join("data", "events")
 _FLUSH_INTERVAL = 0.1  # 100ms
@@ -36,7 +39,7 @@ class EventStore:
     """Append-only JSONL event store with buffered, thread-safe writes."""
 
     def __init__(self, data_dir: str | None = None) -> None:
-        self._data_dir = Path(data_dir or os.getenv("LARKMENTOR_EVENTS_DIR", _DEFAULT_DATA_DIR))
+        self._data_dir = Path(data_dir or os.getenv("AGENT_PILOT_EVENTS_DIR", _DEFAULT_DATA_DIR))
         self._data_dir.mkdir(parents=True, exist_ok=True)
 
         self._lock = threading.Lock()
@@ -138,8 +141,8 @@ class EventStore:
         for fn in subs:
             try:
                 fn(event)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("event subscriber callback failed: %s", e)
 
     def _flush(self) -> None:
         with self._lock:
@@ -191,7 +194,7 @@ class EventStore:
                 try:
                     path.unlink()
                 except OSError:
-                    pass
+                    pass  # file already removed or locked; skip
 
 
 # ── singleton ───────────────────────────────────────────────────────────

@@ -4,7 +4,11 @@ Maintained for backward compatibility with tests and older code paths.
 New code should use smart_shield_v3 or classification_engine directly.
 """
 
+import logging
+
 from core.smart_shield_v3 import process_message_v3 as process_message
+
+logger = logging.getLogger("flowguard.smart_shield")
 
 try:
     from core.classification_engine import _contains_urgent_keyword
@@ -29,8 +33,8 @@ def classify_message(user, sender_name: str = "", sender_id: str = "", text: str
         sp = SenderProfile(name=sender_name, open_id=sender_id)
         result = _classify(user, sp, text, chat_type="group" if chat_name else "p2p")
         return {"level": result.priority, "reason": result.reason, "score": result.final_score}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("classification engine fallback: %s", e)
 
     wl = getattr(user, "whitelist", []) if user else []
     if sender_name in wl or sender_id in wl:

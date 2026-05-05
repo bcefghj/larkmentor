@@ -156,7 +156,7 @@ def learning_loop_card(skill_name: str, skill_path: str, trigger_count: int = 3)
     ]
     header = _header(
         "🎓 学习闭环触发",
-        subtitle="评委可打开 .larkmentor/skills/user-generated/ 查看",
+        subtitle="评委可打开 .agent-pilot/skills/user-generated/ 查看",
         template="wathet",
     )
     return _envelope(header, body)

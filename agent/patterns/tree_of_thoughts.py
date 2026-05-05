@@ -482,7 +482,7 @@ class TreeOfThoughts:
                 scores = json.loads(match.group(0))
                 return [float(s) for s in scores]
             except (json.JSONDecodeError, ValueError):
-                pass
+                pass  # JSON array parse failed; fall through to regex number extraction
 
         # Fallback: extract all numbers
         nums = re.findall(r"(\d+(?:\.\d+)?)", cleaned)

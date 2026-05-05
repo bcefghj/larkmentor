@@ -5,7 +5,7 @@ Share URL structure::
     http://host/pilot/<plan_id>?sig=<base64_hmac>&exp=<unix_ts>
 
 Verification rejects expired or tampered URLs. Secret comes from
-``LARKMENTOR_PILOT_SHARE_SECRET``; when absent, the server allows legacy
+``AGENT_PILOT_SHARE_SECRET``; when absent, the server allows legacy
 open access (local dev only).
 """
 
@@ -20,7 +20,7 @@ from typing import Dict
 
 
 def _secret() -> str:
-    return os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", "")
+    return os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
 
 
 def sign(plan_id: str, *, exp_ts: int, secret: str = "") -> str:

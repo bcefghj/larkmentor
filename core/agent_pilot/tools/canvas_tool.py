@@ -218,8 +218,8 @@ def _try_create_feishu_board(title: str) -> Optional[str]:
             url = _cb(title=title)
             if url:
                 return url
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("board_api create_board fallback: %s", e)
 
         from config import Config
 

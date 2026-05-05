@@ -501,8 +501,8 @@ def tool_generate_document(
                     severity="INFO",
                     meta={"title": title[:80]},
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("document generation audit failed: %s", e)
         return _ok(
             {
                 "doc_token": result.get("doc_token", ""),
@@ -574,8 +574,8 @@ def tool_generate_slides(
                 severity="INFO",
                 meta={"title": title[:80], "slide_count": len(slide_data)},
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("slides generation audit failed: %s", e)
         return _ok(
             {
                 "slide_token": result.get("slide_token", ""),
@@ -831,8 +831,8 @@ def tool_memory_resolve(
         entries = query_archival(uid, limit=5)
         for e in entries:
             parts.append(f"- [{e.kind}] {e.summary_md}")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("archival memory query failed: %s", e)
 
     merged = "\n".join(parts)
     return {
@@ -981,8 +981,8 @@ def tool_query_memory(user_id: str = "", query: str = "", *, limit: int = 10, **
         if query:
             results = [r for r in results if query.lower() in (r.get("summary_md") or "").lower()]
         return results[:limit]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("archival memory search failed: %s", e)
     try:
         from agent.memory import default_memory
 

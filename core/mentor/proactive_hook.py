@@ -120,7 +120,7 @@ def maybe_suggest(
             "risk_warning": "模型暂不可用，已给出兜底模板，请人工复核。",
         }
 
-    # LarkMentor v1 explainable line: tell the user *why* we fired.
+    # Agent-Pilot v1 explainable line: tell the user *why* we fired.
     explain_parts = [
         f"分类={level}",
         f"发送方={sender_name}({sender_role})",

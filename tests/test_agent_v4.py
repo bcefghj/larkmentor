@@ -1,4 +1,4 @@
-"""Tests for LarkMentor v4 agent/ package (harness + multi-agent)."""
+"""Tests for Agent-Pilot v4 agent/ package (harness + multi-agent)."""
 
 
 def test_agent_imports():

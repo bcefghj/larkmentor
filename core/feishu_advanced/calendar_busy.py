@@ -12,7 +12,7 @@ logger = logging.getLogger("flowguard.feishu.calendar")
 def create_busy_event(
     open_id: str,
     *,
-    summary: str = "LarkMentor 专注时间",
+    summary: str = "Agent-Pilot 专注时间",
     duration_min: int = 30,
 ) -> Dict:
     """Create a single-tenant busy event in the user's primary calendar."""
@@ -36,7 +36,7 @@ def create_busy_event(
         event = (
             CalendarEvent.builder()
             .summary(summary)
-            .description("由 LarkMentor 自动创建。请勿打扰，专注会话结束后自动取消。")
+            .description("由 Agent-Pilot 自动创建。请勿打扰，专注会话结束后自动取消。")
             .start_time(TimeInfo.builder().timestamp(str(start_ts)).build())
             .end_time(TimeInfo.builder().timestamp(str(end_ts)).build())
             .visibility("private")

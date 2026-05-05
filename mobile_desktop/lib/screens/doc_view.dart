@@ -52,7 +52,7 @@ class _DocViewState extends State<DocView> {
       ..setBackgroundColor(const Color(0xFFFAFAF8))
       ..addJavaScriptChannel('Bridge',
           onMessageReceived: (m) => _onBridge(m.message))
-      ..loadHtmlString(injected, baseUrl: 'https://larkmentor.local/');
+      ..loadHtmlString(injected, baseUrl: 'https://agent-pilot.local/');
     if (mounted) setState(() {});
   }
 
@@ -71,7 +71,9 @@ class _DocViewState extends State<DocView> {
           setState(() => _offlineReady = true);
           break;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('DocView bridge decode error: $e');
+    }
   }
 
   Future<void> _insertTable() async {
@@ -80,7 +82,7 @@ class _DocViewState extends State<DocView> {
   }
 
   Future<void> _insertImage() async {
-    const demo = "https://placehold.co/640x320?text=LarkMentor";
+    const demo = "https://placehold.co/640x320?text=AgentPilot";
     await _controller.runJavaScript(
         'window.applyBridgeCommand && window.applyBridgeCommand("insert_image", {"url": "$demo"});');
   }

@@ -114,8 +114,8 @@ class AgentLoop:
         for fn in self.step_listeners:
             try:
                 fn(step)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("step listener callback failed: %s", e)
 
     # ── Main entry point ──────────────────────────
 
@@ -389,17 +389,27 @@ class AgentLoop:
             # Step 5: Model call
             t = time.time()
             step = LoopStep(index=5, name=f"model_call_turn{turn}")
-            model_output = self._call_llm(messages, context=context)
-            step.status = "ok" if model_output else "failed"
-            step.duration_ms = int((time.time() - t) * 1000)
-            step.detail = {"chars": len(model_output) if model_output else 0}
-            steps.append(step)
-            self._emit(step)
+            fc_result = self._call_llm_with_tools(messages, context=context)
+            if fc_result is not None:
+                model_output = fc_result["content"] or ""
+                parsed_tools = fc_result["tool_calls"]
+                step.status = "ok"
+                step.duration_ms = int((time.time() - t) * 1000)
+                step.detail = {"chars": len(model_output), "mode": "function_calling"}
+                steps.append(step)
+                self._emit(step)
+            else:
+                model_output = self._call_llm(messages, context=context)
+                step.status = "ok" if model_output else "failed"
+                step.duration_ms = int((time.time() - t) * 1000)
+                step.detail = {"chars": len(model_output) if model_output else 0, "mode": "regex"}
+                steps.append(step)
+                self._emit(step)
 
-            if not model_output:
-                break
+                if not model_output:
+                    break
 
-            parsed_tools = self._parse_tool_calls(model_output)
+                parsed_tools = self._parse_tool_calls(model_output)
 
             if not parsed_tools:
                 final_text = model_output
@@ -538,8 +548,8 @@ class AgentLoop:
                 session_id=session_id,
                 tenant_id=tenant_id,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("memory upsert session summary failed: %s", e)
 
         return LoopResult(
             session_id=session_id,
@@ -550,6 +560,48 @@ class AgentLoop:
         )
 
     # ── Helpers ──────────────────────────
+
+    def _supports_function_calling(self) -> bool:
+        try:
+            from config import Config
+            model = (Config.ARK_MODEL or "").lower()
+            for kw in ("gpt-4", "gpt-3.5", "doubao-pro", "doubao-lite",
+                        "deepseek", "qwen", "glm-4", "moonshot"):
+                if kw in model:
+                    return True
+            return bool(model)
+        except Exception:
+            return False
+
+    def _call_llm_with_tools(
+        self, messages: List[Dict], *, context: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        if not self._supports_function_calling():
+            return None
+        try:
+            from core.agent_pilot.tool_schemas import get_tool_definitions
+            from llm.llm_client import chat_with_tools
+
+            tools = get_tool_definitions()
+            result = chat_with_tools(
+                messages=messages,
+                tools=tools,
+                temperature=0.4,
+            )
+            raw_calls = result.get("tool_calls")
+            if raw_calls:
+                parsed = [
+                    ToolCall(
+                        name=tc["function"]["name"],
+                        arguments=tc["function"]["arguments"],
+                    )
+                    for tc in raw_calls
+                ]
+                return {"content": result.get("content"), "tool_calls": parsed}
+            return {"content": result.get("content"), "tool_calls": []}
+        except Exception as e:
+            logger.debug("function calling path failed, will fall back to regex: %s", e)
+            return None
 
     def _resolve_settings(self) -> Dict[str, Any]:
         try:

@@ -45,7 +45,7 @@ class _PilotHomeState extends State<PilotHome> {
       final rows = await ApiService.instance.listPlans(limit: 15);
       if (!mounted) return;
       setState(() => _plans = rows);
-    } catch (_) {}
+    } catch (e) { debugPrint('PilotHome refresh failed: $e'); }
   }
 
   Future<void> _loadPlan(String planId) async {

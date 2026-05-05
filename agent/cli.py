@@ -1,4 +1,4 @@
-"""CLI Entry · python -m larkmentor chat
+"""CLI Entry · python -m agent_pilot chat
 
 Hermes Agent 启发 - 本地 TUI 对话，不必经过飞书 Bot。
 """
@@ -13,7 +13,7 @@ def cmd_chat(args) -> None:
     """Interactive chat loop."""
     from bot.handlers_v4 import handle_message
 
-    print("🤖 LarkMentor v4 CLI (输入 /quit 退出, /help 查看命令)")
+    print("🤖 Agent-Pilot v4 CLI (输入 /quit 退出, /help 查看命令)")
     print()
     while True:
         try:
@@ -104,7 +104,7 @@ def cmd_learner(args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="larkmentor", description="LarkMentor v4 CLI")
+    parser = argparse.ArgumentParser(prog="agent-pilot", description="Agent-Pilot v4 CLI")
     parser.add_argument("--tenant", default="default", help="Tenant ID")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
