@@ -325,7 +325,7 @@ def default_permission_gate() -> PermissionGate:
     global _default
     with _default_lock:
         if _default is None:
-            mode_env = os.getenv("LARKMENTOR_PERMISSION_MODE", "default")
+            mode_env = os.getenv("AGENT_PILOT_PERMISSION_MODE", "default")
             try:
                 mode = PermissionMode(mode_env)
             except ValueError:

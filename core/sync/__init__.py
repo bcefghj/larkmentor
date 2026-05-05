@@ -1,4 +1,4 @@
-"""Multi-end synchronisation layer for LarkMentor v2 Agent-Pilot.
+"""Multi-end synchronisation layer for Agent-Pilot v2.
 
 Implements Scenario E (multi-end consistency). Three concerns:
 

@@ -1,4 +1,4 @@
-"""LarkMentor v4 · Unified Agent Harness
+"""Agent-Pilot v4 · Unified Agent Harness
 
 对标 Claude Code (51 万行) / Shannon (Kocoro-lab, 1.6K stars) / Hermes (Nous, 109K stars)。
 

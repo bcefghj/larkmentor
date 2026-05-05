@@ -1,6 +1,6 @@
 """HookRuntime · Lifecycle Hook 系统的 facade (Claude Code 支柱 2)
 
-LarkMentor 已经有 ``core/security/hook_system.py`` 实现 9 个 lifecycle
+Agent-Pilot 已经有 ``core/security/hook_system.py`` 实现 9 个 lifecycle
 events（PRE_CLASSIFY / POST_CLASSIFY / PRE_REPLY / ... / PRE_LLM_CALL /
 POST_LLM_CALL / PRE_TOOL_CALL / POST_TOOL_CALL）。
 

@@ -1,6 +1,6 @@
 """Feishu WebSocket long-connection subscriber (P2.5).
 
-Runs in parallel with the HTTP Webhook path. When ``LARKMENTOR_WS_ENABLED=1``
+Runs in parallel with the HTTP Webhook path. When ``AGENT_PILOT_WS_ENABLED=1``
 the process opens a persistent WS using ``lark-oapi`` and dispatches the same
 events ``bot/event_handler.py`` handles over Webhook. This removes the need
 for a public callback URL, which matters for judges demoing on WiFi.
@@ -10,7 +10,7 @@ Design notes
 
 - **Coexistence with Webhook** — events are keyed by ``event_id`` in a 5-min
   TTL set. Whichever channel arrives first wins; the other is dropped. Set
-  ``LARKMENTOR_WS_EXCLUSIVE=1`` to disable webhook dispatch entirely.
+  ``AGENT_PILOT_WS_EXCLUSIVE=1`` to disable webhook dispatch entirely.
 - **Backoff** — on disconnect we reconnect with capped exponential backoff
   (2s → 4s → 8s → 30s). The SDK does most of this, but we wrap it so log
   lines stay readable.
@@ -157,12 +157,12 @@ _SINGLETON: Optional[FeishuLongConnection] = None
 
 
 def start_long_connection() -> Optional[FeishuLongConnection]:
-    """Idempotently starts the WS client if ``LARKMENTOR_WS_ENABLED=1``.
+    """Idempotently starts the WS client if ``AGENT_PILOT_WS_ENABLED=1``.
 
     Returns the singleton for introspection (stop / metrics)."""
     global _SINGLETON
-    if os.getenv("LARKMENTOR_WS_ENABLED", "0") != "1":
-        logger.info("WS subscriber disabled (LARKMENTOR_WS_ENABLED!=1)")
+    if os.getenv("AGENT_PILOT_WS_ENABLED", "0") != "1":
+        logger.info("WS subscriber disabled (AGENT_PILOT_WS_ENABLED!=1)")
         return None
     if _SINGLETON:
         return _SINGLETON

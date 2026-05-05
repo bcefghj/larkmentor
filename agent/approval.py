@@ -37,7 +37,7 @@ class PendingApproval:
 
 class ApprovalManager:
     def __init__(self) -> None:
-        self.home = Path(os.getenv("LARKMENTOR_HOME", str(Path.home() / ".larkmentor")))
+        self.home = Path(os.getenv("AGENT_PILOT_HOME", str(Path.home() / ".agent-pilot")))
         self.home.mkdir(parents=True, exist_ok=True)
         self.approvals_path = self.home / "approvals.json"
         self.pending: Dict[str, PendingApproval] = {}

@@ -1,4 +1,4 @@
-"""LarkMentor Runtime · Claude Code 7 支柱内层
+"""Agent-Pilot Runtime · Claude Code 7 支柱内层
 
 Borrowed from Anthropic Claude Code's runtime architecture, adapted to the
 Feishu IM协同助手 domain.

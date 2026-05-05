@@ -1,4 +1,4 @@
-"""Advanced LarkMentor features for finals-grade differentiation.
+"""Advanced Agent-Pilot features for finals-grade differentiation.
 
 Modules:
     1. Meeting Linkage    – pre-meeting reminder + post-meeting brief

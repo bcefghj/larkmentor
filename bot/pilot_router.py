@@ -1,7 +1,7 @@
 """Pilot 主流程入口路由 (PRD §5 + §6 + §7).
 
 设计目的：
-- 保留现有 ``bot/event_handler.py`` 1169 行（v1 LarkMentor 路由）作为 fallback
+- 保留现有 ``bot/event_handler.py`` 1169 行（v1 Agent-Pilot 路由）作为 fallback
 - 新增独立的 ``handle_chat_message`` / ``handle_card_action`` 纯函数，供 main.py
   在新版本中作为「Agent-Pilot 主入口」使用，不破坏 v1
 - 全程不直接 import lark-oapi（接收已解析好的消息字典 / 卡片事件字典），

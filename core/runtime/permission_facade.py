@@ -1,6 +1,6 @@
 """PermissionFacade · 5 级权限系统的 facade (Claude Code 支柱 4)
 
-LarkMentor 已经有 ``core/security/permission_manager.py`` 实现 5 级权限
+Agent-Pilot 已经有 ``core/security/permission_manager.py`` 实现 5 级权限
 （READ_ONLY / SAFE_REPLY / DRAFT_ACTION / SEND_ACTION / YOLO）+ 25+ 工具
 默认级别表 + deny-by-default。
 

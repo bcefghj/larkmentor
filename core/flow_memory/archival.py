@@ -143,7 +143,7 @@ def query_archival(
     since_ts: int = 0,
     limit: int = 20,
 ) -> List[ArchivalEntry]:
-    """Linear scan of the JSONL store. Good enough at LarkMentor scale (<100k entries)."""
+    """Linear scan of the JSONL store. Good enough at Agent-Pilot scale (<100k entries)."""
     if not ARCHIVE_FILE.exists():
         return []
     out: List[ArchivalEntry] = []

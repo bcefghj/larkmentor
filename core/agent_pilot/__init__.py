@@ -1,4 +1,4 @@
-"""Agent-Pilot: LarkMentor v2 multi-end Agent orchestration core.
+"""Agent-Pilot: v2 multi-end Agent orchestration core.
 
 This package implements the six competition scenarios (A-F):
     A. Intent entry (IM text/voice)

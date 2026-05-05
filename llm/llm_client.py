@@ -1,13 +1,13 @@
 """LLM client wrapper around the ARK (Doubao) chat completion API.
 
-LarkMentor v2 (step11): all LLM calls now optionally inject the
+Agent-Pilot v2 (step11): all LLM calls now optionally inject the
 ``flow_memory.md`` 6-tier hierarchy as the system prompt. This means
 Smart Shield 6-dim tie-break and Mentor draft generation share the same
 "organisation default knowledge" — one of the 3 工程合体点 declared in
 ARCHITECTURE.md §2 原则 3 合体点 1.
 
 Toggles:
-- ``LARKMENTOR_AUTO_INJECT_MEMORY`` env var (default "1") enables auto-injection
+- ``AGENT_PILOT_AUTO_INJECT_MEMORY`` env var (default "1") enables auto-injection
 - Pass ``system=`` keyword to ``chat()`` / ``chat_json()`` to override
 - Pass ``user_open_id=`` to scope the User-tier memory file to that user
 """
@@ -24,14 +24,14 @@ from config import Config
 logger = logging.getLogger("flowguard.llm")
 
 _client: "OpenAI" = None
-_AUTO_INJECT = os.getenv("LARKMENTOR_AUTO_INJECT_MEMORY", "1") != "0"
+_AUTO_INJECT = os.getenv("AGENT_PILOT_AUTO_INJECT_MEMORY", "1") != "0"
 
 # P1.4: hardened LLM defaults.
-_LLM_TIMEOUT = int(os.getenv("LARKMENTOR_LLM_TIMEOUT", "30"))
-_LLM_MAX_RETRY = int(os.getenv("LARKMENTOR_LLM_MAX_RETRY", "2"))
-_LLM_MAX_TOKENS = int(os.getenv("LARKMENTOR_LLM_MAX_TOKENS", "2048"))
+_LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "30"))
+_LLM_MAX_RETRY = int(os.getenv("AGENT_PILOT_LLM_MAX_RETRY", "2"))
+_LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "2048"))
 # Approximate char budget for prompts; anything larger gets tail-trimmed.
-_LLM_PROMPT_CHAR_CAP = int(os.getenv("LARKMENTOR_LLM_PROMPT_CAP", "24000"))
+_LLM_PROMPT_CHAR_CAP = int(os.getenv("AGENT_PILOT_LLM_PROMPT_CAP", "24000"))
 
 # Structural guards against prompt injection: the system prompt wraps the
 # untrusted user text in a fenced block that the model is instructed NOT to
