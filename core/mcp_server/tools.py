@@ -371,6 +371,140 @@ TOOL_SCHEMAS: Dict[str, Dict[str, Any]] = {
             },
         },
     },
+    "agent_pilot.detect_intent": {
+        "name": "agent_pilot.detect_intent",
+        "description": (
+            "Detect task intent from natural language text. "
+            "Returns structured intent classification including domain, action, "
+            "confidence score, and extracted entities."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "Natural language text to classify",
+                },
+                "user_open_id": {
+                    "type": "string",
+                    "description": "User open_id for context-aware classification",
+                    "default": "",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "Additional context (e.g. current chat, recent messages)",
+                    "default": "",
+                },
+            },
+            "required": ["text"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "ok": {"type": "boolean"},
+                "intent": {"type": "string"},
+                "domain": {"type": "string"},
+                "action": {"type": "string"},
+                "confidence": {"type": "number"},
+                "entities": {"type": "object"},
+                "suggested_skill": {"type": "string"},
+                "ts": {"type": "integer"},
+            },
+        },
+    },
+    "agent_pilot.create_plan": {
+        "name": "agent_pilot.create_plan",
+        "description": (
+            "Create an execution plan (DAG) from a structured intent without executing it. "
+            "Returns plan_id and the full step breakdown for review before execution."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "intent": {
+                    "type": "string",
+                    "description": "Natural language description of the task",
+                },
+                "domain": {
+                    "type": "string",
+                    "description": "Target domain hint (e.g. 'im', 'doc', 'calendar')",
+                    "default": "",
+                },
+                "user_open_id": {
+                    "type": "string",
+                    "description": "Requesting user's open_id",
+                    "default": "",
+                },
+                "constraints": {
+                    "type": "object",
+                    "description": "Optional constraints (max_steps, allowed_tools, etc.)",
+                },
+            },
+            "required": ["intent"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "ok": {"type": "boolean"},
+                "plan_id": {"type": "string"},
+                "intent": {"type": "string"},
+                "total_steps": {"type": "integer"},
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "step_id": {"type": "string"},
+                            "tool": {"type": "string"},
+                            "description": {"type": "string"},
+                            "depends_on": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
+                "estimated_duration_sec": {"type": "number"},
+                "ts": {"type": "integer"},
+            },
+        },
+    },
+    "agent_pilot.execute_plan": {
+        "name": "agent_pilot.execute_plan",
+        "description": (
+            "Execute a previously created plan by plan_id. "
+            "Supports async execution and step-level progress tracking."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_id": {
+                    "type": "string",
+                    "description": "The plan ID returned by create_plan or create_task",
+                },
+                "async_run": {
+                    "type": "boolean",
+                    "description": "Run asynchronously (non-blocking)",
+                    "default": True,
+                },
+                "start_from_step": {
+                    "type": "string",
+                    "description": "Resume execution from a specific step_id (for retry/resume)",
+                    "default": "",
+                },
+            },
+            "required": ["plan_id"],
+        },
+        "outputSchema": {
+            "type": "object",
+            "properties": {
+                "ok": {"type": "boolean"},
+                "plan_id": {"type": "string"},
+                "status": {"type": "string", "enum": ["executing", "executed", "failed"]},
+                "steps_completed": {"type": "integer"},
+                "steps_total": {"type": "integer"},
+                "artifacts": {"type": "array"},
+                "ts": {"type": "integer"},
+            },
+        },
+    },
 }
 
 
@@ -712,6 +846,159 @@ def tool_send_im_message(
         return _err("internal_error", str(e))
 
 
+def tool_detect_intent(
+    text: str,
+    user_open_id: str = "",
+    context: str = "",
+) -> Dict[str, Any]:
+    """Detect task intent from natural language text."""
+    if not text or not text.strip():
+        return _err("invalid_input", "text is required and must be non-empty")
+    try:
+        from core.agent_pilot.service import detect_intent as _detect
+
+        result = _detect(text, user_open_id=user_open_id, context=context)
+        return _ok(
+            {
+                "intent": result.get("intent", text),
+                "domain": result.get("domain", "general"),
+                "action": result.get("action", ""),
+                "confidence": result.get("confidence", 0.0),
+                "entities": result.get("entities", {}),
+                "suggested_skill": result.get("suggested_skill", ""),
+            }
+        )
+    except ImportError:
+        from core.feishu_cli.mcp_config import FEISHU_CLI_SKILLS
+
+        domain = "general"
+        suggested = ""
+        text_lower = text.lower()
+        _DOMAIN_KEYWORDS = {
+            "lark-im": ["消息", "发送", "群组", "群聊", "send", "message", "chat"],
+            "lark-doc": ["文档", "document", "doc", "写", "编辑"],
+            "lark-sheets": ["表格", "spreadsheet", "sheet", "excel"],
+            "lark-calendar": ["日历", "日程", "会议", "calendar", "event", "schedule"],
+            "lark-base": ["多维表格", "bitable", "base", "数据库"],
+            "lark-task": ["任务", "task", "todo", "待办"],
+            "lark-drive": ["文件", "上传", "下载", "drive", "upload", "file"],
+            "lark-wiki": ["知识库", "wiki", "百科"],
+            "lark-mail": ["邮件", "邮箱", "mail", "email"],
+            "lark-vc": ["视频会议", "meeting", "会议室"],
+        }
+        for skill_id, keywords in _DOMAIN_KEYWORDS.items():
+            if any(kw in text_lower for kw in keywords):
+                domain = skill_id.replace("lark-", "")
+                suggested = skill_id
+                break
+
+        return _ok(
+            {
+                "intent": text.strip(),
+                "domain": domain,
+                "action": "inferred",
+                "confidence": 0.6 if suggested else 0.3,
+                "entities": {},
+                "suggested_skill": suggested,
+            }
+        )
+    except Exception as e:
+        logger.exception("detect_intent error")
+        return _err("internal_error", str(e))
+
+
+def tool_create_plan(
+    intent: str,
+    domain: str = "",
+    user_open_id: str = "",
+    constraints: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Create an execution plan without executing it."""
+    if not intent or not intent.strip():
+        return _err("invalid_input", "intent is required and must be non-empty")
+    try:
+        from core.agent_pilot.service import launch as _launch
+
+        plan = _launch(
+            intent,
+            user_open_id=user_open_id,
+            async_run=False,
+            execute=False,
+        )
+        return _ok(
+            {
+                "plan_id": plan.plan_id,
+                "intent": plan.intent,
+                "total_steps": len(plan.steps),
+                "steps": [
+                    {
+                        "step_id": s.step_id,
+                        "tool": s.tool,
+                        "description": s.description,
+                        "depends_on": s.depends_on,
+                    }
+                    for s in plan.steps
+                ],
+                "estimated_duration_sec": len(plan.steps) * 5.0,
+            }
+        )
+    except RuntimeError as e:
+        return _err("rate_limited", str(e))
+    except Exception as e:
+        logger.exception("create_plan error")
+        return _err("internal_error", str(e), traceback=traceback.format_exc().splitlines()[-3:])
+
+
+def tool_execute_plan(
+    plan_id: str,
+    async_run: bool = True,
+    start_from_step: str = "",
+) -> Dict[str, Any]:
+    """Execute a previously created plan."""
+    if not plan_id or not plan_id.strip():
+        return _err("invalid_input", "plan_id is required")
+    try:
+        from core.agent_pilot.service import execute_plan as _execute, get_plan
+
+        plan = get_plan(plan_id)
+        if not plan:
+            return _err("not_found", f"Plan {plan_id} not found")
+
+        _execute(plan_id, async_run=async_run, start_from_step=start_from_step)
+
+        done = sum(1 for s in plan.steps if getattr(s, "status", None) == "done")
+        status = "executing" if async_run else "executed"
+
+        artifacts: List[Dict[str, Any]] = []
+        for step in plan.steps:
+            for art in getattr(step, "artifacts", []):
+                artifacts.append(
+                    {
+                        "step_id": step.step_id,
+                        "type": getattr(art, "type", "unknown"),
+                        "url": getattr(art, "url", ""),
+                    }
+                )
+
+        return _ok(
+            {
+                "plan_id": plan_id,
+                "status": status,
+                "steps_completed": done,
+                "steps_total": len(plan.steps),
+                "artifacts": artifacts,
+            }
+        )
+    except ImportError:
+        return _err(
+            "service_unavailable",
+            "Agent-Pilot orchestrator service not available; execute_plan requires the full service layer",
+        )
+    except Exception as e:
+        logger.exception("execute_plan error")
+        return _err("internal_error", str(e))
+
+
 # ---------------------------------------------------------------------------
 # Tool registry: maps tool name → (callable, description, schema)
 # ---------------------------------------------------------------------------
@@ -751,6 +1038,21 @@ TOOL_REGISTRY: Dict[str, tuple] = {
         tool_send_im_message,
         TOOL_SCHEMAS["agent_pilot.send_im_message"]["description"],
         TOOL_SCHEMAS["agent_pilot.send_im_message"],
+    ),
+    "agent_pilot.detect_intent": (
+        tool_detect_intent,
+        TOOL_SCHEMAS["agent_pilot.detect_intent"]["description"],
+        TOOL_SCHEMAS["agent_pilot.detect_intent"],
+    ),
+    "agent_pilot.create_plan": (
+        tool_create_plan,
+        TOOL_SCHEMAS["agent_pilot.create_plan"]["description"],
+        TOOL_SCHEMAS["agent_pilot.create_plan"],
+    ),
+    "agent_pilot.execute_plan": (
+        tool_execute_plan,
+        TOOL_SCHEMAS["agent_pilot.execute_plan"]["description"],
+        TOOL_SCHEMAS["agent_pilot.execute_plan"],
     ),
 }
 

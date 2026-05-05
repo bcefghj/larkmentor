@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LarkMentor 部署后 15 项验证
+# Agent-Pilot 部署后 15 项验证
 set -uo pipefail
 
 HOST="118.178.242.26"
@@ -44,7 +44,7 @@ check_systemd() {
     fi
 }
 
-echo "── LarkMentor smoke_test ──"
+echo "── Agent-Pilot smoke_test ──"
 
 check_systemd "larkmentor.service"
 check_systemd "larkmentor-dashboard.service"
@@ -66,7 +66,7 @@ check_contains "MCP get_focus_status (v3)" "http://$HOST/mcp/tools" "get_focus_s
 # new v-c assertions
 check_http     "MCP visual page"      "http://$HOST/mcp"            "200"
 check_http     "MCP tools.json alias" "http://$HOST/mcp/tools.json" "200"
-check_contains "Homepage is LarkMentor v-c"   "http://$HOST/"          "LarkMentor"
+check_contains "Homepage is Agent-Pilot v-c"   "http://$HOST/"          "Agent-Pilot"
 check_contains "Homepage hero copy"           "http://$HOST/"          "守护注意力"
 check_contains "Dashboard is v-c new"         "http://$HOST/dashboard" "lm-dashboard-version"
 check_contains "MCP visual is v-c new"        "http://$HOST/mcp"       "lm-mcp-version"

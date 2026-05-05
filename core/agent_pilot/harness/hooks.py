@@ -167,7 +167,7 @@ def _declarative_hook(cfg: Dict[str, Any]) -> Optional[HookFn]:
         return _fn
 
     if kind == "log_audit":
-        audit_path = cfg.get("path") or os.path.expanduser("~/.larkmentor/audit.jsonl")
+        audit_path = cfg.get("path") or os.path.expanduser("~/.agent-pilot/audit.jsonl")
 
         def _fn(ev, payload):
             try:

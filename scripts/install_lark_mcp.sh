@@ -3,8 +3,8 @@
 #
 # Outcome after this script:
 #   - `lark-mcp` on PATH (stdio MCP server spinnable by Agent-Pilot harness)
-#   - `.larkmentor/skills/lark-*` populated with lark-cli 22 Skills
-#   - `.larkmentor/mcp.json` updated with the local + remote MCP aliases
+#   - `.agent-pilot/skills/lark-*` populated with lark-cli 22 Skills
+#   - `.agent-pilot/mcp.json` updated with the local + remote MCP aliases
 #
 # Re-runnable. Safe to call on every deploy.
 
@@ -13,8 +13,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 ROOT="$(pwd)"
-SKILLS_DIR="$ROOT/.larkmentor/skills"
-MCP_CFG="$ROOT/.larkmentor/mcp.json"
+SKILLS_DIR="$ROOT/.agent-pilot/skills"
+MCP_CFG="$ROOT/.agent-pilot/mcp.json"
 
 mkdir -p "$SKILLS_DIR"
 
@@ -38,7 +38,7 @@ npm install -g @larksuiteoapi/lark-mcp@latest || {
 echo "== 3/4  Sync lark-cli 22 Skills =="
 # The skills ship as individual packages under @larksuite/skill-*. The
 # `skills` CLI (Anthropic's tool) installs them to ~/.claude/skills/ by default.
-# We sync them into .larkmentor/skills so Agent-Pilot's SkillsLoader can find
+# We sync them into .agent-pilot/skills so Agent-Pilot's SkillsLoader can find
 # them without touching the user's global Claude install.
 if command -v skills >/dev/null 2>&1; then
   skills add larksuite/cli -y -g || true
@@ -55,7 +55,7 @@ else
   echo "(skills CLI not installed; skip auto sync. run 'npm i -g @anthropic-ai/skills' to enable)"
 fi
 
-echo "== 4/4  Write .larkmentor/mcp.json (aliases) =="
+echo "== 4/4  Write .agent-pilot/mcp.json (aliases) =="
 cat > "$MCP_CFG" <<JSON
 {
   "servers": [

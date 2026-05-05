@@ -12,7 +12,7 @@ from typing import Dict, List
 
 from core.flow_memory.archival import write_archival_summary
 
-logger = logging.getLogger("flowguard.feishu.minutes")
+logger = logging.getLogger("agent_pilot.feishu.minutes")
 
 
 def fetch_recent_minutes(open_id: str, *, limit: int = 5) -> List[Dict]:

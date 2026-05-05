@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-logger = logging.getLogger("flowguard.mentor.growth")
+logger = logging.getLogger("agent_pilot.mentor.growth")
 
 
 # ── persistence (entries log lives next to mentor KB) ─────────────────────────

@@ -61,7 +61,7 @@ def _verify_ws_token(token: str) -> bool:
     - 'demo' token in demo mode
     - Any token if no secret is configured (open mode for development)
     """
-    secret = os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
+    secret = os.getenv("AGENT_PILOT_SHARE_SECRET", "")
     if not secret or secret == "default-secret":
         return True  # open mode
     if os.getenv("DASHBOARD_DEMO_MODE", "").lower() == "true" and token == "demo":

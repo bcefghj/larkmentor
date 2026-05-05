@@ -6,7 +6,7 @@ import json
 import logging
 from typing import Dict
 
-logger = logging.getLogger("flowguard.feishu.thread")
+logger = logging.getLogger("agent_pilot.feishu.thread")
 
 
 def reply_in_thread(message_id: str, text: str, *, msg_type: str = "text") -> Dict:

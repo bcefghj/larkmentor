@@ -13,7 +13,7 @@ from bot.feishu_client import get_client
 from config import Config
 from memory.user_state import get_cached_name, set_cached_name
 
-logger = logging.getLogger("flowguard.api")
+logger = logging.getLogger("agent_pilot.api")
 
 
 # ── Contact: resolve user name ──

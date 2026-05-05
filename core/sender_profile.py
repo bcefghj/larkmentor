@@ -25,7 +25,7 @@ from typing import Dict, List
 
 from utils.time_utils import now_ts
 
-logger = logging.getLogger("flowguard.sender_profile")
+logger = logging.getLogger("agent_pilot.sender_profile")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 PROFILE_FILE = os.path.join(DATA_DIR, "sender_profiles.json")

@@ -12,18 +12,21 @@ Toggles:
 - Pass ``user_open_id=`` to scope the User-tier memory file to that user
 """
 
+import asyncio
 import json
 import logging
 import os
 import time
+from typing import Optional
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
 from config import Config
 
-logger = logging.getLogger("flowguard.llm")
+logger = logging.getLogger("agent_pilot.llm")
 
-_client: "OpenAI" = None
+_client: Optional[OpenAI] = None
+_async_client: Optional[AsyncOpenAI] = None
 _AUTO_INJECT = os.getenv("AGENT_PILOT_AUTO_INJECT_MEMORY", "1") != "0"
 
 # P1.4: hardened LLM defaults.
@@ -75,14 +78,24 @@ def _get_client() -> OpenAI:
     return _client
 
 
+def _get_async_client() -> AsyncOpenAI:
+    global _async_client
+    if _async_client is None:
+        _async_client = AsyncOpenAI(
+            api_key=Config.ARK_API_KEY,
+            base_url=Config.ARK_BASE_URL,
+        )
+    return _async_client
+
+
 def _build_system_prompt(
     system: str = "",
     user_open_id: str = "",
     enterprise_id: str = "default",
     workspace_id: str = "default",
-    department_id: str = None,
-    group_id: str = None,
-    session_id: str = None,
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> str:
     """Resolve the merged 6-tier ``flow_memory.md`` and merge with caller's system text.
 
@@ -120,9 +133,9 @@ def chat(
     user_open_id: str = "",
     enterprise_id: str = "default",
     workspace_id: str = "default",
-    department_id: str = None,
-    group_id: str = None,
-    session_id: str = None,
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> str:
     """Chat completion with optional 6-tier memory auto-injection.
 
@@ -182,9 +195,9 @@ def chat_with_tools(
     user_open_id: str = "",
     enterprise_id: str = "default",
     workspace_id: str = "default",
-    department_id: str = None,
-    group_id: str = None,
-    session_id: str = None,
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> dict:
     """Chat completion with OpenAI function-calling ``tools`` parameter.
 
@@ -262,9 +275,9 @@ def chat_json(
     user_open_id: str = "",
     enterprise_id: str = "default",
     workspace_id: str = "default",
-    department_id: str = None,
-    group_id: str = None,
-    session_id: str = None,
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
 ) -> dict:
     """Call LLM and parse the response as JSON. Same memory-inject options as ``chat``."""
     raw = chat(
@@ -290,3 +303,147 @@ def chat_json(
     except json.JSONDecodeError:
         logger.warning("Failed to parse LLM JSON: %s", raw[:200])
         return {}
+
+
+# ── Async variants (P0-3) ──
+
+
+async def async_chat(
+    prompt: str,
+    temperature: float = 0.3,
+    *,
+    system: str = "",
+    user_open_id: str = "",
+    enterprise_id: str = "default",
+    workspace_id: str = "default",
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> str:
+    """Async chat completion with optional 6-tier memory auto-injection.
+
+    Same signature as ``chat()`` but uses ``AsyncOpenAI`` under the hood.
+    """
+    try:
+        client = _get_async_client()
+        messages = []
+        sys_text = _build_system_prompt(
+            system=system,
+            user_open_id=user_open_id,
+            enterprise_id=enterprise_id,
+            workspace_id=workspace_id,
+            department_id=department_id,
+            group_id=group_id,
+            session_id=session_id,
+        )
+        sys_text = (sys_text or "") + _INJECTION_GUARD
+        messages.append({"role": "system", "content": sys_text})
+        messages.append({"role": "user", "content": _wrap_user_input(_cap_prompt(prompt))})
+
+        last_err: Exception = RuntimeError("never attempted")
+        for attempt in range(_LLM_MAX_RETRY + 1):
+            try:
+                resp = await client.chat.completions.create(
+                    model=Config.ARK_MODEL,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=_LLM_MAX_TOKENS,
+                    timeout=_LLM_TIMEOUT,
+                )
+                return resp.choices[0].message.content.strip()
+            except Exception as exc:
+                last_err = exc
+                sleep = min(8, 2**attempt)
+                logger.warning(
+                    "async LLM attempt %d/%d failed: %s; sleeping %ss",
+                    attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep,
+                )
+                if attempt >= _LLM_MAX_RETRY:
+                    break
+                await asyncio.sleep(sleep)
+        logger.error("async LLM call exhausted retries: %s", last_err)
+        return ""
+    except Exception as e:
+        logger.error("async LLM call failed outer: %s", e)
+        return ""
+
+
+async def async_chat_with_tools(
+    messages: list,
+    tools: list,
+    temperature: float = 0.3,
+    *,
+    system: str = "",
+    user_open_id: str = "",
+    enterprise_id: str = "default",
+    workspace_id: str = "default",
+    department_id: Optional[str] = None,
+    group_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+) -> dict:
+    """Async chat completion with OpenAI function-calling ``tools`` parameter.
+
+    Same signature as ``chat_with_tools()`` but uses ``AsyncOpenAI``.
+    Returns ``{"content": str|None, "tool_calls": list[dict]|None}``.
+    """
+    try:
+        client = _get_async_client()
+        built_messages = list(messages)
+
+        sys_text = _build_system_prompt(
+            system=system,
+            user_open_id=user_open_id,
+            enterprise_id=enterprise_id,
+            workspace_id=workspace_id,
+            department_id=department_id,
+            group_id=group_id,
+            session_id=session_id,
+        )
+        if sys_text:
+            sys_text += _INJECTION_GUARD
+            built_messages.insert(0, {"role": "system", "content": sys_text})
+
+        last_err: Exception = RuntimeError("never attempted")
+        for attempt in range(_LLM_MAX_RETRY + 1):
+            try:
+                resp = await client.chat.completions.create(
+                    model=Config.ARK_MODEL,
+                    messages=built_messages,
+                    tools=tools,
+                    temperature=temperature,
+                    max_tokens=_LLM_MAX_TOKENS,
+                    timeout=_LLM_TIMEOUT,
+                )
+                msg = resp.choices[0].message
+                content = (msg.content or "").strip() or None
+                parsed_calls = None
+                if msg.tool_calls:
+                    parsed_calls = []
+                    for tc in msg.tool_calls:
+                        try:
+                            args = json.loads(tc.function.arguments)
+                        except (json.JSONDecodeError, TypeError):
+                            args = {}
+                        parsed_calls.append({
+                            "id": tc.id,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": args,
+                            },
+                        })
+                return {"content": content, "tool_calls": parsed_calls}
+            except Exception as exc:
+                last_err = exc
+                sleep = min(8, 2**attempt)
+                logger.warning(
+                    "async LLM tools attempt %d/%d failed: %s; sleeping %ss",
+                    attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep,
+                )
+                if attempt >= _LLM_MAX_RETRY:
+                    break
+                await asyncio.sleep(sleep)
+        logger.error("async chat_with_tools exhausted retries: %s", last_err)
+        return {"content": None, "tool_calls": None}
+    except Exception as e:
+        logger.error("async chat_with_tools failed outer: %s", e)
+        return {"content": None, "tool_calls": None}

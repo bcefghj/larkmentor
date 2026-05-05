@@ -24,7 +24,7 @@ from llm.prompts import MENTOR_WRITE_PROMPT
 
 from . import knowledge_base as kb
 
-logger = logging.getLogger("flowguard.mentor.write")
+logger = logging.getLogger("agent_pilot.mentor.write")
 
 
 @dataclass

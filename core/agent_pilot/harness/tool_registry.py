@@ -234,7 +234,14 @@ def _populate_default(reg: ToolRegistry) -> None:
                 timeout_sec=60,
             )
         )
-    logger.info("default ToolRegistry populated with %d tools", len(reg.names()))
+    logger.info("default ToolRegistry populated with %d legacy tools", len(reg.names()))
+
+    # Bridge: also include decorator-registered tools from agent/tools/registry.py
+    try:
+        from agent.tools.registry import sync_to_harness_registry
+        sync_to_harness_registry()
+    except Exception as e:
+        logger.debug("sync_to_harness_registry skipped during populate: %s", e)
 
 
 def _fn_shim(legacy_fn, args: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:

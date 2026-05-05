@@ -34,7 +34,7 @@ from core.mentor import (
 )
 from memory.user_state import get_user
 
-logger = logging.getLogger("flowguard.handler.card")
+logger = logging.getLogger("agent_pilot.handler.card")
 
 
 def on_card_action(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:

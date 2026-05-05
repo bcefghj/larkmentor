@@ -5,14 +5,14 @@ import re
 
 from memory.user_state import UserState
 
-logger = logging.getLogger("flowguard.detector")
+logger = logging.getLogger("agent_pilot.detector")
 
 
 def parse_command(text: str) -> dict:
     """Parse user command text into structured action."""
     text = text.strip()
 
-    # Focus commands（含 LarkMentor 菜单用语：进入勿扰 / 退出勿扰 等）
+    # Focus commands（含 Agent-Pilot 菜单用语：进入勿扰 / 退出勿扰 等）
     if text in (
         "开始专注",
         "开启专注",
@@ -144,7 +144,7 @@ def parse_command(text: str) -> dict:
     if match:
         return {"command": "kb_search", "args": {"query": match.group(1).strip()}}
 
-    # LarkMentor v1: KB document management
+    # Agent-Pilot v1: KB document management
     if text in ("知识库列表", "我的知识库", "kb list"):
         return {"command": "kb_list", "args": {}}
 
@@ -169,7 +169,7 @@ def parse_command(text: str) -> dict:
     if text in ("查看本周成长", "本周成长"):
         return {"command": "show_growth_week", "args": {}}
 
-    # ── LarkMentor v1: onboarding flow (团队融入) ──
+    # ── Agent-Pilot v1: onboarding flow (团队融入) ──
     if text in ("重新入职", "重新onboarding", "重新 onboarding", "reset onboarding"):
         return {"command": "onboard_reset", "args": {}}
     if text in ("我的入职信息", "查看入职", "onboarding"):

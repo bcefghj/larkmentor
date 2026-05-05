@@ -26,7 +26,7 @@ except ImportError:
 
 from utils.time_utils import fmt_time, now_cst, now_ts
 
-logger = logging.getLogger("flowguard.state")
+logger = logging.getLogger("agent_pilot.state")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 STATE_FILE = os.path.join(DATA_DIR, "user_states.json")

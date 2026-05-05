@@ -400,7 +400,7 @@ Agent 可以智能总结复杂讨论：
 
 ## 📞 获取帮助
 
-- **在线文档**：https://github.com/bcefghj/larkmentor
+- **在线文档**：https://github.com/bcefghj/Agent-Pilot
 - **示例体验**：http://118.178.242.26/dashboard/pilot
 - **问题反馈**：在飞书中私聊 Bot 说明问题
 

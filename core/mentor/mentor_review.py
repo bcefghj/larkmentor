@@ -18,7 +18,7 @@ from llm.prompts import MENTOR_REVIEW_STAR_PROMPT
 
 from . import knowledge_base as kb
 
-logger = logging.getLogger("flowguard.mentor.review")
+logger = logging.getLogger("agent_pilot.mentor.review")
 
 
 @dataclass

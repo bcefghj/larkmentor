@@ -33,7 +33,7 @@ from config import Config
 from core.sender_profile import SenderProfile
 from memory.user_state import UserState
 
-logger = logging.getLogger("flowguard.classifier")
+logger = logging.getLogger("agent_pilot.classifier")
 
 
 # ── Channel weights ──

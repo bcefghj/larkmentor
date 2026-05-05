@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-logger = logging.getLogger("flowguard.dashboard.mentor_stats")
+logger = logging.getLogger("agent_pilot.dashboard.mentor_stats")
 
 
 @dataclass

@@ -69,13 +69,13 @@ def share_link(plan_id: str = "", ttl_sec: int = 7 * 86400) -> Dict[str, Any]:
     try:
         from core.agent_pilot.share_sig import sign_url
 
-        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", os.getenv("LARKMENTOR_DASHBOARD_URL", ""))
+        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", "")
         path = f"{base}/pilot/{plan_id}" if base else f"/pilot/{plan_id}"
         result = sign_url(plan_id, base_path=path, ttl_sec=ttl_sec)
         return {"ok": True, **(result or {})}
     except Exception as e:
         # Manual fallback
-        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
+        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", "")
         if secret:
             exp = int(time.time()) + ttl_sec
             msg = f"{plan_id}|{exp}".encode()

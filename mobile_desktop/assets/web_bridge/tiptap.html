@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LarkMentor Doc (Tiptap + Yjs)</title>
+  <title>Agent-Pilot Doc (Tiptap + Yjs)</title>
   <style>
     html, body { margin: 0; padding: 0; height: 100%; background: #FAFAF8; }
     #toolbar {
@@ -158,7 +158,7 @@
         else if (cmd === "code") chain.toggleCodeBlock().run();
         else if (cmd === "table") chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
         else if (cmd === "image") {
-          const url = prompt("图片 URL", "https://placehold.co/600x300?text=LarkMentor");
+          const url = prompt("图片 URL", "https://placehold.co/600x300?text=AgentPilot");
           if (url) chain.setImage({ src: url }).run();
         }
       };

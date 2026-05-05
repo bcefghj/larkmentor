@@ -127,7 +127,7 @@
 </div>
 <div class="body">
   <div class="card">
-    <div class="card-h"><span class="ping"></span>P0 BREAK_IN · LarkMentor 加急推送</div>
+    <div class="card-h"><span class="ping"></span>P0 BREAK_IN · Agent-Pilot 加急推送</div>
     <div class="from">陈总<span class="chat">· 私聊</span></div>
     <div class="content">"今晚 8 点能开个 30 分钟的会吗"</div>
     <div class="scoring">
@@ -146,7 +146,7 @@
     recovery: () => `
 <div class="topbar">
   <div class="feishu-logo">L</div>
-  <div class="title">飞书 · LarkMentor</div>
+  <div class="title">飞书 · Agent-Pilot</div>
   <div class="right">15:02</div>
 </div>
 <div class="body">
@@ -166,20 +166,20 @@
       <li>🟠 张三 Q3 方案：先看一遍再回，预计 15 分钟</li>
       <li>🟢 王五的周报模板已自动回复，完成</li>
     </ul>
-    <div class="doc">📎 已写入飞书云文档「LarkMentor 上下文恢复卡片」</div>
+    <div class="doc">📎 已写入飞书云文档「Agent-Pilot 上下文恢复卡片」</div>
   </div>
 </div>`,
 
     welcome: () => `
 <div class="topbar">
   <div class="feishu-logo">L</div>
-  <div class="title">飞书 · 欢迎使用 LarkMentor</div>
+  <div class="title">飞书 · 欢迎使用 Agent-Pilot</div>
   <div class="right">10:00</div>
 </div>
 <div class="body">
   <div class="card">
     <div class="h">👋 欢迎，正在为你创建专属工作台...</div>
-    <div class="sub">30 秒内你将拥有一套属于自己的 LarkMentor 工作台</div>
+    <div class="sub">30 秒内你将拥有一套属于自己的 Agent-Pilot 工作台</div>
     <div class="progress">
       <div class="step done"><span class="dot">✓</span><span>识别新用户身份</span></div>
       <div class="step done"><span class="dot">✓</span><span>创建多维表格「打断分析看板」</span></div>
@@ -204,7 +204,7 @@
       return `
 <div class="topbar">
   <div class="feishu-logo">L</div>
-  <div class="title">LarkMentor Dashboard · Live</div>
+  <div class="title">Agent-Pilot Dashboard · Live</div>
   <div class="right">● 在线 · 7×24</div>
 </div>
 <div class="body">
@@ -223,13 +223,13 @@
     weekly: () => `
 <div class="topbar">
   <div class="feishu-logo">L</div>
-  <div class="title">本周周报 · LarkMentor 自动生成</div>
+  <div class="title">本周周报 · Agent-Pilot 自动生成</div>
   <div class="right">📎 飞书 docx</div>
 </div>
 <div class="body">
   <div class="card">
     <div class="h">📅 本周（4/14 - 4/20）专注力周报</div>
-    <div class="sub">由 LarkMentor FlowMemory 自动汇总 · 已写入飞书 docx</div>
+    <div class="sub">由 Agent-Pilot FlowMemory 自动汇总 · 已写入飞书 docx</div>
     <div class="section">
       <div class="section-h">优先级分布</div>
       <div class="bar-row"><span class="lbl">P0</span><span class="bar"><i style="width:8%;background:#ef4444"></i></span><span class="v">8%</span></div>
@@ -239,7 +239,7 @@
     </div>
     <div class="section">
       <div class="section-h">本周三句话</div>
-      <p>📌 主线工作 Q3 方案推进至 70%，被打断 12 次，LarkMentor 拦截 9 次。</p>
+      <p>📌 主线工作 Q3 方案推进至 70%，被打断 12 次，Agent-Pilot 拦截 9 次。</p>
       <p>⚡ 2 次 P0 真紧急（陈总临时会、运维告警），其余群消息均被合理分流。</p>
       <p>🌊 平均每次中断恢复用时 <strong>32 秒</strong>（基线 23 分钟），节省约 4 小时。</p>
     </div>
@@ -249,8 +249,8 @@
     cursor: () => `
 <div class="topbar">
   <div class="feishu-logo">⌘</div>
-  <div class="title">Cursor · MCP Connected to LarkMentor</div>
-  <div class="right">● flowguard@118.178.242.26</div>
+  <div class="title">Cursor · MCP Connected to Agent-Pilot</div>
+  <div class="right">● agent-pilot@118.178.242.26</div>
 </div>
 <div class="body">
   <div class="pane-h">CHAT</div>
@@ -260,9 +260,9 @@
   </div>
   <div class="chat-block">
     <div class="role-asst">ASSISTANT</div>
-    <div class="text">让我查询 LarkMentor 的状态…</div>
+    <div class="text">让我查询 Agent-Pilot 的状态…</div>
     <div class="tool-call">
-      <div class="name">→ flowguard.get_focus_status</div>
+      <div class="name">→ agent_pilot.get_focus_status</div>
       <div class="args">{ "open_id": "ou_demo" }</div>
       <div class="resp">← { "focusing": true, "duration_min": 47, "pending_count": 3 }</div>
     </div>

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
@@ -8,6 +9,15 @@ class SettingsService {
   String _backendUrl = 'http://118.178.242.26';
   String _openId = 'ou_local_demo';
   String _displayName = '本机用户';
+  final List<VoidCallback> _listeners = [];
+
+  void addChangeListener(VoidCallback listener) => _listeners.add(listener);
+  void removeChangeListener(VoidCallback listener) => _listeners.remove(listener);
+  void _notifyListeners() {
+    for (final l in List.of(_listeners)) {
+      l();
+    }
+  }
 
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
@@ -34,6 +44,7 @@ class SettingsService {
   Future<void> setBackendUrl(String v) async {
     _backendUrl = v;
     await _prefs.setString('backendUrl', v);
+    _notifyListeners();
   }
 
   Future<void> setOpenId(String v) async {

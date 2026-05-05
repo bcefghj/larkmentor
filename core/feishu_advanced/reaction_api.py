@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List
 
-logger = logging.getLogger("flowguard.feishu.reaction")
+logger = logging.getLogger("agent_pilot.feishu.reaction")
 
 
 def add_reaction(message_id: str, emoji_type: str = "EYES") -> Dict:

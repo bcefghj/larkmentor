@@ -8,7 +8,7 @@ from typing import Dict, List
 from core.security.audit_log import audit
 from core.security.permission_manager import default_manager
 
-logger = logging.getLogger("flowguard.feishu.urgent")
+logger = logging.getLogger("agent_pilot.feishu.urgent")
 
 
 def _send(message_id: str, open_ids: List[str], kind: str, *, actor: str) -> Dict:

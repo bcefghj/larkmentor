@@ -14,8 +14,8 @@ Tier 3 (L3) – references/ and scripts/
 Skill discovery paths (merged, later paths override):
     $AGENT_PILOT_SKILLS_HOME (if set)
     ~/.claude/skills/                (where lark-cli installs official Skills)
-    ~/.larkmentor/skills/            (user-level custom Skills)
-    ./.larkmentor/skills/            (project-level Skills, shared via git)
+    ~/.agent-pilot/skills/            (user-level custom Skills)
+    ./.agent-pilot/skills/            (project-level Skills, shared via git)
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ class SkillsLoader:
         out.extend(
             [
                 os.path.expanduser("~/.claude/skills"),
-                os.path.expanduser("~/.larkmentor/skills"),
-                os.path.join(os.getcwd(), ".larkmentor", "skills"),
+                os.path.expanduser("~/.agent-pilot/skills"),
+                os.path.join(os.getcwd(), ".agent-pilot", "skills"),
                 os.path.join(os.getcwd(), "skills"),
             ]
         )

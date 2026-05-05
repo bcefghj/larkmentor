@@ -198,6 +198,6 @@
 ---
 
 **📝 文档更新时间**：2026-04-24 02:30:00  
-**🔗 项目仓库**：https://github.com/bcefghj/larkmentor  
+**🔗 项目仓库**：https://github.com/bcefghj/Agent-Pilot  
 **🌐 在线体验**：http://118.178.242.26  
 **📱 Flutter 客户端**：支持 iOS/Android/macOS/Windows

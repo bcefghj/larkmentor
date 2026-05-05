@@ -494,3 +494,206 @@ def record_offline_update(
 def reconcile(room: str) -> Dict[str, Any]:
     """Drain offline queue and reconcile (backward-compatible API)."""
     return default_engine().reconcile(room)
+
+
+# ── Binary-level offline merge manager ──
+
+
+@dataclass
+class BinaryOfflineUpdate:
+    """A raw binary CRDT update stored while a client was offline."""
+
+    client_id: str
+    room_id: str
+    update_data: bytes
+    timestamp: float = 0.0
+    merged: bool = False
+
+    def __post_init__(self):
+        if self.timestamp == 0.0:
+            self.timestamp = time.time()
+
+
+class OfflineMergeManager:
+    """Manages raw binary offline updates per client.
+
+    When a client goes offline, their edits are queued here.  On
+    reconnect, ``replay_on_reconnect`` feeds each queued update into
+    the :class:`CrdtHub` so the CRDT merge algorithm ensures
+    convergence without conflicts.
+
+    Updates are also persisted to disk so they survive process
+    restarts.
+    """
+
+    def __init__(self, storage_dir: str = "data/offline"):
+        self._pending: Dict[str, List[BinaryOfflineUpdate]] = defaultdict(list)
+        self._storage_dir = storage_dir
+        self._lock = threading.Lock()
+        self._replay_count: int = 0
+        os.makedirs(storage_dir, exist_ok=True)
+
+    def queue_update(
+        self, client_id: str, room_id: str, data: bytes,
+    ) -> None:
+        """Queue a binary CRDT update for an offline client."""
+        update = BinaryOfflineUpdate(
+            client_id=client_id,
+            room_id=room_id,
+            update_data=data,
+        )
+        with self._lock:
+            self._pending[client_id].append(update)
+        self.persist_pending(client_id)
+        logger.debug(
+            "queued offline update client=%s room=%s (%d bytes)",
+            client_id, room_id, len(data),
+        )
+
+    def get_pending(self, client_id: str) -> List[BinaryOfflineUpdate]:
+        """Return all pending updates for a client without removing them."""
+        with self._lock:
+            return list(self._pending.get(client_id, []))
+
+    async def replay_on_reconnect(self, client_id: str, hub: Any) -> int:
+        """Replay all queued updates for *client_id* through the CRDT hub.
+
+        Returns the number of updates replayed.  Each update is applied
+        via ``hub.async_apply_update`` (if available) or
+        ``hub.apply_update``.  Successfully replayed updates are marked
+        as merged.
+        """
+        with self._lock:
+            updates = self._pending.pop(client_id, [])
+        if not updates:
+            # Try loading from disk
+            updates = self.load_pending(client_id)
+            if not updates:
+                return 0
+
+        replayed = 0
+        for update in sorted(updates, key=lambda u: u.timestamp):
+            try:
+                if hasattr(hub, "async_apply_update"):
+                    await hub.async_apply_update(
+                        update.room_id, update.client_id, update.update_data,
+                    )
+                else:
+                    import base64 as _b64
+                    hub.apply_update(
+                        update.room_id,
+                        _b64.b64encode(update.update_data).decode("ascii"),
+                        sender_id=update.client_id,
+                    )
+                update.merged = True
+                replayed += 1
+            except Exception as exc:
+                logger.warning(
+                    "replay failed for client=%s room=%s: %s",
+                    client_id, update.room_id, exc,
+                )
+
+        self._replay_count += replayed
+        self._cleanup_disk(client_id)
+        logger.info(
+            "replayed %d/%d offline updates for client=%s",
+            replayed, len(updates), client_id,
+        )
+        return replayed
+
+    def persist_pending(self, client_id: str) -> None:
+        """Save all pending updates for *client_id* to disk."""
+        try:
+            with self._lock:
+                updates = list(self._pending.get(client_id, []))
+            if not updates:
+                return
+
+            client_dir = os.path.join(self._storage_dir, client_id)
+            os.makedirs(client_dir, exist_ok=True)
+
+            manifest = []
+            for i, update in enumerate(updates):
+                bin_path = os.path.join(client_dir, f"{i}.bin")
+                with open(bin_path, "wb") as f:
+                    f.write(update.update_data)
+                manifest.append({
+                    "room_id": update.room_id,
+                    "timestamp": update.timestamp,
+                    "merged": update.merged,
+                    "file": f"{i}.bin",
+                })
+
+            manifest_path = os.path.join(client_dir, "manifest.json")
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(manifest, f)
+        except Exception as exc:
+            logger.debug("persist_pending failed for %s: %s", client_id, exc)
+
+    def load_pending(self, client_id: str) -> List[BinaryOfflineUpdate]:
+        """Load pending updates for *client_id* from disk."""
+        client_dir = os.path.join(self._storage_dir, client_id)
+        manifest_path = os.path.join(client_dir, "manifest.json")
+        if not os.path.exists(manifest_path):
+            return []
+
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+
+            updates: List[BinaryOfflineUpdate] = []
+            for entry in manifest:
+                if entry.get("merged"):
+                    continue
+                bin_path = os.path.join(client_dir, entry["file"])
+                if not os.path.exists(bin_path):
+                    continue
+                with open(bin_path, "rb") as f:
+                    data = f.read()
+                updates.append(BinaryOfflineUpdate(
+                    client_id=client_id,
+                    room_id=entry["room_id"],
+                    update_data=data,
+                    timestamp=entry.get("timestamp", 0.0),
+                ))
+            return updates
+        except Exception as exc:
+            logger.debug("load_pending failed for %s: %s", client_id, exc)
+            return []
+
+    def _cleanup_disk(self, client_id: str) -> None:
+        """Remove disk files for a client after successful replay."""
+        client_dir = os.path.join(self._storage_dir, client_id)
+        if not os.path.isdir(client_dir):
+            return
+        try:
+            for fname in os.listdir(client_dir):
+                os.remove(os.path.join(client_dir, fname))
+            os.rmdir(client_dir)
+        except Exception as exc:
+            logger.debug("cleanup_disk failed for %s: %s", client_id, exc)
+
+    @property
+    def stats(self) -> Dict[str, Any]:
+        with self._lock:
+            total = sum(len(v) for v in self._pending.values())
+            return {
+                "clients_with_pending": len(self._pending),
+                "total_pending_updates": total,
+                "total_replayed": self._replay_count,
+                "storage_dir": self._storage_dir,
+            }
+
+
+# ── Module-level singleton for OfflineMergeManager ──
+
+_default_merge_mgr: Optional[OfflineMergeManager] = None
+
+
+def default_merge_manager(
+    storage_dir: str = "data/offline",
+) -> OfflineMergeManager:
+    global _default_merge_mgr
+    if _default_merge_mgr is None:
+        _default_merge_mgr = OfflineMergeManager(storage_dir=storage_dir)
+    return _default_merge_mgr

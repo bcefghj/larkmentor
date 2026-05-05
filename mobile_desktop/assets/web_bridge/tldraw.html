@@ -8,112 +8,175 @@
     html, body, #root { height: 100%; margin: 0; background: #1F252E; }
     #status {
       position: fixed; top: 8px; right: 12px;
-      padding: 4px 8px; border-radius: 6px;
+      padding: 4px 10px; border-radius: 6px;
       background: rgba(0,0,0,0.6); color: #E6EDF3;
       font: 12px/1.4 -apple-system, system-ui, sans-serif;
-      z-index: 9999;
+      z-index: 9999; display: flex; align-items: center; gap: 6px;
     }
+    #status .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #f59e0b; /* amber = connecting */
+    }
+    #status .dot.ok   { background: #22c55e; }
+    #status .dot.fail { background: #ef4444; }
   </style>
-  <!-- React + tldraw + Yjs loaded via esm.sh; entire bundle is ~1MB.
-       y-indexeddb gives us offline persistence; awareness carries cursor
-       and selection state across devices. -->
-  <script type="importmap">
-  {
-    "imports": {
-      "react": "https://esm.sh/react@18",
-      "react-dom": "https://esm.sh/react-dom@18",
-      "react-dom/client": "https://esm.sh/react-dom@18/client",
-      "yjs": "https://esm.sh/yjs@13.6.27",
-      "y-websocket": "https://esm.sh/y-websocket@2.1.0",
-      "y-indexeddb": "https://esm.sh/y-indexeddb@9.0.12",
-      "@tldraw/tldraw": "https://esm.sh/@tldraw/tldraw@3.15.0",
-      "@tldraw/sync": "https://esm.sh/@tldraw/sync@3.15.0",
-      "@tldraw/tldraw/tldraw.css": "https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css"
-    }
-  }
+
+  <!--
+    Loading strategy:
+    1. Try the Vite-built local bundle at ../web_bundle/dist/
+    2. If the local script fails to load, fall back to esm.sh CDN imports
+  -->
+  <script>
+    window.__USE_CDN_FALLBACK__ = false;
   </script>
-  <link rel="stylesheet" href="https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css" />
+
+  <!-- Local bundle (Vite build output) -->
+  <script id="local-bundle" src="../web_bundle/dist/assets/canvas.js" onerror="
+    console.warn('[Agent-Pilot] local bundle not found, falling back to CDN');
+    window.__USE_CDN_FALLBACK__ = true;
+    document.getElementById('cdn-loader').removeAttribute('data-disabled');
+  "></script>
+
+  <link id="local-css" rel="stylesheet" href="../web_bundle/dist/assets/canvas.css"
+        onerror="this.href='https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css'" />
 </head>
 <body>
-  <div id="status">connecting…</div>
+  <div id="status"><span class="dot"></span><span id="status-text">connecting...</span></div>
   <div id="root"></div>
 
+  <!-- CDN fallback – only executes if local bundle failed -->
+  <script id="cdn-loader" type="module" data-disabled>
+    if (!window.__USE_CDN_FALLBACK__) {
+      // local bundle loaded successfully; nothing to do
+    }
+  </script>
+
   <script type="module">
-    import React from "react";
-    import { createRoot } from "react-dom/client";
-    import { Tldraw, createTLStore, defaultShapeUtils } from "@tldraw/tldraw";
-    import * as Y from "yjs";
-    import { WebsocketProvider } from "y-websocket";
-    import { IndexeddbPersistence } from "y-indexeddb";
+    // Wait briefly for the local bundle to evaluate
+    await new Promise(r => setTimeout(r, 100));
 
-    // ── Configuration pushed from Flutter via window.__BRIDGE_CFG__ ──
-    const cfg = window.__BRIDGE_CFG__ || {
-      wsUrl: "ws://localhost:8000/sync/ws",
-      room:  "canvas:demo",
-      user:  { name: "guest", color: "#58A6FF" },
-    };
-    const statusEl = document.getElementById("status");
-    const post = (type, payload) => {
-      const msg = JSON.stringify({ type, payload });
-      if (window.flutter_inappwebview?.callHandler) {
-        window.flutter_inappwebview.callHandler("bridge", msg);
+    // If the local bundle already bootstrapped, skip CDN entirely
+    if (window.__CANVAS_READY__) { /* local bundle OK */ } else {
+      // ── CDN fallback path ──
+      const React       = (await import("https://esm.sh/react@18")).default;
+      const { createRoot } = await import("https://esm.sh/react-dom@18/client");
+      const tldraw      = await import("https://esm.sh/@tldraw/tldraw@3.15.0");
+      const Y           = await import("https://esm.sh/yjs@13.6.27");
+      const { WebsocketProvider } = await import("https://esm.sh/y-websocket@2.1.0");
+      const { IndexeddbPersistence } = await import("https://esm.sh/y-indexeddb@9.0.12");
+
+      // inject CSS if not loaded
+      if (!document.querySelector('link[href*="tldraw.css"]')) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://esm.sh/@tldraw/tldraw@3.15.0/tldraw.css";
+        document.head.appendChild(link);
       }
-      if (window.Bridge?.postMessage) window.Bridge.postMessage(msg);
-    };
 
-    // ── Yjs document + persistence ──
-    const ydoc = new Y.Doc();
-    const idb = new IndexeddbPersistence(cfg.room, ydoc);
-    idb.on("synced", () => post("offline:loaded", { room: cfg.room }));
+      bootstrapCanvas(React, createRoot, tldraw, Y, WebsocketProvider, IndexeddbPersistence);
+    }
 
-    const provider = new WebsocketProvider(cfg.wsUrl, cfg.room, ydoc, { connect: true });
-    provider.awareness.setLocalStateField("user", cfg.user);
-    provider.on("status", ({ status }) => {
-      statusEl.textContent = status;
-      post("ws:status", { status });
-    });
-    provider.awareness.on("change", () => {
-      const peers = Array.from(provider.awareness.getStates().values())
-        .map(s => s.user).filter(Boolean);
-      post("awareness", { peers });
-    });
+    function bootstrapCanvas(React, createRoot, tldraw, Y, WebsocketProvider, IndexeddbPersistence) {
+      const { Tldraw, createTLStore, defaultShapeUtils } = tldraw;
 
-    // ── tldraw store bound to Yjs ──
-    const store = createTLStore({ shapeUtils: defaultShapeUtils });
-    const yShapes = ydoc.getMap("tl.shapes");
+      // ── Configuration pushed from Flutter via window.__BRIDGE_CFG__ ──
+      const cfg = window.__BRIDGE_CFG__ || {
+        wsUrl: "ws://localhost:8000/sync/ws",
+        room:  "canvas:demo",
+        user:  { name: "guest", color: "#58A6FF" },
+      };
+      const dot      = document.querySelector("#status .dot");
+      const statusTx = document.getElementById("status-text");
+      const setStatus = (text, state) => {
+        statusTx.textContent = text;
+        dot.className = "dot" + (state === "ok" ? " ok" : state === "fail" ? " fail" : "");
+      };
+      const post = (type, payload) => {
+        const msg = JSON.stringify({ type, payload });
+        if (window.flutter_inappwebview?.callHandler)
+          window.flutter_inappwebview.callHandler("bridge", msg);
+        if (window.Bridge?.postMessage) window.Bridge.postMessage(msg);
+      };
 
-    const flushToY = () => {
-      const snapshot = store.getSnapshot();
-      ydoc.transact(() => {
-        yShapes.clear();
-        for (const [id, rec] of Object.entries(snapshot.store)) {
-          yShapes.set(id, rec);
-        }
-      }, "local");
-    };
-    const applyFromY = () => {
-      const snap = { store: {}, schema: store.schema.serialize() };
-      yShapes.forEach((v, k) => (snap.store[k] = v));
-      if (Object.keys(snap.store).length) store.loadSnapshot(snap);
-    };
+      // ── Yjs document + persistence ──
+      const ydoc = new Y.Doc();
+      const idb = new IndexeddbPersistence(cfg.room, ydoc);
+      idb.on("synced", () => post("offline:loaded", { room: cfg.room }));
 
-    yShapes.observe((e) => { if (e.transaction.origin !== "local") applyFromY(); });
-    store.listen(flushToY, { source: "user", scope: "document" });
-
-    window.addEventListener("online",  () => post("net:online",  {}));
-    window.addEventListener("offline", () => post("net:offline", {}));
-
-    // ── React mount ──
-    const App = () =>
-      React.createElement(Tldraw, {
-        store,
-        onMount: (editor) => {
-          editor.on("change-cursor", (c) =>
-            provider.awareness.setLocalStateField("cursor", c));
-          post("mounted", { room: cfg.room });
-        },
+      const provider = new WebsocketProvider(cfg.wsUrl, cfg.room, ydoc, { connect: true });
+      provider.awareness.setLocalStateField("user", cfg.user);
+      provider.on("status", ({ status }) => {
+        const state = status === "connected" ? "ok" : status === "disconnected" ? "fail" : "";
+        setStatus(status, state);
+        post("ws:status", { status });
       });
-    createRoot(document.getElementById("root")).render(React.createElement(App));
+      provider.awareness.on("change", () => {
+        const peers = Array.from(provider.awareness.getStates().values())
+          .map(s => s.user).filter(Boolean);
+        post("awareness", { peers });
+      });
+
+      // ── tldraw store bound to Yjs (debounced incremental sync) ──
+      const store = createTLStore({ shapeUtils: defaultShapeUtils });
+      const yShapes = ydoc.getMap("tl.shapes");
+
+      let _flushTimer = null;
+      const DEBOUNCE_MS = 120;
+      let _prevKeys = new Set();
+
+      const debouncedFlush = () => {
+        if (_flushTimer) clearTimeout(_flushTimer);
+        _flushTimer = setTimeout(() => flushIncremental(), DEBOUNCE_MS);
+      };
+
+      const flushIncremental = () => {
+        const snapshot = store.getSnapshot();
+        const currentEntries = Object.entries(snapshot.store);
+        const currentKeys = new Set(currentEntries.map(([k]) => k));
+
+        ydoc.transact(() => {
+          // Remove deleted keys
+          for (const key of _prevKeys) {
+            if (!currentKeys.has(key)) yShapes.delete(key);
+          }
+          // Set only changed / new keys
+          for (const [id, rec] of currentEntries) {
+            const existing = yShapes.get(id);
+            if (!existing || JSON.stringify(existing) !== JSON.stringify(rec)) {
+              yShapes.set(id, rec);
+            }
+          }
+        }, "local");
+
+        _prevKeys = currentKeys;
+      };
+
+      const applyFromY = () => {
+        const snap = { store: {}, schema: store.schema.serialize() };
+        yShapes.forEach((v, k) => (snap.store[k] = v));
+        if (Object.keys(snap.store).length) store.loadSnapshot(snap);
+        _prevKeys = new Set(Object.keys(snap.store));
+      };
+
+      yShapes.observe((e) => { if (e.transaction.origin !== "local") applyFromY(); });
+      store.listen(debouncedFlush, { source: "user", scope: "document" });
+
+      window.addEventListener("online",  () => post("net:online",  {}));
+      window.addEventListener("offline", () => post("net:offline", {}));
+
+      // ── React mount ──
+      const App = () =>
+        React.createElement(Tldraw, {
+          store,
+          onMount: (editor) => {
+            editor.on("change-cursor", (c) =>
+              provider.awareness.setLocalStateField("cursor", c));
+            post("mounted", { room: cfg.room });
+          },
+        });
+      createRoot(document.getElementById("root")).render(React.createElement(App));
+      window.__CANVAS_READY__ = true;
+    }
   </script>
 </body>
 </html>

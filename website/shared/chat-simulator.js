@@ -1,6 +1,6 @@
 /* ============================================================================
  * Demo 1 · 飞书聊天模拟器
- * 仿真飞书桌面端 UI（左侧群列表 / 中间消息流 / 右侧 LarkMentor 守护面板）
+ * 仿真飞书桌面端 UI（左侧群列表 / 中间消息流 / 右侧 Agent-Pilot 守护面板）
  * 暴露 FG.ChatSim.mount(rootEl, options) 到全局
  * ========================================================================== */
 (function () {
@@ -87,14 +87,14 @@
       { name: '部门闲聊群', icon: '🍔', key: '部门闲聊群' },
       { name: '王五', icon: '👨', key: '王五 · 私聊' },
       { name: '陈总', icon: '👔', key: '老板 · 私聊' },
-      { name: 'LarkMentor', icon: '🛡️', key: 'LarkMentor', special: true },
+      { name: 'Agent-Pilot', icon: '🛡️', key: 'Agent-Pilot', special: true },
     ];
     root.classList.add('fg-sim');
     root.innerHTML = `
 <div class="top">
   <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
   <div class="title">飞书 · 消息</div>
-  <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--sim-fg3)">LarkMentor Live Demo</div>
+  <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--sim-fg3)">Agent-Pilot Live Demo</div>
 </div>
 <div class="body">
   <div class="side" data-side>
@@ -146,7 +146,7 @@
     div.innerHTML = `
       <div class="avatar">🛡️</div>
       <div class="bubble-wrap">
-        <div class="meta">LarkMentor · 自动代回复</div>
+        <div class="meta">Agent-Pilot · 自动代回复</div>
         <div class="bubble">${replyText}</div>
       </div>`;
     return div;

@@ -10,7 +10,7 @@ from memory.user_state import ACHIEVEMENT_DEFS, get_user
 from bot.card_builder import achievement_card, recovery_card
 from bot.message_sender import send_card, send_text
 
-logger = logging.getLogger("flowguard.handler")
+logger = logging.getLogger("agent_pilot.handler")
 
 # ── Mutable global state ──
 

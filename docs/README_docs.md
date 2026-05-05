@@ -1,6 +1,6 @@
 # 📚 Agent-Pilot v4 文档导航
 
-> 完整记录 LarkMentor → Agent-Pilot v4 重构过程的文档集合
+> 完整记录 Agent-Pilot v4 重构过程的文档集合
 
 ## 📋 文档概览
 

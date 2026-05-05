@@ -4,7 +4,7 @@
 1. Agent 发起调用 → permissions.py 判定需要审批
 2. cardkit.v1 发审批卡到用户（Approve / Deny / Always Allow）
 3. 用户点按钮 → Webhook 回传 → Agent 继续或终止
-4. "Always Allow" 写入 ~/.larkmentor/approvals.json，下次跳过
+4. "Always Allow" 写入 ~/.agent-pilot/approvals.json，下次跳过
 """
 
 from __future__ import annotations

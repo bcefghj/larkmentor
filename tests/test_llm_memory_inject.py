@@ -121,7 +121,7 @@ def test_chat_json_inherits_inject(monkeypatch, tmp_path):
 
 
 def test_auto_inject_can_be_disabled(fake_openai, tmp_path, monkeypatch):
-    """Setting LARKMENTOR_AUTO_INJECT_MEMORY=0 bypasses memory injection."""
+    """Setting AGENT_PILOT_AUTO_INJECT_MEMORY=0 bypasses memory injection."""
     from core.flow_memory import flow_memory_md
     from llm import llm_client
     from llm.llm_client import chat

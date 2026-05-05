@@ -37,7 +37,7 @@ class TestParseCommand(unittest.TestCase):
             r = parse_command(cmd)
             self.assertEqual(r["command"], "end_focus", f"Failed for: {cmd}")
 
-    def test_larkmentor_menu_aliases(self):
+    def test_agent_pilot_menu_aliases(self):
         self.assertEqual(parse_command("今日简报")["command"], "daily_report")
         self.assertEqual(parse_command("周度简报")["command"], "weekly_report")
         self.assertEqual(parse_command("组织记忆")["command"], "show_memory")

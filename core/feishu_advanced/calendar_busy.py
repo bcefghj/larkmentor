@@ -6,7 +6,7 @@ import logging
 import time
 from typing import Dict
 
-logger = logging.getLogger("flowguard.feishu.calendar")
+logger = logging.getLogger("agent_pilot.feishu.calendar")
 
 
 def create_busy_event(

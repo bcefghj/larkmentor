@@ -57,9 +57,48 @@ def call_tool(name: str, **kwargs) -> Any:
     return meta.fn(**kwargs)
 
 
+def sync_to_harness_registry() -> None:
+    """Bridge: sync all @tool-decorated tools into the harness ToolRegistry.
+
+    Wraps each decorator-registered tool into a ToolSpec and registers it
+    with `core.agent_pilot.harness.tool_registry.default_registry()`.
+    """
+    from core.agent_pilot.harness.tool_registry import build_tool, default_registry
+
+    harness_reg = default_registry()
+
+    _PERMISSION_TO_READONLY = {"readonly": True, "default": False, "write": False, "sensitive": False}
+
+    for name, meta in _REGISTRY.items():
+        if harness_reg.has(name):
+            continue
+
+        readonly = _PERMISSION_TO_READONLY.get(meta.permission, False)
+
+        def _make_adapter(fn: Callable) -> Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]:
+            def adapter(args: Dict[str, Any], ctx: Dict[str, Any]) -> Dict[str, Any]:
+                result = fn(**args)
+                if isinstance(result, dict):
+                    return result
+                return {"result": result}
+            return adapter
+
+        spec = build_tool(
+            name=name,
+            description=meta.description,
+            fn=_make_adapter(meta.fn),
+            readonly=readonly,
+            category=meta.team if meta.team != "default" else "generic",
+        )
+        harness_reg.register(spec)
+
+    logger.info("sync_to_harness_registry: synced %d decorator tools", len(_REGISTRY))
+
+
 def register_builtin_tools() -> None:
     """Called once at import time to ensure all tools are visible."""
     logger.info("tool registry: %d tools registered", len(_REGISTRY))
+    sync_to_harness_registry()
 
 
 def tools_for_llm_prompt(team: str = "default") -> str:

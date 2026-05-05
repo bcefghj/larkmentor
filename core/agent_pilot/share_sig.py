@@ -20,7 +20,7 @@ from typing import Dict
 
 
 def _secret() -> str:
-    return os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
+    return os.getenv("AGENT_PILOT_SHARE_SECRET", "")
 
 
 def sign(plan_id: str, *, exp_ts: int, secret: str = "") -> str:

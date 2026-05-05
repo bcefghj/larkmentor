@@ -1,5 +1,5 @@
 /* ============================================================================
- * LarkMentor v-c · App
+ * Agent-Pilot v-c · App
  * 数据 + 渲染 + 动画 + 交互
  * 不依赖任何外部 JS 库
  * ========================================================================== */
@@ -652,7 +652,7 @@
   /* ====== Tracks + APIs ====== */
   const TRACKS = [
     { rank:'第一志愿', name:'飞书 AI 产品创新 · 课题二', topic:'基于 IM 的办公协同智能助手',
-      map:'对应 LarkMentor 全栈：消息层 Smart Shield + 表达层 Mentor + 飞书 docx / 多维表格 / 卡片回调' },
+      map:'对应 Agent-Pilot 全栈：消息层 Smart Shield + 表达层 Mentor + 飞书 docx / 多维表格 / 卡片回调' },
     { rank:'第二志愿', name:'飞书 OpenClaw · 课题二',     topic:'企业级长程协作 Memory 系统',
       map:'对应 FlowMemory 三层 + 6 级 flow_memory.md，已抽成独立 SDK 可被 OpenClaw 调用' },
     { rank:'第三志愿', name:'AI 大模型安全 · 课题一',     topic:'面向 Agent + 客户端环境下的安全操作与数据防护',
@@ -800,8 +800,8 @@
 
   /* ====== Resources / FAQ ====== */
   const RESOURCES = [
-    { ttl:'技术报告 PDF · 下载',      href:'/larkmentor_report.pdf',                 url:'larkmentor_report.pdf' },
-    { ttl:'GitHub · 主仓库',          href:'https://github.com/bcefghj/larkmentor', url:'github.com/bcefghj/larkmentor' },
+    { ttl:'技术报告 PDF · 下载',      href:'/agent_pilot_report.pdf',                 url:'agent_pilot_report.pdf' },
+    { ttl:'GitHub · 主仓库',          href:'https://github.com/bcefghj/Agent-Pilot', url:'github.com/bcefghj/Agent-Pilot' },
     { ttl:'Live Dashboard',           href:'/dashboard',                              url:'/dashboard' },
     { ttl:'MCP · 可视化工具浏览',     href:'/mcp',                                    url:'/mcp' },
     { ttl:'MCP · Raw JSON',           href:'/mcp/tools',                              url:'/mcp/tools' },
@@ -819,7 +819,7 @@
       a:'不是。Promptfoo 红队 14/14 PASS，所有决策走 Audit JSONL，可在 Dashboard 一键回滚。详见 GitHub 仓库 60_tests/。' },
     { q:'代回复出错谁负责？',
       a:'Mentor 永远是草稿；用户点采纳才进入 SEND_ACTION 工具；🤖 标识；30 秒可撤回；引用可追溯。' },
-    { q:'为什么叫 LarkMentor？',
+    { q:'为什么叫 Agent-Pilot？',
       a:'"Mentor" 是关系感的词。我们要表达的是：双线服务都是为了"陪一个人在这家公司活下去"。关系感 > 工具感。' },
   ];
   function renderResources() {

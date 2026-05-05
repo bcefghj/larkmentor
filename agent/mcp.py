@@ -1,10 +1,11 @@
-"""MCP Manager · 双通道（stdio + HTTP Streamable）
+"""MCP Manager · 三通道（stdio + HTTP Streamable + CLI Skills）
 
 对齐 Claude Code MCP architecture。
 
-两种 transport：
+三种 transport：
 1. stdio：subprocess.Popen（@larksuiteoapi/lark-mcp 本地）
 2. HTTP Streamable：requests + SSE（mcp.feishu.cn/mcp 远程）
+3. cli：Feishu CLI Skills（22 个飞书能力域，subprocess 调用）
 
 JSON-RPC 2.0 协议。
 """
@@ -179,10 +180,85 @@ class HttpClient:
         pass
 
 
+class FeishuCLIClient:
+    """Client for Feishu CLI Skills — wraps subprocess calls with skill metadata."""
+
+    def __init__(self) -> None:
+        self.tools: List[Dict] = []
+        self._skills: Dict[str, Dict[str, Any]] = {}
+
+    def start(self) -> bool:
+        try:
+            from core.feishu_cli.mcp_config import (
+                FEISHU_CLI_SKILLS,
+                is_cli_available,
+            )
+
+            if not is_cli_available():
+                logger.info("Feishu CLI not found in PATH, skills loaded as metadata-only")
+
+            self._skills = FEISHU_CLI_SKILLS
+            self.tools = [
+                {
+                    "name": f"cli.{skill_id}",
+                    "description": skill["description"],
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "command_index": {
+                                "type": "integer",
+                                "description": f"Command index (0-{len(skill['commands'])-1})",
+                                "default": 0,
+                            },
+                            "params": {
+                                "type": "object",
+                                "description": "Parameters to substitute into the command template",
+                            },
+                        },
+                    },
+                }
+                for skill_id, skill in self._skills.items()
+            ]
+            logger.info("FeishuCLIClient: %d skills, %d total commands",
+                         len(self._skills),
+                         sum(len(s["commands"]) for s in self._skills.values()))
+            return True
+        except Exception as e:
+            logger.warning("FeishuCLIClient start failed: %s", e)
+            return False
+
+    def call(self, tool_name: str, arguments: Dict) -> Optional[Dict]:
+        skill_id = tool_name.replace("cli.", "", 1)
+        skill = self._skills.get(skill_id)
+        if not skill:
+            return {"error": True, "message": f"Unknown CLI skill: {skill_id}"}
+
+        cmd_index = arguments.get("command_index", 0)
+        params = arguments.get("params", {})
+        commands = skill["commands"]
+
+        if cmd_index < 0 or cmd_index >= len(commands):
+            return {
+                "error": True,
+                "message": f"command_index {cmd_index} out of range (0-{len(commands)-1})",
+            }
+
+        try:
+            from core.feishu_cli.mcp_config import run_cli_command
+
+            return run_cli_command(commands[cmd_index], params)
+        except Exception as e:
+            return {"error": True, "message": str(e)}
+
+    def stop(self) -> None:
+        pass
+
+
 class MCPManager:
     def __init__(self) -> None:
         self.clients: Dict[str, Any] = {}
         self.servers: List[MCPServer] = []
+        self._cli_client: Optional[FeishuCLIClient] = None
         self._started = False
 
     def load_config(self) -> None:
@@ -243,11 +319,20 @@ class MCPManager:
                 )
             )
 
+    def _init_cli_client(self) -> None:
+        """Initialize the Feishu CLI skills client."""
+        cli = FeishuCLIClient()
+        if cli.start():
+            self._cli_client = cli
+            self.clients["feishu-cli"] = cli
+            logger.info("Feishu CLI client active with %d tools", len(cli.tools))
+
     def start(self) -> None:
         if self._started:
             return
         if not self.servers:
             self.load_config()
+
         for s in self.servers:
             if not s.enabled:
                 continue
@@ -260,8 +345,13 @@ class MCPManager:
                 continue
             if client.start():
                 self.clients[s.alias] = client
+
+        self._init_cli_client()
+
         self._started = True
-        logger.info("MCPManager started: %d/%d clients active", len(self.clients), len(self.servers))
+        logger.info("MCPManager started: %d/%d clients active (cli=%s)",
+                     len(self.clients), len(self.servers) + 1,
+                     "yes" if self._cli_client else "no")
 
     def stop(self) -> None:
         for c in self.clients.values():
@@ -270,10 +360,11 @@ class MCPManager:
             except Exception as e:
                 logger.debug("MCP client stop failed: %s", e)
         self.clients.clear()
+        self._cli_client = None
         self._started = False
 
     def list_all_tools(self) -> Dict[str, List[Dict]]:
-        out = {}
+        out: Dict[str, List[Dict]] = {}
         for alias, client in self.clients.items():
             out[alias] = client.tools
         return out
@@ -284,9 +375,26 @@ class MCPManager:
             return None
         return client.call(tool_name, arguments)
 
+    def call_cli_skill(self, skill_id: str, command_index: int = 0, params: Optional[Dict[str, str]] = None) -> Optional[Dict]:
+        """Convenience method to call a Feishu CLI skill directly."""
+        if not self._cli_client:
+            return {"error": True, "message": "Feishu CLI client not initialized"}
+        return self._cli_client.call(f"cli.{skill_id}", {
+            "command_index": command_index,
+            "params": params or {},
+        })
+
+    def get_cli_skills(self) -> Dict[str, Dict[str, Any]]:
+        """Return all available Feishu CLI skill definitions."""
+        if not self._cli_client:
+            return {}
+        return self._cli_client._skills
+
     def snapshot(self) -> Dict[str, Any]:
         return {
             "started": self._started,
+            "cli_available": self._cli_client is not None,
+            "cli_skills_count": len(self._cli_client._skills) if self._cli_client else 0,
             "servers": [
                 {
                     "alias": s.alias,
@@ -313,15 +421,19 @@ def default_mcp_manager() -> MCPManager:
 
 
 def register_feishu_mcp() -> None:
+    """Register both the MCP server (lark-openapi) and Feishu CLI skills."""
+    mgr = default_mcp_manager()
+
     try:
         from core.feishu_cli.mcp_config import (
             FEISHU_CLI_SKILLS,
             MCP_SERVER_CONFIG,
+            is_cli_available,
             is_mcp_available,
         )
+
         if is_mcp_available():
-            logger.info("Feishu MCP server available, %d skills", len(FEISHU_CLI_SKILLS))
-            mgr = default_mcp_manager()
+            logger.info("Feishu MCP server available, %d CLI skills", len(FEISHU_CLI_SKILLS))
             mgr.servers.append(
                 MCPServer(
                     alias=MCP_SERVER_CONFIG["name"],
@@ -331,5 +443,11 @@ def register_feishu_mcp() -> None:
                     env=MCP_SERVER_CONFIG.get("env", {}),
                 )
             )
+
+        if is_cli_available():
+            logger.info("Feishu CLI available, %d skills registered", len(FEISHU_CLI_SKILLS))
+        else:
+            logger.info("Feishu CLI not in PATH; %d skills registered as metadata", len(FEISHU_CLI_SKILLS))
+
     except Exception as e:
         logger.debug("Feishu MCP not available: %s", e)

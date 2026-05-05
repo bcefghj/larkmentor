@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# LarkMentor v2 (Agent-Pilot) 部署脚本
+# Agent-Pilot v2 部署脚本
 #
 # 假设：
 #   - 服务器地址 / 密码已经写到 ~/.ssh/config 或下面的 HOST / PW 变量
-#   - 本地在 larkmentor_github 根目录（含 main.py / dashboard/ / core/ 等）
+#   - 本地在 agent_pilot 根目录（含 main.py / dashboard/ / core/ 等）
 #
 # 完整流程：
 #   0. 本地 pytest 必须 100% 通过
@@ -132,7 +132,7 @@ echo '[ok] deps installed'
 # ── systemd units ──
 cat > /etc/systemd/system/larkmentor-v2.service <<UNIT
 [Unit]
-Description=LarkMentor v2 Feishu Bot
+Description=Agent-Pilot v2 Feishu Bot
 After=network.target
 
 [Service]
@@ -150,7 +150,7 @@ UNIT
 
 cat > /etc/systemd/system/larkmentor-v2-dashboard.service <<UNIT
 [Unit]
-Description=LarkMentor v2 Dashboard + Sync WebSocket
+Description=Agent-Pilot v2 Dashboard + Sync WebSocket
 After=network.target
 
 [Service]
@@ -168,7 +168,7 @@ UNIT
 
 cat > /etc/systemd/system/larkmentor-v2-mcp.service <<UNIT
 [Unit]
-Description=LarkMentor v2 MCP HTTP Server
+Description=Agent-Pilot v2 MCP HTTP Server
 After=network.target
 
 [Service]
@@ -264,7 +264,7 @@ curl -sf "http://$HOST/sync/health" >/dev/null && echo "[ok] /sync/health"
 
 step "6/6 Done"
 echo ""
-echo "🎉 LarkMentor v2 is live:"
+echo "🎉 Agent-Pilot v2 is live:"
 echo "  Pilot Dashboard: http://$HOST/dashboard/pilot"
 echo "  Sync WebSocket:  ws://$HOST/sync/ws"
 echo "  MCP API:         http://$HOST/mcp/tools"

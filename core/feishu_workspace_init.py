@@ -1,19 +1,19 @@
 """Feishu Workspace Killer Feature.
 
-When a judge / new user first interacts with LarkMentor, we automatically
+When a judge / new user first interacts with Agent-Pilot, we automatically
 provision a personalised workspace inside Feishu:
 
     1. A Bitable (multi-dimensional table) acting as the "Interruption
        Analytics Dashboard". Pre-seeded with 10 demo rows so the table
        looks alive on first open.
-    2. A Feishu Doc named "LarkMentor Onboarding Guide".
+    2. A Feishu Doc named "Agent-Pilot Onboarding Guide".
     3. A Feishu Doc named "Context Recovery Card" that gets appended to
        every time the user ends a focus session.
 
 The user gets shareable URLs delivered through a welcome card, so they
 have a zero-friction interactive experience entirely *inside* Feishu.
 
-This is the answer to the judge prompt: "LarkMentor isn't just a tool
+This is the answer to the judge prompt: "Agent-Pilot isn't just a tool
 installed in Feishu — it is part of the Feishu ecosystem."
 """
 
@@ -28,7 +28,7 @@ from typing import Dict, Optional
 from bot.feishu_client import get_client
 from utils.time_utils import fmt_time, now_ts
 
-logger = logging.getLogger("flowguard.workspace")
+logger = logging.getLogger("agent_pilot.workspace")
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 WORKSPACE_FILE = os.path.join(DATA_DIR, "user_workspaces.json")
@@ -191,7 +191,7 @@ def _create_bitable(user_open_id: str) -> Optional[Dict]:
 
         app_req = (
             CreateAppRequest.builder()
-            .request_body(ReqApp.builder().name("LarkMentor - 我的打断分析看板").folder_token("").build())
+            .request_body(ReqApp.builder().name("Agent-Pilot - 我的打断分析看板").folder_token("").build())
             .build()
         )
         app_resp = client.bitable.v1.app.create(app_req)
@@ -260,7 +260,7 @@ def _seed_demo_rows(app_token: str, table_id: str) -> int:
 
 # ── Doc provisioning ──
 
-ONBOARDING_MD = """# 欢迎使用 LarkMentor
+ONBOARDING_MD = """# 欢迎使用 Agent-Pilot
 
 我是你的工作状态守护 Agent。我会：
 
@@ -374,14 +374,14 @@ def ensure_workspace(user_open_id: str, force: bool = False) -> UserWorkspace:
         ws.seeded = rows > 0
         logger.info("Seeded %d rows", rows)
 
-    onboarding = _create_doc("LarkMentor 使用指南", ONBOARDING_MD)
+    onboarding = _create_doc("Agent-Pilot 使用指南", ONBOARDING_MD)
     if onboarding:
         ws.onboarding_doc_token = onboarding["document_id"]
         ws.onboarding_doc_url = onboarding["url"]
 
     recovery = _create_doc(
-        "LarkMentor 上下文恢复卡片",
-        "# 上下文恢复\n\n每次结束专注，LarkMentor 会在这里追加一张恢复卡片。\n",
+        "Agent-Pilot 上下文恢复卡片",
+        "# 上下文恢复\n\n每次结束专注，Agent-Pilot 会在这里追加一张恢复卡片。\n",
     )
     if recovery:
         ws.recovery_doc_token = recovery["document_id"]

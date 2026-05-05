@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-logger = logging.getLogger("flowguard.mentor.onboard")
+logger = logging.getLogger("agent_pilot.mentor.onboard")
 
 
 # 5 个 onboarding 问题（顺序固定，按字节 Mentor 4 维 + 1 个自定义）

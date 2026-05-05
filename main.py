@@ -7,6 +7,7 @@
 
 import logging
 import os
+import signal
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -21,13 +22,10 @@ from core.feishu_workspace_init import load_all as load_workspaces
 from core.notification_channels import init_dispatcher
 from core.sender_profile import decay_recent_counts
 from core.sender_profile import load as load_sender_profiles
+from core.structured_logging import configure_logging
 from memory.user_state import _load_org_docs, load_all
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+configure_logging()
 logger = logging.getLogger("agent-pilot")
 
 
@@ -151,7 +149,15 @@ def _coach_weekly_growth_summary():
         logger.debug("coach_weekly_summary cron err=%s", e)
 
 
+def _graceful_shutdown(signum, frame):
+    logger.info("Agent-Pilot 收到终止信号 (%s)，正在优雅关闭...", signal.Signals(signum).name)
+    sys.exit(0)
+
+
 def main():
+    signal.signal(signal.SIGTERM, _graceful_shutdown)
+    signal.signal(signal.SIGINT, _graceful_shutdown)
+
     dashboard_port = int(os.getenv("DASHBOARD_PORT", "8001") or "8001")
     sync_port = int(os.getenv("SYNC_HUB_PORT", "8767") or "8767")
     print(r"""
@@ -174,6 +180,10 @@ def main():
     """)
 
     _validate_config()
+
+    # Register DI container defaults (lazy factories for all core services)
+    from core.container import register_defaults
+    register_defaults()
 
     # Load persisted state
     load_all()

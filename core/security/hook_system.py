@@ -20,7 +20,7 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-logger = logging.getLogger("flowguard.security.hooks")
+logger = logging.getLogger("agent_pilot.security.hooks")
 
 
 class HookEvent(enum.Enum):

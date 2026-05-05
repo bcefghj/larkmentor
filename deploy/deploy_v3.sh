@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LarkMentor v3 (Agent-Pilot + Harness) 一键蓝绿部署脚本
+# Agent-Pilot v3 (Harness) 一键蓝绿部署脚本
 #
 # 核心想法：
 #   1. 服务器上维护两套目录：  /opt/lm_blue 与 /opt/lm_green
@@ -49,7 +49,7 @@ if [[ "$ACTIVE" == "$BLUE" ]]; then IDLE=$GREEN; PORT=8011; else IDLE=$BLUE; POR
 echo "Active: $ACTIVE | deploying into: $IDLE (health port $PORT)"
 
 step "3. Package"
-TAR=/tmp/larkmentor_v3_$(date +%s).tar.gz
+TAR=/tmp/agent_pilot_v3_$(date +%s).tar.gz
 tar --exclude=.venv --exclude=__pycache__ --exclude=data/pilot_plans \
     --exclude=data/pilot_artifacts --exclude=.env --exclude=node_modules \
     -czf "$TAR" -C "$ROOT" .

@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-logger = logging.getLogger("flowguard.security.sandbox")
+logger = logging.getLogger("agent_pilot.security.sandbox")
 
 ROOT = Path(__file__).resolve().parents[2]
 SANDBOX_FILE = ROOT / "data" / "tool_sandbox.json"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LarkMentor v1 部署脚本（冷切换 v4 → LarkMentor）
+# Agent-Pilot v1 部署脚本（冷切换 v4 → Agent-Pilot）
 #
 # 1. 本地 pytest 必须全过
 # 2. 打 tar 包 → scp 上传 /opt/larkmentor_release.tar.gz
@@ -8,7 +8,7 @@
 #    b) 解压到 /opt/larkmentor/，复制 v4 .env + user_states.json + coach_kb.sqlite + growth_entries.jsonl
 #    c) 装依赖
 #    d) 写 systemd unit larkmentor.service / -mcp / -dashboard
-#    e) 冷切换：停 v4 → 启 LarkMentor → smoke_test → 失败 rollback
+#    e) 冷切换：停 v4 → 启 Agent-Pilot → smoke_test → 失败 rollback
 #    f) nginx 路由保持（端口共用 8001 / 8767）
 
 set -euo pipefail
@@ -69,7 +69,7 @@ cp /etc/systemd/system/flowguard-v4*.service \$BACKUP/ 2>/dev/null || true
 mkdir -p $REMOTE_BASE
 cd $REMOTE_BASE
 tar -xzf $REMOTE_TAR
-echo '[ok] LarkMentor extracted'
+echo '[ok] Agent-Pilot extracted'
 
 # 3c. 复用 v4 .env + 持久化数据（向后兼容）
 if [ -f /opt/flowguard_v4/project/.env ]; then
@@ -100,7 +100,7 @@ echo '[ok] python deps'
 # 3e. systemd unit (复用 v4 端口 8001/8767)
 cat > /etc/systemd/system/larkmentor.service <<'UNIT'
 [Unit]
-Description=LarkMentor (Smart Shield + Rookie Mentor)
+Description=Agent-Pilot (Smart Shield + Rookie Mentor)
 After=network.target
 
 [Service]
@@ -119,7 +119,7 @@ UNIT
 
 cat > /etc/systemd/system/larkmentor-dashboard.service <<'UNIT'
 [Unit]
-Description=LarkMentor Dashboard (FastAPI on 8001)
+Description=Agent-Pilot Dashboard (FastAPI on 8001)
 After=network.target
 
 [Service]
@@ -138,7 +138,7 @@ UNIT
 
 cat > /etc/systemd/system/larkmentor-mcp.service <<'UNIT'
 [Unit]
-Description=LarkMentor MCP HTTP (8767)
+Description=Agent-Pilot MCP HTTP (8767)
 After=network.target
 
 [Service]
@@ -159,7 +159,7 @@ systemctl daemon-reload
 echo '[ok] systemd units written'
 "
 
-step "4/6 冷切换：停 v4 → 启 LarkMentor"
+step "4/6 冷切换：停 v4 → 启 Agent-Pilot"
 "$SSH" "set +e
 echo '[step] stopping v4 ...'
 systemctl stop flowguard-v4.service flowguard-v4-mcp.service flowguard-v4-dashboard.service 2>/dev/null
@@ -167,7 +167,7 @@ sleep 2
 echo '[step] disabling v4 (rollback 用 enable 重启)'
 systemctl disable flowguard-v4.service flowguard-v4-mcp.service flowguard-v4-dashboard.service 2>/dev/null
 
-echo '[step] starting LarkMentor ...'
+echo '[step] starting Agent-Pilot ...'
 systemctl enable larkmentor.service larkmentor-dashboard.service larkmentor-mcp.service >/dev/null 2>&1
 systemctl start larkmentor-dashboard.service
 systemctl start larkmentor-mcp.service
@@ -263,11 +263,11 @@ echo '[ok] nginx switched to larkmentor server'
 step "6/6 smoke_test"
 if bash "$DEPLOY_DIR/smoke_test.sh"; then
     echo
-    echo "✅ LarkMentor v1 已部署且 smoke 全过"
+    echo "✅ Agent-Pilot v1 已部署且 smoke 全过"
     echo "   主页:       http://$HOST/"
     echo "   Dashboard:  http://$HOST/dashboard"
     echo "   MCP HTTP:   http://$HOST/mcp/tools"
-    echo "   GitHub:     https://github.com/bcefghj/larkmentor"
+    echo "   GitHub:     https://github.com/bcefghj/Agent-Pilot"
 else
     echo
     echo "❌ smoke_test 失败，自动回滚到 v4"

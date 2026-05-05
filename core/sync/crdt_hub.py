@@ -23,6 +23,8 @@ Backend support
 * **Redis** (optional) – enables cross-process pub/sub, room state
   persistence across restarts, and event replay via Redis Streams.
   Falls back to in-memory gracefully when Redis is unavailable.
+* **Disk persistence** – periodically saves Y.Doc state to a local
+  directory so rooms survive process restarts without Redis.
 
 This module has zero hard dependencies on FastAPI so it can also be
 used from unit tests and the bot event handler.
@@ -33,11 +35,12 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
 import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Deque, Dict, List, Optional, Set
+from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger("pilot.sync")
 
@@ -65,6 +68,7 @@ PRESENCE_STALE_SECONDS = 30
 HEARTBEAT_INTERVAL_SECONDS = 15
 HEARTBEAT_TIMEOUT_SECONDS = 45
 _HEARTBEAT_SWEEP_INTERVAL = 5
+_PERSIST_INTERVAL_SECONDS = 30
 
 # ── Redis key helpers ──
 
@@ -93,6 +97,39 @@ class PresenceInfo:
             "last_active_ts": self.last_active_ts,
             "cursor_position": self.cursor_position,
         }
+
+
+@dataclass
+class RoomState:
+    """Full state for a single CRDT room, including doc, awareness, and
+    offline queues for clients that disconnected mid-session."""
+
+    room_id: str
+    doc_state: bytes = b""
+    clients: Set[str] = field(default_factory=set)
+    awareness: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    last_update: float = 0.0
+    pending_updates: List[Tuple[str, bytes]] = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.last_update == 0.0:
+            self.last_update = time.time()
+
+    def queue_for_offline(self, client_id: str, update: bytes) -> None:
+        """Queue an update destined for a disconnected client."""
+        self.pending_updates.append((client_id, update))
+
+    def drain_pending(self, client_id: str) -> List[bytes]:
+        """Return and remove all queued updates for *client_id*."""
+        kept: List[Tuple[str, bytes]] = []
+        drained: List[bytes] = []
+        for cid, data in self.pending_updates:
+            if cid == client_id:
+                drained.append(data)
+            else:
+                kept.append((cid, data))
+        self.pending_updates = kept
+        return drained
 
 
 # ── Redis backend ──
@@ -343,6 +380,7 @@ class CrdtHub:
         history_size: int = 200,
         redis_url: Optional[str] = None,
         enable_redis: bool = True,
+        persist_dir: str = "data/crdt",
     ):
         self._subs: Dict[str, Subscriber] = {}
         self._by_room: Dict[str, Set[str]] = defaultdict(set)
@@ -350,7 +388,12 @@ class CrdtHub:
             lambda: deque(maxlen=history_size),
         )
         self._ydocs: Dict[str, Any] = {}
+        self._room_states: Dict[str, RoomState] = {}
         self._lock = threading.Lock()
+
+        # Disk persistence directory
+        self._persist_dir = persist_dir
+        os.makedirs(persist_dir, exist_ok=True)
 
         # Presence: room -> client_id -> PresenceInfo
         self._presence: Dict[str, Dict[str, PresenceInfo]] = defaultdict(dict)
@@ -360,6 +403,9 @@ class CrdtHub:
 
         # Pending CRDT updates per room per client (for conflict detection)
         self._pending_updates: Dict[str, Dict[str, float]] = defaultdict(dict)
+
+        # WebSocket references for async send
+        self._ws_refs: Dict[str, Any] = {}
 
         # Connection stats
         self._start_ts: float = time.time()
@@ -386,6 +432,14 @@ class CrdtHub:
             name="crdt-heartbeat-reaper",
         )
         self._reaper_thread.start()
+
+        # Periodic disk persistence daemon
+        self._persist_thread = threading.Thread(
+            target=self._persist_loop,
+            daemon=True,
+            name="crdt-disk-persist",
+        )
+        self._persist_thread.start()
 
     @property
     def redis_available(self) -> bool:
@@ -429,19 +483,32 @@ class CrdtHub:
             sub.rooms.add(room)
             self._by_room[room].add(client_id)
             history = list(self._history.get(room, []))
+            self._ensure_room_state(room).clients.add(client_id)
 
-        # Restore YDoc state from Redis if we have no local doc yet
-        if _Y_AVAILABLE and room not in self._ydocs and self._redis:
-            saved = self._redis.load_room_state(room)
-            if saved:
+        # Restore YDoc state: try disk first, then Redis
+        if _Y_AVAILABLE and room not in self._ydocs:
+            restored = self.restore_room(room)
+            if restored:
                 try:
                     ydoc = y_py.YDoc()
-                    y_py.apply_update(ydoc, base64.b64decode(saved))
+                    y_py.apply_update(ydoc, restored)
                     with self._lock:
                         self._ydocs[room] = ydoc
-                    logger.info("restored YDoc for room=%s from Redis", room)
+                    logger.info("restored YDoc for room=%s from disk", room)
                 except Exception as exc:
-                    logger.debug("failed to restore YDoc from Redis: %s", exc)
+                    logger.debug("disk restore failed: %s", exc)
+
+            if room not in self._ydocs and self._redis:
+                saved = self._redis.load_room_state(room)
+                if saved:
+                    try:
+                        ydoc = y_py.YDoc()
+                        y_py.apply_update(ydoc, base64.b64decode(saved))
+                        with self._lock:
+                            self._ydocs[room] = ydoc
+                        logger.info("restored YDoc for room=%s from Redis", room)
+                    except Exception as exc:
+                        logger.debug("failed to restore YDoc from Redis: %s", exc)
 
         return history
 
@@ -468,6 +535,10 @@ class CrdtHub:
             if sub:
                 sub.rooms.discard(room)
             self._by_room[room].discard(client_id)
+            rs = self._room_states.get(room)
+            if rs:
+                rs.clients.discard(client_id)
+                rs.awareness.pop(client_id, None)
 
     def rooms(self) -> List[str]:
         with self._lock:
@@ -476,6 +547,241 @@ class CrdtHub:
     def room_clients(self, room: str) -> List[str]:
         with self._lock:
             return list(self._by_room.get(room, set()))
+
+    # ── Async room management (WebSocket-native) ──
+
+    def _ensure_room_state(self, room_id: str) -> RoomState:
+        """Get or create a RoomState; restores from disk if available."""
+        if room_id not in self._room_states:
+            rs = RoomState(room_id=room_id)
+            restored = self.restore_room(room_id)
+            if restored:
+                rs.doc_state = restored
+                if _Y_AVAILABLE and room_id not in self._ydocs:
+                    try:
+                        ydoc = y_py.YDoc()
+                        y_py.apply_update(ydoc, restored)
+                        self._ydocs[room_id] = ydoc
+                        logger.info("restored YDoc from disk for room=%s", room_id)
+                    except Exception as exc:
+                        logger.debug("disk YDoc restore failed: %s", exc)
+            self._room_states[room_id] = rs
+        return self._room_states[room_id]
+
+    async def join_room(self, room_id: str, client_id: str, ws: Any = None) -> None:
+        """Async join: register a WS client, replay queued updates."""
+        self.join(client_id, room_id)
+
+        if ws is not None:
+            with self._lock:
+                self._ws_refs[client_id] = ws
+
+        with self._lock:
+            rs = self._ensure_room_state(room_id)
+            rs.clients.add(client_id)
+
+        # Send current doc state so the new client hydrates immediately
+        state = await self.get_state(room_id)
+        if state and ws is not None:
+            try:
+                msg = json.dumps({
+                    "kind": "ystate",
+                    "room": room_id,
+                    "state_b64": base64.b64encode(state).decode("ascii"),
+                    "ts": int(time.time() * 1000),
+                })
+                await ws.send_text(msg)
+            except Exception as exc:
+                logger.debug("send initial state failed: %s", exc)
+
+        # Replay any updates that were queued while this client was offline
+        with self._lock:
+            queued = rs.drain_pending(client_id)
+        if queued and ws is not None:
+            for update_bytes in queued:
+                try:
+                    msg = json.dumps({
+                        "kind": "yupdate",
+                        "room": room_id,
+                        "sender": "__replay__",
+                        "update_b64": base64.b64encode(update_bytes).decode("ascii"),
+                        "ts": int(time.time() * 1000),
+                    })
+                    await ws.send_text(msg)
+                except Exception as exc:
+                    logger.debug("replay queued update failed: %s", exc)
+            logger.info(
+                "replayed %d queued updates for client=%s room=%s",
+                len(queued), client_id, room_id,
+            )
+
+    async def leave_room(self, room_id: str, client_id: str) -> None:
+        """Async leave: remove client and clean up WS ref."""
+        self.leave(client_id, room_id)
+        with self._lock:
+            self._ws_refs.pop(client_id, None)
+
+    async def async_apply_update(
+        self, room_id: str, client_id: str, update: bytes,
+    ) -> None:
+        """Apply a binary CRDT update and relay to all room members.
+
+        Disconnected clients get the update queued for later replay.
+        """
+        now = time.time()
+
+        with self._lock:
+            rs = self._ensure_room_state(room_id)
+
+        # Apply to local Y.Doc if available
+        if _Y_AVAILABLE:
+            try:
+                ydoc = self.get_ydoc(room_id)
+                if ydoc is not None:
+                    y_py.apply_update(ydoc, update)
+                    rs.doc_state = y_py.encode_state_as_update(ydoc)
+            except Exception as exc:
+                logger.warning("async yjs apply_update failed: %s", exc)
+        else:
+            rs.doc_state = update
+        rs.last_update = now
+
+        update_b64 = base64.b64encode(update).decode("ascii")
+        payload = json.dumps({
+            "kind": "yupdate",
+            "room": room_id,
+            "sender": client_id,
+            "update_b64": update_b64,
+            "ts": int(now * 1000),
+        })
+
+        # Relay to all room clients; queue for disconnected ones
+        with self._lock:
+            room_clients = list(rs.clients)
+
+        for cid in room_clients:
+            if cid == client_id:
+                continue
+            ws = self._ws_refs.get(cid)
+            if ws is not None:
+                try:
+                    await ws.send_text(payload)
+                except Exception:
+                    rs.queue_for_offline(cid, update)
+                    logger.debug("queued update for disconnected client=%s", cid)
+            else:
+                rs.queue_for_offline(cid, update)
+
+        # Also fanout via the synchronous path for non-WS subscribers
+        self.apply_update(room_id, update_b64, sender_id=client_id)
+
+    async def get_state(self, room_id: str) -> bytes:
+        """Return the current merged Y.Doc state for a room."""
+        with self._lock:
+            rs = self._room_states.get(room_id)
+
+        if _Y_AVAILABLE:
+            ydoc = self.get_ydoc(room_id)
+            if ydoc is not None:
+                try:
+                    return y_py.encode_state_as_update(ydoc)
+                except Exception:
+                    pass
+
+        if rs and rs.doc_state:
+            return rs.doc_state
+
+        restored = self.restore_room(room_id)
+        return restored if restored else b""
+
+    # ── Awareness protocol ──
+
+    def update_awareness(
+        self, room_id: str, client_id: str, state: Dict[str, Any],
+    ) -> None:
+        """Update awareness state (cursor position, selection, user info)."""
+        with self._lock:
+            rs = self._ensure_room_state(room_id)
+            rs.awareness[client_id] = {
+                **state,
+                "ts": time.time(),
+            }
+        self.update_presence(client_id, room_id, state)
+
+        payload = {
+            "kind": "awareness",
+            "room": room_id,
+            "client_id": client_id,
+            "state": state,
+            "ts": int(time.time() * 1000),
+        }
+        self._fanout(room_id, payload)
+
+    def get_awareness(self, room_id: str) -> Dict[str, Dict[str, Any]]:
+        """Return all awareness states for a room."""
+        with self._lock:
+            rs = self._room_states.get(room_id)
+            if rs is None:
+                return {}
+            now = time.time()
+            return {
+                cid: state for cid, state in rs.awareness.items()
+                if now - state.get("ts", 0) < PRESENCE_STALE_SECONDS
+            }
+
+    # ── Disk persistence ──
+
+    def persist_room(self, room_id: str) -> None:
+        """Save Y.Doc state to disk."""
+        try:
+            state = b""
+            if _Y_AVAILABLE:
+                ydoc = self._ydocs.get(room_id)
+                if ydoc is not None:
+                    state = y_py.encode_state_as_update(ydoc)
+            else:
+                rs = self._room_states.get(room_id)
+                if rs:
+                    state = rs.doc_state
+
+            if not state:
+                return
+
+            path = os.path.join(self._persist_dir, f"{room_id}.ystate")
+            tmp_path = path + ".tmp"
+            with open(tmp_path, "wb") as f:
+                f.write(state)
+            os.replace(tmp_path, path)
+            logger.debug("persisted room=%s (%d bytes)", room_id, len(state))
+        except Exception as exc:
+            logger.debug("persist_room failed for %s: %s", room_id, exc)
+
+    def restore_room(self, room_id: str) -> Optional[bytes]:
+        """Load Y.Doc state from disk."""
+        path = os.path.join(self._persist_dir, f"{room_id}.ystate")
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            if data:
+                logger.debug("restored room=%s from disk (%d bytes)", room_id, len(data))
+                return data
+        except Exception as exc:
+            logger.debug("restore_room failed for %s: %s", room_id, exc)
+        return None
+
+    def _persist_loop(self) -> None:
+        """Background daemon that periodically saves all active rooms."""
+        while not self._reaper_stop.is_set():
+            self._reaper_stop.wait(_PERSIST_INTERVAL_SECONDS)
+            if self._reaper_stop.is_set():
+                break
+            with self._lock:
+                active_rooms = list(self._room_states.keys())
+            for room_id in active_rooms:
+                self.persist_room(room_id)
+                self._persist_room_state(room_id)
 
     # ── Broadcast primitives ──
 
@@ -704,9 +1010,17 @@ class CrdtHub:
                 )
 
     def shutdown(self) -> None:
-        """Stop background threads and release resources."""
+        """Stop background threads, persist all rooms, and release resources."""
         self._reaper_stop.set()
         self._reaper_thread.join(timeout=3)
+        self._persist_thread.join(timeout=3)
+
+        # Final persist of all active rooms before shutdown
+        with self._lock:
+            active_rooms = list(self._room_states.keys())
+        for room_id in active_rooms:
+            self.persist_room(room_id)
+
         if self._redis:
             self._redis.shutdown()
 
@@ -721,6 +1035,10 @@ class CrdtHub:
         now = time.time()
         uptime = max(now - self._start_ts, 0.001)
         with self._lock:
+            pending_total = sum(
+                len(rs.pending_updates)
+                for rs in self._room_states.values()
+            )
             stats: Dict[str, Any] = {
                 "total_clients": len(self._subs),
                 "total_rooms": len(self._by_room),
@@ -730,6 +1048,10 @@ class CrdtHub:
                 "total_disconnects": self._disconnect_count,
                 "uptime_seconds": round(uptime, 1),
                 "redis_available": self.redis_available,
+                "y_py_available": _Y_AVAILABLE,
+                "room_states": len(self._room_states),
+                "queued_offline_updates": pending_total,
+                "persist_dir": self._persist_dir,
             }
 
         if self._redis:
@@ -748,10 +1070,15 @@ _default: Optional[CrdtHub] = None
 def default_hub(
     redis_url: Optional[str] = None,
     enable_redis: bool = True,
+    persist_dir: str = "data/crdt",
 ) -> CrdtHub:
     global _default
     if _default is None:
-        _default = CrdtHub(redis_url=redis_url, enable_redis=enable_redis)
+        _default = CrdtHub(
+            redis_url=redis_url,
+            enable_redis=enable_redis,
+            persist_dir=persist_dir,
+        )
     return _default
 
 

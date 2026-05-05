@@ -6,7 +6,7 @@ from llm.llm_client import chat, chat_json
 from llm.prompts import ROOKIE_REVIEW_PROMPT, ROOKIE_TASK_CONFIRM_PROMPT, ROOKIE_WEEKLY_PROMPT
 from memory.user_state import get_org_docs_context
 
-logger = logging.getLogger("flowguard.rookie")
+logger = logging.getLogger("agent_pilot.rookie")
 
 
 def _org_ctx() -> str:

@@ -1,11 +1,11 @@
-"""Recovery Card · 双线 UI 唯一交点 (LarkMentor v2)
+"""Recovery Card · 双线 UI 唯一交点 (Agent-Pilot v2)
 
-Recovery Card 是 LarkMentor 双线产品（消息层守护 + 表达层带教）在 UI 上
+Recovery Card 是 Agent-Pilot 双线产品（消息层守护 + 表达层带教）在 UI 上
 唯一的真合体点。当用户结束 focus / 退出勿扰 / 回到工位时，Bot 弹出一张
 卡片，**上半张是 Smart Shield 的产物，下半张是 Mentor 的产物**：
 
   ┌──────────────────────────────────────────────────────┐
-  │ 🛡 LarkMentor · 上下文恢复 · 你专注了 45 分钟        │
+  │ 🛡 Agent-Pilot · 上下文恢复 · 你专注了 45 分钟        │
   ├──────────────────────────────────────────────────────┤
   │ 上半张 · 我替你挡了什么（按重要性排序）               │
   │   • [P0] 张三 · 5 分钟前 · "紧急：方案需要确认"      │
@@ -24,7 +24,7 @@ Recovery Card 是 LarkMentor 双线产品（消息层守护 + 表达层带教）
   │   └──────────────────────────────────────────────┘   │
   ├──────────────────────────────────────────────────────┤
   │ [采纳 v1] [采纳 v2] [采纳 v3] [全部忽略] [详情]      │
-  │ 🤖 LarkMentor · 30 秒内可点撤回 · 永不自动发送        │
+  │ 🤖 Agent-Pilot · 30 秒内可点撤回 · 永不自动发送        │
   └──────────────────────────────────────────────────────┘
 
 设计原则（详见 ../ARCHITECTURE.md §2 原则 3 合体点 2）：
@@ -52,7 +52,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger("larkmentor.recovery_card")
+logger = logging.getLogger("agent-pilot.recovery_card")
 
 
 # ── 数据结构 ─────────────────────────────────────────────────
@@ -280,7 +280,7 @@ def render_recovery_card(ctx: RecoveryContext) -> Dict[str, Any]:
     header = {
         "title": {
             "tag": "plain_text",
-            "content": f"🛡 LarkMentor · 上下文恢复 · 你专注了 {_fmt_duration(ctx.focus_duration_sec)}",
+            "content": f"🛡 Agent-Pilot · 上下文恢复 · 你专注了 {_fmt_duration(ctx.focus_duration_sec)}",
         },
         "template": "blue",
     }
@@ -378,14 +378,14 @@ def render_recovery_card(ctx: RecoveryContext) -> Dict[str, Any]:
 
     # ── Footer ────────────────────────────────────────────────
     elements.append({"tag": "hr"})
-    explain_md = ctx.explanation or "卡片由 LarkMentor 自动生成。"
+    explain_md = ctx.explanation or "卡片由 Agent-Pilot 自动生成。"
     elements.append(
         {
             "tag": "note",
             "elements": [
                 {
                     "tag": "lark_md",
-                    "content": f"🤖 LarkMentor · {explain_md} · 30 秒内可点撤回 · **永不自动发送**",
+                    "content": f"🤖 Agent-Pilot · {explain_md} · 30 秒内可点撤回 · **永不自动发送**",
                 }
             ],
         }

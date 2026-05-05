@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List
 
-logger = logging.getLogger("flowguard.feishu.task")
+logger = logging.getLogger("agent_pilot.feishu.task")
 
 
 TASK_KEYWORDS = ("待办", "todo", "TODO", "请处理", "需要", "请你", "deadline", "DDL", "下班前", "今天前", "by EOD")

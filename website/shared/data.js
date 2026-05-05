@@ -1,5 +1,5 @@
 /* ============================================================================
- * LarkMentor pitch-site · 单一数据源
+ * Agent-Pilot pitch-site · 单一数据源
  * 这一份数据被 A 套（editorial）和 B 套（agent OS）共用。
  * 修改文案 → 改这里 → 两版同步生效。
  * ========================================================================== */
@@ -7,7 +7,7 @@
 window.FG = window.FG || {};
 
 FG.meta = {
-  project: 'LarkMentor',
+  project: 'Agent-Pilot',
   tagline: '飞书 IM 上的双引擎协同助手 · 挡掉不该打断你的，接住打断你的人想说的',
   shortDesc: '飞书生态里第一个把"消息分流"和"表达带教"做在同一个 Bot 里的产品 · Smart Shield + 4 个 Mentor Skill + MCP 跨 Agent 协议。',
   contest: {
@@ -25,8 +25,8 @@ FG.meta = {
     mcpTools: 'http://118.178.242.26/mcp/tools',
     mcpCall: 'http://118.178.242.26/mcp/call',
     health: 'http://118.178.242.26/health',
-    githubRepo: 'https://github.com/bcefghj/larkmentor',
-    githubPages: 'https://bcefghj.github.io/larkmentor/',
+    githubRepo: 'https://github.com/bcefghj/Agent-Pilot',
+    githubPages: 'https://bcefghj.github.io/Agent-Pilot/',
   },
 };
 
@@ -37,7 +37,7 @@ FG.heroCTAs = [
   { label: '看 90 秒 Demo',  href: '#demo-sim',     primary: true },
   { label: '试玩分类引擎',     href: '#demo-play',    primary: false },
   { label: '调用 MCP API',    href: '#demo-mcp',     primary: false },
-  { label: 'GitHub',          href: 'https://github.com/bcefghj/larkmentor', external: true, primary: false },
+  { label: 'GitHub',          href: 'https://github.com/bcefghj/Agent-Pilot', external: true, primary: false },
 ];
 
 /* --------------------------------------------------------------------------
@@ -46,7 +46,7 @@ FG.heroCTAs = [
  * ----------------------------------------------------------------------- */
 FG.heroStats = [
   { v: '4',       k: '个 Mentor Skill',   note: '消息起草/任务澄清/入职沉淀/周报回顾', kind: 'built' },
-  { v: '119/119', k: 'pytest 通过',      note: 'v3 + v4 + LarkMentor 全过', kind: 'built' },
+  { v: '119/119', k: 'pytest 通过',      note: 'v3 + v4 + Agent-Pilot 全过', kind: 'built' },
   { v: '99%',     k: '6 维分类准确率',   note: '102 YAML 测试场景', kind: 'built' },
   { v: '10',      k: '个 MCP 工具',       note: '4 mentor_* + 4 alias + 6 v3', kind: 'built' },
 ];
@@ -71,7 +71,7 @@ FG.problemStats = [
     num: '0',
     unit: '',
     label: '现有 IM 工具中能在中断后帮你恢复上下文的数量',
-    src: 'LarkMentor 团队 · 7 类工具横评',
+    src: 'Agent-Pilot 团队 · 7 类工具横评',
   },
 ];
 
@@ -103,7 +103,7 @@ FG.solutions = [
     tag: '团队融入',
     title: 'MentorOnboard · 入门指引',
     desc: '5 问 onboarding 流（部门 / 导师 / 第一周目标 / 不熟悉的工具 / 想优先了解），答案存入用户 RAG 标记最高优先级，后续 Mentor 出手优先召回。',
-    bullets: ['5 问 30 秒', '答案入 RAG', '最高优先级召回', 'LarkMentor v1 新增'],
+    bullets: ['5 问 30 秒', '答案入 RAG', '最高优先级召回', 'Agent-Pilot v1 新增'],
   },
   {
     code: '04',
@@ -115,19 +115,19 @@ FG.solutions = [
 ];
 
 /* ----------------------------------------------------------------------
- * LarkMentor 4 个 Mentor Skill 模块说明
+ * Agent-Pilot 4 个 Mentor Skill 模块说明
  * （新加一屏，给评委看产品叙事的核心）
  * ----------------------------------------------------------------------- */
 FG.bytedanceAlignment = {
   title: '4 个 Mentor Skill 覆盖新人 IM 高频场景',
-  intro: 'LarkMentor 把表达引导代码化为 4 个 Skill——写作改写、任务澄清、周报生成、新人入职。让每个人有 24 小时在线的 AI Mentor，所有输出均为草稿，需确认后发送。',
+  intro: 'Agent-Pilot 把表达引导代码化为 4 个 Skill——写作改写、任务澄清、周报生成、新人入职。让每个人有 24 小时在线的 AI Mentor，所有输出均为草稿，需确认后发送。',
   rows: [
     { dim: '专业技能传授', module: 'MentorWrite', impl: 'NVC 4 段诊断 + 3 档语气 + 3 版改写' },
     { dim: '工作方法指导', module: 'MentorTask', impl: 'ambiguity 0-1 + 4 维缺失 + 主动澄清' },
     { dim: '团队融入协助', module: 'MentorOnboard', impl: '5 问入职流 + RAG 最高优先级' },
     { dim: '成长跟进', module: 'MentorReview', impl: 'STAR 强制结构 + 引用追踪 + 周日摘要' },
   ],
-  cta: { label: '看完整对齐说明 PDF', href: '/larkmentor_pitch.pdf' },
+  cta: { label: '看完整对齐说明 PDF', href: '/agent_pilot_pitch.pdf' },
 };
 
 /* --------------------------------------------------------------------------
@@ -290,7 +290,7 @@ FG.architecture = {
     { name: '飞书生态',   nodes: ['IM · Bitable · Docx · Calendar · Task · Minutes · Wiki · Contact · Urgent'] },
   ],
   inspirations: [
-    { from: 'Claude Code nO',       to: 'LarkMentor Agent Loop',  detail: '51 行主循环范式' },
+    { from: 'Claude Code nO',       to: 'Agent-Pilot Agent Loop',  detail: '51 行主循环范式' },
     { from: 'Claude Code wU2',      to: 'FlowMemory 三层压缩',    detail: 'Working / Compaction / Archival' },
     { from: 'Claude Code 7-gate',   to: '8 层安全栈',             detail: '权限 → 注入 → Hook → PII → 词典 → 速率 → 沙箱 → 审计' },
     { from: 'Claude Code 6-tier MD', to: '6 级 flow_memory.md',    detail: 'Enterprise / Workspace / Department / Group / User / Session' },
@@ -344,10 +344,10 @@ FG.team = [
     roleZh: '技术负责人 / 全栈实现 / 主答辩',
     eduPrimary: '中国科学技术大学 · 硕士在读',
     eduHighlight: '2027 届 · 计算机方向',
-    bio: '全栈开发。负责 LarkMentor 整体技术架构、飞书 API 集成、LLM 工程、自动化测试与阿里云 7×24 运维。',
+    bio: '全栈开发。负责 Agent-Pilot 整体技术架构、飞书 API 集成、LLM 工程、自动化测试与阿里云 7×24 运维。',
     quote: '我们不展示飞书 API 的"调用能力"，我们让评委亲身体验飞书生态的"网络效应"。',
     experiences: [
-      { org: 'LarkMentor',     role: '技术负责人', detail: '从零到一完成 v1 → v2 → v3 全部模块 · 5500+ 行代码' },
+      { org: 'Agent-Pilot',     role: '技术负责人', detail: '从零到一完成 v1 → v2 → v3 全部模块 · 5500+ 行代码' },
       { org: '阿里云 ECS',    role: 'DevOps',     detail: 'systemd 三件套 + Nginx + 7×24 守护 + LaTeX 编译流水线' },
       { org: '自动化测试',    role: 'QA 设计',    detail: '102 YAML 仿真器 + 33 pytest + 14 promptfoo 红队 + 30 项手工 SOP' },
     ],
@@ -369,7 +369,7 @@ FG.teamNarrative = '设计师懂工程师为什么要做 8 层安全；工程师
 FG.resources = [
   { icon: '📄', title: '10 页评审版 PDF',        href: 'http://118.178.242.26/dashboard',      note: '3 分钟读完核心', kind: 'doc' },
   { icon: '📚', title: '45 页技术深度报告',       href: 'http://118.178.242.26/dashboard',      note: '架构 / 算法 / 威胁模型', kind: 'doc' },
-  { icon: '💻', title: 'GitHub 开源仓库',         href: 'https://github.com/bcefghj/larkmentor', note: 'MIT License', kind: 'code' },
+  { icon: '💻', title: 'GitHub 开源仓库',         href: 'https://github.com/bcefghj/Agent-Pilot', note: 'MIT License', kind: 'code' },
   { icon: '📊', title: 'Live Dashboard',          href: 'http://118.178.242.26/dashboard',      note: '实时分类 / 热力图', kind: 'live' },
   { icon: '🔌', title: 'MCP Tools API',           href: 'http://118.178.242.26/mcp/tools',      note: '6 工具 · JSON Schema', kind: 'live' },
   { icon: '🌐', title: '飞书 AI 校园挑战赛',     href: 'https://bytedance.aiforce.cloud/app/app_4jv6kvy942afr', note: '官方报名页', kind: 'ext' },
@@ -382,8 +382,8 @@ FG.resources = [
  * ----------------------------------------------------------------------- */
 FG.faq = [
   {
-    q: 'LarkMentor 跟飞书原生勿扰、Slack AI 有什么不同？',
-    a: '飞书勿扰会漏老板 P0；Slack AI 只做 thread 内总结，没跨群注意力。LarkMentor 在飞书原生层做"跨群智能挡 + 中断后恢复 + 三层企业记忆 + MCP 对外开放"四件事。',
+    q: 'Agent-Pilot 跟飞书原生勿扰、Slack AI 有什么不同？',
+    a: '飞书勿扰会漏老板 P0；Slack AI 只做 thread 内总结，没跨群注意力。Agent-Pilot 在飞书原生层做"跨群智能挡 + 中断后恢复 + 三层企业记忆 + MCP 对外开放"四件事。',
   },
   {
     q: '隐私怎么保护？',
@@ -395,7 +395,7 @@ FG.faq = [
   },
   {
     q: '为什么要做 MCP Server？',
-    a: '我们想让 LarkMentor 不只是 Bot，而是飞书生态的 Memory 中间件。Cursor / Claude Code / OpenClaw 用户接入后能直接询问"我现在在专注吗"、"本周做了什么"、"把这个发件人加白名单"。',
+    a: '我们想让 Agent-Pilot 不只是 Bot，而是飞书生态的 Memory 中间件。Cursor / Claude Code / OpenClaw 用户接入后能直接询问"我现在在专注吗"、"本周做了什么"、"把这个发件人加白名单"。',
   },
   {
     q: '99% 准确率是真的吗？',
@@ -411,7 +411,7 @@ FG.simScript = [
     t: 0,
     type: 'system',
     text: '用户私聊 Bot："开始专注 90 分钟"',
-    detail: 'LarkMentor 进入 Shield 状态，所有群消息开始走分流',
+    detail: 'Agent-Pilot 进入 Shield 状态，所有群消息开始走分流',
   },
   {
     t: 2.5,
@@ -478,7 +478,7 @@ FG.simScript = [
     t: 28,
     type: 'system',
     text: '用户敲 "结束专注"',
-    detail: 'LarkMentor 调用 LLM 生成 Recovery Card',
+    detail: 'Agent-Pilot 调用 LLM 生成 Recovery Card',
   },
   {
     t: 30,
@@ -492,7 +492,7 @@ FG.simScript = [
       '🟠 张三 Q3 方案：先看一遍再回，预计 15 分钟',
       '🟢 王五的周报模板已自动回复，完成',
     ],
-    docLink: '已写入飞书云文档「LarkMentor 上下文恢复卡片」',
+    docLink: '已写入飞书云文档「Agent-Pilot 上下文恢复卡片」',
   },
 ];
 

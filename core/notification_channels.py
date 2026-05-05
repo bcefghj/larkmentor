@@ -34,7 +34,7 @@ import requests
 
 from config import Config
 
-logger = logging.getLogger("flowguard.notify")
+logger = logging.getLogger("agent_pilot.notify")
 
 
 @dataclass

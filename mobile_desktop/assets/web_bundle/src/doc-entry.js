@@ -1,4 +1,4 @@
-// LarkMentor v4 · Doc Entry (Tiptap + Yjs 真协同 + IndexedDB 离线)
+// Agent-Pilot v4 · Doc Entry (Tiptap + Yjs 真协同 + IndexedDB 离线)
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
@@ -11,7 +11,7 @@ import { IndexeddbPersistence } from 'y-indexeddb';
 
 function getConfig() {
   const params = new URLSearchParams(window.location.search);
-  const flutterCfg = window.LARKMENTOR_CONFIG || {};
+  const flutterCfg = window.AGENT_PILOT_CONFIG || {};
   return {
     wsUrl: params.get('wsUrl') || flutterCfg.wsUrl || 'ws://127.0.0.1:8002',
     roomId: params.get('room') || flutterCfg.roomId || 'default-doc',
@@ -34,7 +34,7 @@ const cfg = getConfig();
 const doc = new Y.Doc();
 
 // L1: IndexedDB persistence
-const idb = new IndexeddbPersistence(`larkmentor-doc-${cfg.roomId}`, doc);
+const idb = new IndexeddbPersistence(`agent-pilot-doc-${cfg.roomId}`, doc);
 idb.on('synced', () => postStatus('🟢 本地离线缓存已同步'));
 
 // L2: WebSocket 真协同
@@ -60,8 +60,8 @@ const editor = new Editor({
 });
 
 // Expose commands for Flutter
-window.larkmentor = window.larkmentor || {};
-window.larkmentor.applyCommand = (cmd) => {
+window.agentPilot = window.agentPilot || {};
+window.agentPilot.applyCommand = (cmd) => {
   try {
     if (cmd.kind === 'insert_image') {
       editor.chain().focus().setImage({ src: cmd.src }).run();

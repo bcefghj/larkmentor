@@ -22,7 +22,7 @@ from core.mentor import (
 )
 from memory.user_state import add_org_doc
 
-logger = logging.getLogger("flowguard.handler.mentor")
+logger = logging.getLogger("agent_pilot.handler.mentor")
 
 # All mentor-related command names
 MENTOR_COMMANDS = frozenset(

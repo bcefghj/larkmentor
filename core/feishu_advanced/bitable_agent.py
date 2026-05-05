@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger("flowguard.feishu.bitable_agent")
+logger = logging.getLogger("agent_pilot.feishu.bitable_agent")
 
 
 def build_intent_from_fields(fields: Dict[str, Any], template: str = "") -> str:

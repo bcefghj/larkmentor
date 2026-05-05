@@ -18,7 +18,7 @@ from typing import Optional
 from llm.llm_client import chat_json
 from llm.prompts import MENTOR_ROUTER_PROMPT
 
-logger = logging.getLogger("flowguard.mentor.router")
+logger = logging.getLogger("agent_pilot.mentor.router")
 
 
 # Order matters: more specific keywords first.

@@ -26,7 +26,7 @@ import threading
 import time
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger("larkmentor.feishu.ws")
+logger = logging.getLogger("agent-pilot.feishu.ws")
 
 
 class _EventDedup:

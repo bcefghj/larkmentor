@@ -1,4 +1,4 @@
-# LarkMentor Pilot · Flutter 客户端
+# Agent-Pilot · Flutter 客户端
 
 一套代码跑 **iOS / Android / macOS / Windows** 四端，作为 Agent-Pilot 的 **Co-pilot GUI 驾驶舱**。
 
@@ -59,11 +59,11 @@ flutter run -d chrome
 ```bash
 # macOS DMG
 flutter build macos --release
-# 产物：build/macos/Build/Products/Release/larkmentor_pilot.app
+# 产物：build/macos/Build/Products/Release/agent_pilot.app
 
 # Windows MSIX / exe
 flutter build windows --release
-# 产物：build/windows/x64/runner/Release/larkmentor_pilot.exe
+# 产物：build/windows/x64/runner/Release/agent_pilot.exe
 
 # Android APK（直接分发）
 flutter build apk --release

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Post-deploy smoke test for LarkMentor v2 (runs on the server).
+# Post-deploy smoke test for Agent-Pilot v2 (runs on the server).
 # 20 checks covering Bot / Dashboard / Pilot / Sync / MCP.
 
 set -e

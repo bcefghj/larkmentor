@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
 
-logger = logging.getLogger("flowguard.security.classifier")
+logger = logging.getLogger("agent_pilot.security.classifier")
 
 
 class Action(enum.Enum):

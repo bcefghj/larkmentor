@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LarkMentor v4 · 一键蓝绿部署（Docker + systemd）
+# Agent-Pilot v4 · 一键蓝绿部署（Docker + systemd）
 #
 # 环境变量：
 #   HOST=阿里云 IP (默认 118.178.242.26)
@@ -45,7 +45,7 @@ if [[ "$ACTIVE" == "/opt/lm_blue" ]]; then IDLE=/opt/lm_green; else IDLE=/opt/lm
 echo "Active=$ACTIVE → Idle=$IDLE"
 
 step "3/7 打包"
-TAR="/tmp/larkmentor_v4_$(date +%s).tar.gz"
+TAR="/tmp/agent_pilot_v4_$(date +%s).tar.gz"
 tar --exclude=.venv --exclude=__pycache__ --exclude=data/pilot_plans \
     --exclude=data/pilot_artifacts --exclude=data/attachments --exclude=.env \
     --exclude=node_modules --exclude="*.pyc" \

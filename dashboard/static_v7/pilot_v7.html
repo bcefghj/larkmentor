@@ -109,7 +109,7 @@ function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelector(`.tab[onclick*="'${tab}'"]`).classList.add('active');
   document.getElementById('panel-' + tab).classList.add('active');
   refresh();
 }

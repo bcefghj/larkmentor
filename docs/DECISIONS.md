@@ -6,10 +6,10 @@
 
 ---
 
-## D01 · 从 FlowGuard → LarkMentor 改名
+## D01 · 从 FlowGuard → Agent-Pilot 改名
 
 **日期**：2026-04-19（前序工作中已完成）
-**决策**：把 v3 FlowGuard / v4 Coach 改名为 LarkMentor。
+**决策**：把 v3 FlowGuard / v4 Coach 改名为 Agent-Pilot。
 **为什么**：
 - v3/v4 名字偏"工具感"，缺少飞书生态识别度
 - "Lark" 直接对应飞书品牌，"Mentor" 是有关系感的词
@@ -36,7 +36,7 @@
 
 **日期**：2026-04-19
 **决策**：
-- 志愿 1 = 飞书 AI 产品创新 · 课题二（IM 协同助手）→ LarkMentor 全栈
+- 志愿 1 = 飞书 AI 产品创新 · 课题二（IM 协同助手）→ Agent-Pilot 全栈
 - 志愿 2 = OpenClaw · 课题二（长程协作 Memory）→ FlowMemory 引擎独立提取
 - 志愿 3 = AI 大模型安全 · 课题一（客户端防护）→ ShieldClaw 8 层栈独立提取
 **否决备选**：
@@ -61,25 +61,25 @@
 - ❌ 自创架构 —— 没有成熟参考，且评委不熟
 **为什么 Claude Code**：
 - 行业事实标准，评委必看过
-- LarkMentor **已经有这 7 个机制的雏形**，不是从零
+- Agent-Pilot **已经有这 7 个机制的雏形**，不是从零
 - "学习 Claude Code"是一个能讲故事的话术
 **详细见**：[../larkmentor/ARCHITECTURE.md](../larkmentor/ARCHITECTURE.md) §1
 **状态**：✅ 架构定稿，代码层落地待 step4-step11
 
 ---
 
-## D05 · 双仓拆分：larkmentor + larkmentor_bcefghj
+## D05 · 双仓拆分：agent-pilot + agent-pilot_bcefghj
 
 **日期**：2026-04-19
 **决策**：
-- `larkmentor/` = 评委版（public-friendly，PII-clean）
-- `larkmentor_bcefghj/` = 个人版（含敏感、心路、决策）
+- `agent-pilot/` = 评委版（public-friendly，PII-clean）
+- `agent-pilot_bcefghj/` = 个人版（含敏感、心路、决策）
 - 两个 GitHub 仓库都 **private**，决赛前都不公开
 **为什么不一个仓库**：
 - 评委不应该看到密码 / 心路 / 决策
 - 个人版不应该被评委看到（保护私人反思）
 - 两套文档定位不同，混在一起会干扰叙事
-**代码层关系**：bcefghj git submodule 引用 larkmentor 代码（同源，不重复维护）
+**代码层关系**：bcefghj git submodule 引用 agent-pilot 代码（同源，不重复维护）
 **状态**：✅ 目录已建（step2），git 初始化等用户允许
 
 ---
@@ -107,7 +107,7 @@
 **决策**：保留 `mentor_*` 模块名/文件名/类名/MCP 工具名（不要因为禁用"对齐字节 Mentor 4 大职责"叙事就改回 coach_*）。
 **为什么**：
 - "Mentor" 是产品功能命名，不是话术
-- 改回 coach_* 会破坏 v4→LarkMentor 的代码连续性
+- 改回 coach_* 会破坏 v4→Agent-Pilot 的代码连续性
 - 旧 `coach_*` MCP 工具保留为 alias，2 版本后再删
 **外部影响**：所有外部文档话术不能再说"对齐字节 Mentor 规范"，但模块名 `mentor_*` 保留
 **状态**：✅ 已记入架构原则 6
@@ -118,7 +118,7 @@
 
 | 不改 | 为什么 |
 |---|---|
-| 项目名 LarkMentor | D01 已定，再改会乱 |
+| 项目名 Agent-Pilot | D01 已定，再改会乱 |
 | 阿里云 2C2G 服务器 | 已部署、已购买，决赛前不动 |
 | Doubao Embedding for RAG | 同 ARK key，不增加运维成本 |
 | .env 中的 key 命名 | 改了会破坏现有 119 pytest |

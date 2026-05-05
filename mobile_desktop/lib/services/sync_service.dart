@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 
+import 'offline_cache.dart';
 import 'settings_service.dart';
 
 /// Singleton wrapper around the backend's `/sync/ws` WebSocket.
@@ -24,8 +25,10 @@ class SyncService {
   final StreamController<Map<String, dynamic>> _msgs =
       StreamController<Map<String, dynamic>>.broadcast();
   final Set<String> _joinedRooms = <String>{};
+  final List<Map<String, dynamic>> _pendingUpdates = [];
   Timer? _pinger;
   bool _connecting = false;
+  final OfflineCache _offlineCache = OfflineCache.instance;
 
   Stream<Map<String, dynamic>> get stream => _msgs.stream;
 
@@ -53,6 +56,8 @@ class SyncService {
       for (final r in _joinedRooms) {
         channel.sink.add(jsonEncode({'op': 'join', 'room': r}));
       }
+      // Replay cached offline updates
+      _replayCachedUpdates();
       _pinger?.cancel();
       _pinger = Timer.periodic(const Duration(seconds: 25), (_) => send({'op': 'ping'}));
     } catch (e) {
@@ -66,6 +71,15 @@ class SyncService {
   void _onDone() {
     _channel = null;
     _pinger?.cancel();
+    // Cache any pending updates that weren't sent
+    for (final update in _pendingUpdates) {
+      final room = update['room'] as String?;
+      final b64 = update['update_b64'] as String?;
+      if (room != null && b64 != null) {
+        _offlineCache.save(room, b64);
+      }
+    }
+    _pendingUpdates.clear();
     // Reconnect with backoff
     Future.delayed(const Duration(seconds: 2), connect);
   }
@@ -86,6 +100,10 @@ class SyncService {
   }
 
   void publishYUpdate(String room, String updateB64) {
+    if (_channel == null) {
+      _offlineCache.save(room, updateB64);
+      return;
+    }
     send({'op': 'yupdate', 'room': room, 'update_b64': updateB64});
   }
 
@@ -93,6 +111,23 @@ class SyncService {
     try {
       _channel?.sink.add(jsonEncode(payload));
     } catch (e) { debugPrint('SyncService send failed: $e'); }
+  }
+
+  Future<void> _replayCachedUpdates() async {
+    for (final room in _joinedRooms) {
+      try {
+        final pending = await _offlineCache.pending(room);
+        if (pending.isEmpty) continue;
+        final ids = <int>[];
+        for (final row in pending) {
+          send({'op': 'yupdate', 'room': room, 'update_b64': row['update_b64']});
+          ids.add(row['id'] as int);
+        }
+        await _offlineCache.markFlushed(ids);
+      } catch (e) {
+        debugPrint('SyncService replay error for $room: $e');
+      }
+    }
   }
 
   Future<void> close() async {

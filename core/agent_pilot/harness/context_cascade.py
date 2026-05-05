@@ -1,14 +1,17 @@
-"""Claude Code-style 6-layer context compression cascade.
+"""Claude Code-style 9-layer context compression cascade.
 
-实现六层渐进式上下文压缩，按开销从低到高依次触发：
+实现九层渐进式上下文压缩，按开销从低到高依次触发：
 
-1. **MicroCompact**        — 零 API 开销：裁剪旧工具输出（超过 N 轮的输出截断至 500 字符）
-2. **DropToolResults**     — 将旧工具返回值替换为状态摘要行（OK/ERROR + 预览）
-3. **SummarizeOldTurns**   — 将旧对话轮次折叠为单行角色标注摘要
-4. **AutoCompact**         — 接近上下文窗口上限时触发（默认 100K token），生成 ≤20K token
+1. **MicroCompact**          — 零 API 开销：裁剪旧工具输出（超过 N 轮的输出截断至 500 字符）
+2. **TailTrimming**          — 丢弃最老的消息直至 token 预算以内（保留系统 + 最近轮次）
+3. **DropToolResults**       — 将旧工具返回值替换为状态摘要行（OK/ERROR + 预览）
+4. **SummarizeOldTurns**     — 将旧对话轮次折叠为单行角色标注摘要
+5. **AutoCompact**           — 接近上下文窗口上限时触发（默认 100K token），生成 ≤20K token
    的结构化摘要，含断路器（连续 3 次失败后停止重试）
-5. **ExtractKeyDecisions** — 仅保留对话中的关键决策点，丢弃非决策内容
-6. **FullCompact**         — 全量对话压缩：重新注入最近访问的文件（每份 ≤5K token）、
+6. **MemoryDeduplication**   — 检测并合并语义重复的消息内容，去除冗余记忆
+7. **ExtractKeyDecisions**   — 仅保留对话中的关键决策点，丢弃非决策内容
+8. **EmergencyTruncation**   — 硬字符上限截断：当所有其他层仍然超限时，暴力截断到安全长度
+9. **FullCompact**           — 全量对话压缩：重新注入最近访问的文件（每份 ≤5K token）、
    活跃计划步骤、相关 skill schema；压缩后预算重置为 50K token
 
 设计原则：cheapest-first（无损 → 有损 → 全量重写），每层产出可观测的结构化事件。
@@ -189,7 +192,82 @@ class MicroCompact:
 
 
 # ────────────────────────────────────────────────────────────────
-# Layer 2: AutoCompact
+# Layer 2: TailTrimming
+# ────────────────────────────────────────────────────────────────
+
+
+class TailTrimming:
+    """Drop oldest non-system messages to bring token count under budget.
+
+    Always preserves system messages and the most recent ``keep_recent``
+    turns.  Drops from the oldest user/assistant/tool messages first.
+    This is a cheap, lossless-ish layer — no summarisation, just removal.
+    """
+
+    def __init__(
+        self,
+        *,
+        target_tokens: int = 80_000,
+        keep_recent: int = 10,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.target_tokens = target_tokens
+        self.keep_recent = keep_recent
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+
+        if tokens_before <= self.target_tokens:
+            _emit(
+                self._on_event, "tail_trim", "skipped",
+                tokens_before=tokens_before,
+                detail=f"under target ({tokens_before}/{self.target_tokens})",
+            )
+            return messages, 0
+
+        system_msgs = [m for m in messages if m.get("role") == "system"]
+        non_system = [m for m in messages if m.get("role") != "system"]
+
+        keep_tail = non_system[-self.keep_recent:] if len(non_system) > self.keep_recent else non_system
+        droppable = non_system[:-self.keep_recent] if len(non_system) > self.keep_recent else []
+
+        result = list(system_msgs) + list(keep_tail)
+        dropped = 0
+
+        tokens_now = messages_token_count(result)
+        if tokens_now <= self.target_tokens or not droppable:
+            dropped = len(non_system) - len(keep_tail)
+            tokens_after = messages_token_count(result)
+            _emit(
+                self._on_event, "tail_trim", "completed",
+                tokens_before=tokens_before, tokens_after=tokens_after,
+                messages_dropped=dropped,
+                detail=f"dropped {dropped} oldest messages",
+            )
+            return result, dropped
+
+        preserved: List[Dict[str, Any]] = []
+        for m in reversed(droppable):
+            candidate = system_msgs + preserved + keep_tail
+            if messages_token_count(candidate + [m]) <= self.target_tokens:
+                preserved.insert(0, m)
+            else:
+                dropped += 1
+
+        result = system_msgs + preserved + keep_tail
+        tokens_after = messages_token_count(result)
+        _emit(
+            self._on_event, "tail_trim", "completed",
+            tokens_before=tokens_before, tokens_after=tokens_after,
+            messages_dropped=dropped,
+            detail=f"dropped {dropped} oldest messages",
+        )
+        return result, dropped
+
+
+# ────────────────────────────────────────────────────────────────
+# Layer 3: AutoCompact
 # ────────────────────────────────────────────────────────────────
 
 
@@ -681,22 +759,177 @@ class ExtractKeyDecisions:
 
 
 # ────────────────────────────────────────────────────────────────
+# Layer 7: MemoryDeduplication
+# ────────────────────────────────────────────────────────────────
+
+
+class MemoryDeduplication:
+    """Detect and merge semantically duplicate messages.
+
+    Uses a simple n-gram fingerprinting approach: messages whose first
+    ``fingerprint_chars`` characters match (after normalisation) are
+    considered duplicates.  The newer duplicate is kept; older ones are
+    dropped.  System messages are never deduplicated.
+    """
+
+    def __init__(
+        self,
+        *,
+        fingerprint_chars: int = 120,
+        similarity_threshold: float = 0.85,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.fingerprint_chars = fingerprint_chars
+        self.similarity_threshold = similarity_threshold
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+        seen_fingerprints: Dict[str, int] = {}
+        result: List[Dict[str, Any]] = []
+        duplicates = 0
+
+        for idx, m in enumerate(messages):
+            role = m.get("role", "")
+            if role == "system":
+                result.append(m)
+                continue
+
+            fp = self._fingerprint(m)
+            if fp in seen_fingerprints:
+                prev_idx = seen_fingerprints[fp]
+                result = [r for i, r in enumerate(result) if i != prev_idx]
+                duplicates += 1
+                seen_fingerprints[fp] = len(result)
+                result.append(m)
+            else:
+                seen_fingerprints[fp] = len(result)
+                result.append(m)
+
+        tokens_after = messages_token_count(result)
+        _emit(
+            self._on_event, "dedup", "completed",
+            tokens_before=tokens_before, tokens_after=tokens_after,
+            messages_dropped=duplicates,
+            detail=f"removed {duplicates} duplicate messages",
+        )
+        return result, duplicates
+
+    def _fingerprint(self, m: Dict[str, Any]) -> str:
+        """Normalised fingerprint for duplicate detection."""
+        content = str(m.get("content", "") or "").strip().lower()
+        content = " ".join(content.split())
+        role = m.get("role", "")
+        return f"{role}:{content[:self.fingerprint_chars]}"
+
+
+# ────────────────────────────────────────────────────────────────
+# Layer 8: EmergencyTruncation
+# ────────────────────────────────────────────────────────────────
+
+
+class EmergencyTruncation:
+    """Hard character-limit truncation as the last resort before FullCompact.
+
+    When all lighter layers fail to bring the conversation under budget,
+    this layer brutally trims each message to ``max_chars_per_message``
+    and drops messages from the middle until the total is under
+    ``hard_char_limit``.  System messages and the most recent
+    ``keep_recent`` messages are protected.
+    """
+
+    def __init__(
+        self,
+        *,
+        hard_char_limit: int = 350_000,
+        max_chars_per_message: int = 2000,
+        keep_recent: int = 6,
+        on_event: Optional[EventCallback] = None,
+    ) -> None:
+        self.hard_char_limit = hard_char_limit
+        self.max_chars_per_message = max_chars_per_message
+        self.keep_recent = keep_recent
+        self._on_event = on_event
+
+    def compact(self, messages: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], int]:
+        tokens_before = messages_token_count(messages)
+        total_chars = sum(len(str(m.get("content", "") or "")) for m in messages)
+
+        if total_chars <= self.hard_char_limit:
+            _emit(
+                self._on_event, "emergency", "skipped",
+                tokens_before=tokens_before,
+                detail=f"under hard limit ({total_chars}/{self.hard_char_limit})",
+            )
+            return messages, 0
+
+        truncated: List[Dict[str, Any]] = []
+        for m in messages:
+            content = str(m.get("content", "") or "")
+            if len(content) > self.max_chars_per_message and m.get("role") != "system":
+                m = {**m, "content": content[:self.max_chars_per_message] + "\n…[emergency truncated]"}
+            truncated.append(m)
+
+        total_chars = sum(len(str(m.get("content", "") or "")) for m in truncated)
+        if total_chars <= self.hard_char_limit:
+            tokens_after = messages_token_count(truncated)
+            _emit(
+                self._on_event, "emergency", "completed",
+                tokens_before=tokens_before, tokens_after=tokens_after,
+                messages_dropped=0,
+                detail="per-message truncation was sufficient",
+            )
+            return truncated, 0
+
+        protected_tail = truncated[-self.keep_recent:]
+        system_msgs = [m for m in truncated[:-self.keep_recent] if m.get("role") == "system"]
+        droppable = [m for m in truncated[:-self.keep_recent] if m.get("role") != "system"]
+
+        result = list(system_msgs)
+        dropped = 0
+        char_budget = self.hard_char_limit - sum(
+            len(str(m.get("content", "") or "")) for m in system_msgs + protected_tail
+        )
+
+        for m in reversed(droppable):
+            msg_chars = len(str(m.get("content", "") or ""))
+            if char_budget >= msg_chars:
+                result.insert(len(system_msgs), m)
+                char_budget -= msg_chars
+            else:
+                dropped += 1
+
+        result.extend(protected_tail)
+        tokens_after = messages_token_count(result)
+        _emit(
+            self._on_event, "emergency", "completed",
+            tokens_before=tokens_before, tokens_after=tokens_after,
+            messages_dropped=dropped,
+            detail=f"emergency dropped {dropped} messages to fit hard limit",
+        )
+        return result, dropped
+
+
+# ────────────────────────────────────────────────────────────────
 # Orchestrator: ContextCascade
 # ────────────────────────────────────────────────────────────────
 
 
 class ContextCascade:
-    """Orchestrates the 6-layer compression cascade.
+    """Orchestrates the 9-layer compression cascade.
 
     Layers fire in order of increasing cost / aggressiveness, and each layer
     only triggers when the previous one was insufficient:
 
-    1. **MicroCompact**        — always runs (free): trim stale tool outputs
-    2. **DropToolResults**     — strip verbose tool payloads to status lines
-    3. **SummarizeOldTurns**   — collapse old turns into one-line summaries
-    4. **AutoCompact**         — structured middle-section summary
-    5. **ExtractKeyDecisions** — keep only decision points from history
-    6. **FullCompact**         — full rewrite with context re-injection
+    1. **MicroCompact**          — always runs (free): trim stale tool outputs
+    2. **TailTrimming**          — drop oldest non-system messages
+    3. **DropToolResults**       — strip verbose tool payloads to status lines
+    4. **SummarizeOldTurns**     — collapse old turns into one-line summaries
+    5. **AutoCompact**           — structured middle-section summary
+    6. **MemoryDeduplication**   — remove semantically duplicate messages
+    7. **ExtractKeyDecisions**   — keep only decision points from history
+    8. **EmergencyTruncation**   — hard char limit as last resort
+    9. **FullCompact**           — full rewrite with context re-injection
 
     Parameters
     ----------
@@ -713,17 +946,20 @@ class ContextCascade:
     -------
     >>> cascade = ContextCascade(context_window=128_000)
     >>> result = cascade.compact(messages)
-    >>> print(result.layers_fired)  # e.g. ["micro"] or ["micro", "drop_tool", "auto"]
+    >>> print(result.layers_fired)  # e.g. ["micro"] or ["micro", "tail_trim", "auto"]
     """
 
     def __init__(
         self,
         *,
         context_window: int = 128_000,
+        tail_trim_ceiling: int = 75_000,
         drop_tool_ceiling: int = 80_000,
         summarize_ceiling: int = 90_000,
         auto_ceiling: int = 100_000,
+        dedup_ceiling: int = 105_000,
         decisions_ceiling: int = 110_000,
+        emergency_ceiling: int = 115_000,
         full_ceiling: int = 120_000,
         micro_keep_turns: int = 6,
         micro_max_chars: int = 500,
@@ -731,19 +967,27 @@ class ContextCascade:
         auto_max_failures: int = 3,
         full_post_budget: int = 50_000,
         full_file_cap: int = 5_000,
+        emergency_hard_char_limit: int = 350_000,
         on_event: Optional[EventCallback] = None,
     ) -> None:
         self.context_window = context_window
+        self.tail_trim_ceiling = tail_trim_ceiling
         self.drop_tool_ceiling = drop_tool_ceiling
         self.summarize_ceiling = summarize_ceiling
         self.auto_ceiling = auto_ceiling
+        self.dedup_ceiling = dedup_ceiling
         self.decisions_ceiling = decisions_ceiling
+        self.emergency_ceiling = emergency_ceiling
         self.full_ceiling = full_ceiling
         self._on_event = on_event
 
         self._micro = MicroCompact(
             keep_recent_turns=micro_keep_turns,
             max_chars=micro_max_chars,
+            on_event=on_event,
+        )
+        self._tail_trim = TailTrimming(
+            target_tokens=tail_trim_ceiling,
             on_event=on_event,
         )
         self._drop_tool = DropToolResults(on_event=on_event)
@@ -754,7 +998,12 @@ class ContextCascade:
             max_failures=auto_max_failures,
             on_event=on_event,
         )
+        self._dedup = MemoryDeduplication(on_event=on_event)
         self._key_decisions = ExtractKeyDecisions(on_event=on_event)
+        self._emergency = EmergencyTruncation(
+            hard_char_limit=emergency_hard_char_limit,
+            on_event=on_event,
+        )
         self._full = FullCompact(
             post_budget=full_post_budget,
             file_cap_tokens=full_file_cap,
@@ -787,46 +1036,67 @@ class ContextCascade:
         layers_fired: List[str] = []
         events: List[CascadeEvent] = []
 
-        def collector(e):
-            return events.append(e)
+        def collector(e: CascadeEvent) -> None:
+            events.append(e)
 
         self._micro._on_event = collector
+        self._tail_trim._on_event = collector
         self._drop_tool._on_event = collector
         self._summarize_old._on_event = collector
         self._auto._on_event = collector
+        self._dedup._on_event = collector
         self._key_decisions._on_event = collector
+        self._emergency._on_event = collector
         self._full._on_event = collector
 
-        # Layer 1: MicroCompact (always runs)
+        # Layer 1: MicroCompact (always runs — free)
         current, _ = self._micro.compact(messages)
         layers_fired.append("micro")
         tokens_now = messages_token_count(current)
 
-        # Layer 2: DropToolResults (conditional)
+        # Layer 2: TailTrimming (conditional)
+        if tokens_now >= self.tail_trim_ceiling:
+            current, _ = self._tail_trim.compact(current)
+            layers_fired.append("tail_trim")
+            tokens_now = messages_token_count(current)
+
+        # Layer 3: DropToolResults (conditional)
         if tokens_now >= self.drop_tool_ceiling:
             current, _ = self._drop_tool.compact(current)
             layers_fired.append("drop_tool")
             tokens_now = messages_token_count(current)
 
-        # Layer 3: SummarizeOldTurns (conditional)
+        # Layer 4: SummarizeOldTurns (conditional)
         if tokens_now >= self.summarize_ceiling:
             current, _ = self._summarize_old.compact(current)
             layers_fired.append("summarize_old")
             tokens_now = messages_token_count(current)
 
-        # Layer 4: AutoCompact (conditional)
+        # Layer 5: AutoCompact (conditional)
         if tokens_now >= self.auto_ceiling:
             current, _ = self._auto.compact(current)
             layers_fired.append("auto")
             tokens_now = messages_token_count(current)
 
-        # Layer 5: ExtractKeyDecisions (conditional)
+        # Layer 6: MemoryDeduplication (conditional)
+        if tokens_now >= self.dedup_ceiling:
+            current, _ = self._dedup.compact(current)
+            layers_fired.append("dedup")
+            tokens_now = messages_token_count(current)
+
+        # Layer 7: ExtractKeyDecisions (conditional)
         if tokens_now >= self.decisions_ceiling:
             current, _ = self._key_decisions.compact(current)
             layers_fired.append("key_decisions")
             tokens_now = messages_token_count(current)
 
-        # Layer 6: FullCompact (conditional)
+        # Layer 8: EmergencyTruncation (conditional)
+        if tokens_now >= self.emergency_ceiling:
+            current, _ = self._emergency.compact(current)
+            layers_fired.append("emergency")
+            tokens_now = messages_token_count(current)
+
+        # Layer 9: FullCompact (conditional)
         if tokens_now >= self.full_ceiling:
             current, _ = self._full.compact(
                 current,
@@ -876,10 +1146,13 @@ __all__ = [
     "CascadeEvent",
     "CompactResult",
     "MicroCompact",
+    "TailTrimming",
     "AutoCompact",
     "FullCompact",
     "SummarizeOldTurns",
     "DropToolResults",
+    "MemoryDeduplication",
     "ExtractKeyDecisions",
+    "EmergencyTruncation",
     "ContextCascade",
 ]

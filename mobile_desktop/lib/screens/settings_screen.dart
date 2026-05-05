@@ -47,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await SettingsService.instance.setOpenId(_openIdCtrl.text.trim());
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('已保存。下次重启生效。')),
+                  const SnackBar(content: Text('已保存，WebView 将自动刷新。')),
                 );
               }
             },
@@ -57,10 +57,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(),
           const SizedBox(height: 12),
           const Text(
-            'LarkMentor · Agent-Pilot v2\n\n'
+            'Agent-Pilot v2\n\n'
             '四端一套代码：iOS / Android / macOS / Windows\n'
             '通过 Yjs CRDT 与后端、飞书 Bot、Web Dashboard 实时同步\n\n'
-            'GitHub: https://github.com/bcefghj/larkmentor\n'
+            'GitHub: https://github.com/bcefghj/agent-pilot\n'
             '服务器: http://118.178.242.26',
             style: TextStyle(color: Colors.white70),
           ),

@@ -40,7 +40,7 @@ def isolated_data(tmp_path, monkeypatch):
 
 
 def test_registry_lists_lark_mentor_tools():
-    """LarkMentor keeps v3 six tools, adds four mentor_* tools, plus four coach_* aliases."""
+    """Agent-Pilot keeps v3 six tools, adds four mentor_* tools, plus four coach_* aliases."""
     tools = list_tools()
     names = {t["name"] for t in tools}
     expected_v3 = {

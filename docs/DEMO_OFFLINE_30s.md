@@ -4,7 +4,7 @@
 在 30 秒内让评委看到：飞行模式下两端各自编辑画布与文档 → 恢复网络 → 不到 2 秒多端自动收敛，无冲突。
 
 ## 前置
-- 已装好 `larkmentor-macos.dmg` 和 `larkmentor-android.apk`（`scripts/build_flutter_all.sh`）
+- 已装好 `agent-pilot-macos.dmg` 和 `agent-pilot-android.apk`（`scripts/build_flutter_all.sh`）
 - 两端已连接同一 room：`canvas:demo-offline`、`doc:demo-offline`
 - 后端 `uvicorn dashboard.server:app` 正常运行
 

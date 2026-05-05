@@ -23,7 +23,7 @@ from llm.prompts import MENTOR_PROACTIVE_REPLY_PROMPT
 
 from . import knowledge_base as kb
 
-logger = logging.getLogger("flowguard.mentor.proactive")
+logger = logging.getLogger("agent_pilot.mentor.proactive")
 
 
 @dataclass

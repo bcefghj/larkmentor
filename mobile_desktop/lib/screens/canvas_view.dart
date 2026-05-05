@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,7 +5,6 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../services/settings_service.dart';
-import '../services/sync_service.dart';
 
 /// Real-collab canvas view (P3.1).
 ///
@@ -17,8 +15,10 @@ import '../services/sync_service.dart';
 /// Flutter via a postMessage bridge so the status chip shows who else is
 /// editing.
 class CanvasView extends StatefulWidget {
-  const CanvasView({super.key, this.room = "canvas:default"});
-  final String room;
+  const CanvasView({super.key, this.planId = "default"});
+  final String planId;
+
+  String get room => "canvas:$planId";
 
   @override
   State<CanvasView> createState() => _CanvasViewState();
@@ -29,20 +29,21 @@ class _CanvasViewState extends State<CanvasView> {
   final List<Map<String, dynamic>> _peers = [];
   String _wsStatus = "init";
   bool _offlineLoaded = false;
-  StreamSubscription? _sub;
+  VoidCallback? _settingsListener;
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
-    _sub = SyncService.instance.stream.listen((msg) {
-      if (msg['type'] == 'canvas.refresh') _reload();
-    });
+    _settingsListener = () => _reload();
+    SettingsService.instance.addChangeListener(_settingsListener!);
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
+    if (_settingsListener != null) {
+      SettingsService.instance.removeChangeListener(_settingsListener!);
+    }
     super.dispose();
   }
 
@@ -73,7 +74,24 @@ class _CanvasViewState extends State<CanvasView> {
   }
 
   Future<void> _reload() async {
-    try { await _controller.reload(); } catch (e) { debugPrint('CanvasView reload failed: $e'); }
+    try {
+      final html = await rootBundle.loadString('assets/web_bridge/tldraw.html');
+      final cfgJson = jsonEncode({
+        "wsUrl": SettingsService.instance.wsUrl,
+        "room": widget.room,
+        "user": {
+          "name": SettingsService.instance.displayName,
+          "color": "#58A6FF",
+        },
+      });
+      final injected = html.replaceFirst(
+        '<head>',
+        '<head>\n<script>window.__BRIDGE_CFG__ = $cfgJson;</script>',
+      );
+      await _controller.loadHtmlString(injected, baseUrl: 'https://agent-pilot.local/');
+    } catch (e) {
+      debugPrint('CanvasView reload failed: $e');
+    }
   }
 
   void _onBridge(String payload) {

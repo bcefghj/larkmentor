@@ -1,11 +1,16 @@
 {
-  "name": "larkmentor-web-bundle",
-  "version": "4.0.0",
+  "name": "agent-pilot-web-bundle",
+  "version": "4.1.0",
   "private": true,
-  "description": "LarkMentor v4 · tldraw + Tiptap + Yjs 离线 bundle (Vite build)",
+  "description": "Agent-Pilot v4 · tldraw + Tiptap + Yjs 离线 bundle (Vite build)",
   "scripts": {
     "dev": "vite",
+    "dev:canvas": "vite --mode canvas",
+    "dev:doc": "vite --mode doc",
     "build": "vite build --outDir dist",
+    "build:canvas": "vite build --outDir dist/canvas -c vite.config.canvas.js",
+    "build:doc": "vite build --outDir dist/doc -c vite.config.doc.js",
+    "build:all": "npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

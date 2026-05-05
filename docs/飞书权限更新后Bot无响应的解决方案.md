@@ -236,7 +236,7 @@ echo -e "\n=== 验证完成 ==="
 
 如果按照上述步骤仍无法解决，可以：
 
-1. **查看 GitHub Issues**：https://github.com/bcefghj/larkmentor/issues
+1. **查看 GitHub Issues**：https://github.com/bcefghj/Agent-Pilot/issues
 2. **检查飞书开放平台状态**：https://open.feishu.cn/
 3. **联系飞书技术支持**：开发者后台右下角「帮助与支持」
 

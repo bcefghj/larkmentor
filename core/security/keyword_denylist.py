@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-logger = logging.getLogger("flowguard.security.denylist")
+logger = logging.getLogger("agent_pilot.security.denylist")
 
 ROOT = Path(__file__).resolve().parents[2]
 DENYLIST_FILE = ROOT / "data" / "keyword_denylist.json"

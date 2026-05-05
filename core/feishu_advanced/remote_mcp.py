@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-logger = logging.getLogger("flowguard.feishu.remote_mcp")
+logger = logging.getLogger("agent_pilot.feishu.remote_mcp")
 
 
 def _mgr():

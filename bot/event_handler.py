@@ -62,7 +62,7 @@ from core.feishu_workspace_init import (
 from core.flow_detector import get_status_text, parse_command
 from memory.user_state import ACHIEVEMENT_DEFS, get_user
 
-logger = logging.getLogger("flowguard.handler")
+logger = logging.getLogger("agent_pilot.handler")
 
 
 # ── Public API ──

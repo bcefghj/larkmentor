@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LarkMentor v4 · 6 场景 × 4 模型 质量矩阵测试
+# Agent-Pilot v4 · 6 场景 × 4 模型 质量矩阵测试
 #
 # 输出: data/evidence/matrix_$(date).json
 # 评委可以看到每个场景在每个模型下的真实表现数据

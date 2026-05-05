@@ -10,6 +10,9 @@ Modules
 - orchestrator_v2   : LangGraph-style state machine
                       gather_context -> plan -> dispatch -> verify -> reflect -> replan
 - context_manager   : 4-layer compression (snip / microcompact / collapse / autocompact)
+- context_cascade   : 9-layer progressive compression cascade
+- prompt_cache      : 3-layer prompt cache (static / session / dynamic)
+- fork_executor     : Multi-Agent Fork mode for parallel exploration
 - memory            : Long-term memory (AGENT_PILOT.md + Mem0g fallback)
 - permissions       : 6-mode permission gate with deny-first rule ordering
 - hooks             : 6 lifecycle event registry (SessionStart / PreTool / PostTool / PreCompact / Stop)
@@ -30,6 +33,7 @@ Design principles
 
 from .context_manager import ContextManager, ContextSnapshot
 from .feature_flags import FeatureFlags, ff
+from .fork_executor import ForkExecutor, ForkPlan, ForkResult
 from .hooks import HookEvent, HookRegistry, default_hook_registry
 from .mcp_client import MCPClient, MCPTransport, default_mcp_manager
 from .memory import MemoryLayer, default_memory
@@ -45,6 +49,7 @@ from .permissions import (
     PermissionRule,
     default_permission_gate,
 )
+from .prompt_cache import PromptCacheManager, default_prompt_cache
 from .safety_scanner import RiskLevel, ScanResult, scan_tool_call
 from .skills_loader import Skill, SkillsLoader, default_skills
 from .streaming_executor import StreamingToolExecutor
@@ -85,4 +90,9 @@ __all__ = [
     "RiskLevel",
     "ScanResult",
     "scan_tool_call",
+    "PromptCacheManager",
+    "default_prompt_cache",
+    "ForkExecutor",
+    "ForkPlan",
+    "ForkResult",
 ]

@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Optional, Tuple
 
-logger = logging.getLogger("larkmentor.runtime.permission_facade")
+logger = logging.getLogger("agent-pilot.runtime.permission_facade")
 
 
 class PermissionFacade:

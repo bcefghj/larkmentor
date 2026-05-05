@@ -153,7 +153,7 @@ def render_html(results, summary, elapsed_sec) -> str:
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
-<title>LarkMentor 分类引擎准确率报告</title>
+<title>Agent-Pilot 分类引擎准确率报告</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           background: #F8FAFC; color: #0F172A; margin: 0; padding: 32px; }}
@@ -179,7 +179,7 @@ def render_html(results, summary, elapsed_sec) -> str:
   .msg {{ max-width: 280px; }}
   h2 {{ margin-top: 32px; }}
 </style></head><body><div class="container">
-<h1>LarkMentor 6 维分类引擎准确率报告</h1>
+<h1>Agent-Pilot 6 维分类引擎准确率报告</h1>
 <div class="meta">运行 {summary["total"]} 个场景 · 耗时 {elapsed_sec:.2f}s · 报告时间 {time.strftime("%Y-%m-%d %H:%M:%S")}</div>
 
 <div class="summary">
@@ -219,7 +219,7 @@ def main():
     summary = summarize(results)
 
     print(f"\n{'=' * 70}")
-    print("LarkMentor Classification Engine - Test Report")
+    print("Agent-Pilot Classification Engine - Test Report")
     print(f"{'=' * 70}")
     print(f"Scenarios: {summary['total']}")
     print(f"Passed:    {summary['passed']}")

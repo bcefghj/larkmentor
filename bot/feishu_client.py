@@ -11,7 +11,7 @@ import lark_oapi as lark
 
 from config import Config
 
-logger = logging.getLogger("flowguard.feishu")
+logger = logging.getLogger("agent_pilot.feishu")
 
 _client: "lark.Client" = None
 

@@ -17,7 +17,7 @@ from core.smart_shield import process_message
 from core.smart_shield_v3 import process_message_v3 as _process_message_v3
 from core.mentor import proactive_hook as v4_proactive
 
-logger = logging.getLogger("flowguard.handler.shield")
+logger = logging.getLogger("agent_pilot.handler.shield")
 
 _USE_V3_MAIN_CHAIN = _os.getenv("AGENT_PILOT_USE_V3_MAIN_CHAIN", "1") != "0"
 _active_process_message = _process_message_v3 if _USE_V3_MAIN_CHAIN else process_message

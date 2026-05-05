@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Dict, List
 
-logger = logging.getLogger("flowguard.feishu.wiki")
+logger = logging.getLogger("agent_pilot.feishu.wiki")
 
 
 def search_wiki(query: str, *, limit: int = 5) -> List[Dict]:

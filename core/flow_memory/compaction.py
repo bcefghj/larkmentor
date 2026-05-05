@@ -18,7 +18,7 @@ from typing import Dict, List
 
 from .working import WorkingEvent
 
-logger = logging.getLogger("flowguard.memory.compaction")
+logger = logging.getLogger("agent_pilot.memory.compaction")
 
 
 COMPACT_PROMPT = """\

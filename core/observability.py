@@ -46,7 +46,7 @@ try:
         ConsoleSpanExporter,
     )
 
-    if os.getenv("AGENT_PILOT_OTEL", os.getenv("LARKMENTOR_OTEL", "1")) != "0":
+    if os.getenv("AGENT_PILOT_OTEL", "1") != "0":
         resource = Resource.create({"service.name": "agent-pilot"})
         provider = TracerProvider(resource=resource)
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
@@ -369,10 +369,10 @@ try:
             _inject_trace,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.dev.ConsoleRenderer() if os.getenv("AGENT_PILOT_LOG_DEV", os.getenv("LARKMENTOR_LOG_DEV")) else structlog.processors.JSONRenderer(),
+            structlog.dev.ConsoleRenderer() if os.getenv("AGENT_PILOT_LOG_DEV") else structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(logging, os.getenv("AGENT_PILOT_LOG_LEVEL", os.getenv("LARKMENTOR_LOG_LEVEL", "INFO")).upper(), logging.INFO)
+            getattr(logging, os.getenv("AGENT_PILOT_LOG_LEVEL", "INFO").upper(), logging.INFO)
         ),
         context_class=dict,
     )
@@ -390,7 +390,7 @@ def slog() -> Any:
 # Audit JSONL writer
 # ═══════════════════════════════════════════════════════════════════════════════
 
-_AUDIT_PATH = os.path.expanduser(os.getenv("AGENT_PILOT_AUDIT_LOG", os.getenv("LARKMENTOR_AUDIT_LOG", os.path.join("~", ".agent-pilot", "audit.jsonl"))))
+_AUDIT_PATH = os.path.expanduser(os.getenv("AGENT_PILOT_AUDIT_LOG", os.path.join("~", ".agent-pilot", "audit.jsonl")))
 
 
 def audit(event_type: str, **kwargs: Any) -> None:

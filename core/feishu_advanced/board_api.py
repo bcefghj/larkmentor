@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger("flowguard.feishu.board")
+logger = logging.getLogger("agent_pilot.feishu.board")
 
 API_BASE = "https://open.feishu.cn/open-apis"
 

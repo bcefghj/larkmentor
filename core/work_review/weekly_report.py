@@ -10,7 +10,7 @@ from typing import Callable, Dict, Optional
 from core.flow_memory.archival import query_archival, write_archival_summary
 from core.flow_memory.working import WorkingMemory
 
-logger = logging.getLogger("flowguard.review.weekly")
+logger = logging.getLogger("agent_pilot.review.weekly")
 
 
 WEEKLY_PROMPT = """\

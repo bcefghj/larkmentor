@@ -6,7 +6,7 @@ import time as _time
 from bot.handlers._common import wm_append
 from bot.message_sender import reply_text, send_card, send_text
 
-logger = logging.getLogger("flowguard.handler.pilot")
+logger = logging.getLogger("agent_pilot.handler.pilot")
 
 # All pilot-related command names
 PILOT_COMMANDS = frozenset(

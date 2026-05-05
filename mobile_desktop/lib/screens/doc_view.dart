@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -14,8 +13,10 @@ import '../services/settings_service.dart';
 /// dashboard embed — now the Flutter client is a first-class editor that
 /// can issue agent commands via `window.applyBridgeCommand`.
 class DocView extends StatefulWidget {
-  const DocView({super.key, this.room = "doc:default"});
-  final String room;
+  const DocView({super.key, this.planId = "default"});
+  final String planId;
+
+  String get room => "doc:$planId";
 
   @override
   State<DocView> createState() => _DocViewState();
@@ -26,11 +27,22 @@ class _DocViewState extends State<DocView> {
   String _status = "loading";
   List<Map<String, dynamic>> _peers = const [];
   bool _offlineReady = false;
+  VoidCallback? _settingsListener;
 
   @override
   void initState() {
     super.initState();
     _bootstrap();
+    _settingsListener = () => _reload();
+    SettingsService.instance.addChangeListener(_settingsListener!);
+  }
+
+  @override
+  void dispose() {
+    if (_settingsListener != null) {
+      SettingsService.instance.removeChangeListener(_settingsListener!);
+    }
+    super.dispose();
   }
 
   Future<void> _bootstrap() async {
@@ -54,6 +66,27 @@ class _DocViewState extends State<DocView> {
           onMessageReceived: (m) => _onBridge(m.message))
       ..loadHtmlString(injected, baseUrl: 'https://agent-pilot.local/');
     if (mounted) setState(() {});
+  }
+
+  Future<void> _reload() async {
+    try {
+      final html = await rootBundle.loadString('assets/web_bridge/tiptap.html');
+      final cfg = jsonEncode({
+        "wsUrl": SettingsService.instance.wsUrl,
+        "room": widget.room,
+        "user": {
+          "name": SettingsService.instance.displayName,
+          "color": "#1F6FEB",
+        },
+      });
+      final injected = html.replaceFirst(
+        '<head>',
+        '<head>\n<script>window.__BRIDGE_CFG__ = $cfg;</script>',
+      );
+      await _controller.loadHtmlString(injected, baseUrl: 'https://agent-pilot.local/');
+    } catch (e) {
+      debugPrint('DocView reload failed: $e');
+    }
   }
 
   void _onBridge(String payload) {

@@ -20,7 +20,7 @@ LOG_DIR = ROOT / "data" / "audit"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 _lock = threading.Lock()
-logger = logging.getLogger("flowguard.security.audit")
+logger = logging.getLogger("agent_pilot.security.audit")
 
 
 @dataclass

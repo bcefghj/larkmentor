@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable, Dict, Optional
 
-logger = logging.getLogger("larkmentor.runtime.hook_runtime")
+logger = logging.getLogger("agent-pilot.runtime.hook_runtime")
 
 
 class HookRuntime:

@@ -19,7 +19,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-logger = logging.getLogger("flowguard.security.permission")
+logger = logging.getLogger("agent_pilot.security.permission")
 
 
 class PermissionLevel(enum.IntEnum):

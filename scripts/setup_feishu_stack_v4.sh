@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# LarkMentor v4 · 飞书官方栈一键安装
+# Agent-Pilot v4 · 飞书官方栈一键安装
 # 
 # 安装：
 # 1. @larksuite/cli（lark-cli 二进制 + 22 Skills）
 # 2. @larksuiteoapi/lark-mcp 通过 npx 运行时加载（不持久安装，减少磁盘占用）
 # 3. 验证 FEISHU_APP_ID / FEISHU_APP_SECRET 已配置
-# 4. 生成 .larkmentor/mcp.json
+# 4. 生成 .agent-pilot/mcp.json
 
 set -euo pipefail
 
 echo "═══════════════════════════════════════════════════"
-echo "  LarkMentor v4 · 飞书官方栈安装"
+echo "  Agent-Pilot v4 · 飞书官方栈安装"
 echo "═══════════════════════════════════════════════════"
 
 if ! command -v npm >/dev/null 2>&1; then
@@ -39,8 +39,8 @@ if [ -d "$SKILLS_DIR" ]; then
 fi
 
 # 3. MCP config
-echo "==> 3/3 生成 .larkmentor/mcp.json"
-MCP_CFG="$ROOT/.larkmentor/mcp.json"
+echo "==> 3/3 生成 .agent-pilot/mcp.json"
+MCP_CFG="$ROOT/.agent-pilot/mcp.json"
 mkdir -p "$(dirname "$MCP_CFG")"
 cat > "$MCP_CFG" <<'JSON'
 {

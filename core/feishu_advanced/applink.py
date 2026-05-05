@@ -44,7 +44,7 @@ def build_send_to(*, chat_id: str, text: str) -> str:
 
 def pilot_plan_applink(plan_id: str, *, dashboard_base: Optional[str] = None) -> str:
     """Applink that jumps into the Dashboard pilot detail view."""
-    base = dashboard_base or os.getenv("AGENT_PILOT_DASHBOARD_URL", os.getenv("LARKMENTOR_DASHBOARD_URL", "http://118.178.242.26/dashboard/pilot"))
+    base = dashboard_base or os.getenv("AGENT_PILOT_DASHBOARD_URL", "http://118.178.242.26/dashboard/pilot")
     # AppLink path is a relative URL from the H5 root, not the full URL.
     # We expose ``plan=<plan_id>`` as a query param our SPA handles.
     return build_open_h5(

@@ -12,7 +12,7 @@ from lark_oapi.api.im.v1 import (
 
 from bot.feishu_client import get_client
 
-logger = logging.getLogger("flowguard.sender")
+logger = logging.getLogger("agent_pilot.sender")
 
 
 def send_text(receive_id: str, text: str, id_type: str = "open_id") -> bool:

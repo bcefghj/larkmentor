@@ -8,7 +8,7 @@ from memory.context_snapshot import ContextSnapshot, clear_snapshot, get_snapsho
 from memory.user_state import UserState
 from utils.time_utils import fmt_duration, fmt_time
 
-logger = logging.getLogger("flowguard.recall")
+logger = logging.getLogger("agent_pilot.recall")
 
 
 def capture_snapshot(user: UserState, calendar_events: list = None, active_tasks: list = None):

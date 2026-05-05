@@ -24,7 +24,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Deque, Dict, Optional, Tuple
 
-logger = logging.getLogger("flowguard.security.ratelimit")
+logger = logging.getLogger("agent_pilot.security.ratelimit")
 
 
 DEFAULT_QPM = 60

@@ -8,7 +8,7 @@ import logging
 
 from core.smart_shield_v3 import process_message_v3 as process_message
 
-logger = logging.getLogger("flowguard.smart_shield")
+logger = logging.getLogger("agent_pilot.smart_shield")
 
 try:
     from core.classification_engine import _contains_urgent_keyword

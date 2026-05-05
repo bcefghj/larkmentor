@@ -31,7 +31,7 @@ from core.runtime import (
     default_registry,
 )
 
-logger = logging.getLogger("flowguard.mentor.skills_init")
+logger = logging.getLogger("agent_pilot.mentor.skills_init")
 
 
 # ── Skill manifests ─────────────────────────────────────────

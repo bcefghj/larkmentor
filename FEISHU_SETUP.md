@@ -1,6 +1,6 @@
 # 飞书开发者平台配置指南
 
-> 完整跑通 LarkMentor 需要先在飞书开放平台创建一个自建应用，拿到 `App ID` 和 `App Secret`。  
+> 完整跑通 Agent-Pilot 需要先在飞书开放平台创建一个自建应用，拿到 `App ID` 和 `App Secret`。  
 > 整个过程约 **10 分钟**。
 
 ---
@@ -10,7 +10,7 @@
 1. 打开 [飞书开放平台](https://open.feishu.cn/app)，用你的飞书账号登录
 2. 点击右上角 **「创建应用」**
 3. 选择 **「自建应用」**
-4. 填写名称（如 `LarkMentor`）和描述，上传图标，点击确认
+4. 填写名称（如 `Agent-Pilot`）和描述，上传图标，点击确认
 5. 进入应用后，在左侧 **「凭证与基础信息」** 页面找到：
    - `App ID`（形如 `cli_xxxxxxxxx`）
    - `App Secret`（点击「查看」复制）
@@ -101,7 +101,7 @@ python main.py
 启动后你会看到：
 ```
 ╔═══════════════════════════════════════════╗
-║  LarkMentor – 消息守护 + 表达引导            ║
+║  Agent-Pilot – 消息守护 + 表达引导            ║
 ╚═══════════════════════════════════════════╝
 正在连接飞书长连接服务...
 ```
@@ -117,14 +117,14 @@ python main.py
 | Bot 无响应 | 事件没订阅或版本未发布 | 检查「事件订阅」→「发布版本」 |
 | 点卡片按钮没反应 | 缺少 `card.action.trigger` 事件 | 补充订阅，重新发布 |
 | 报错 `99991403 permission denied` | 权限未申请或版本未发布 | 去「API 权限」申请 → 发布新版本 |
-| Bot 不响应群消息 | 群消息需要 @Bot 才能触发 | 在群里 @LarkMentor + 内容 |
+| Bot 不响应群消息 | 群消息需要 @Bot 才能触发 | 在群里 @Agent-Pilot + 内容 |
 | `FEISHU_APP_ID` 报错 | `.env` 没填 | 检查 `.env` 文件 |
 
 ---
 
 ## 获取火山方舟 API Key（LLM）
 
-LarkMentor 使用[火山方舟](https://console.volcengine.com/ark) Doubao 模型作为 LLM：
+Agent-Pilot 使用[火山方舟](https://console.volcengine.com/ark) Doubao 模型作为 LLM：
 
 1. 注册 [火山引擎](https://console.volcengine.com/) 账号
 2. 进入 [方舟控制台](https://console.volcengine.com/ark)

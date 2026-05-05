@@ -47,8 +47,9 @@ from .context_manager import ContextManager
 from .hooks import HookEvent, HookRegistry, default_hook_registry
 from .memory import MemoryLayer, default_memory
 from .permissions import PermissionGate, default_permission_gate
-from .skills_loader import SkillsLoader, default_skills
+from .prompt_cache import PromptCacheManager, default_prompt_cache
 from .safety_scanner import ScanResult, scan_tool_call
+from .skills_loader import SkillsLoader, default_skills
 from .streaming_executor import StreamingToolExecutor, ToolInvocation
 from .tool_registry import ToolRegistry, default_registry
 
@@ -99,6 +100,7 @@ class ConversationOrchestrator:
         context: Optional[ContextManager] = None,
         memory: Optional[MemoryLayer] = None,
         skills: Optional[SkillsLoader] = None,
+        prompt_cache: Optional[PromptCacheManager] = None,
         broadcaster: Optional[Callable[[OrchestratorEvent], None]] = None,
         planner_fn: Optional[Callable[[str, Dict[str, Any]], Plan]] = None,
     ) -> None:
@@ -112,6 +114,7 @@ class ConversationOrchestrator:
         )
         self._mem = memory or default_memory()
         self._skills = skills or default_skills()
+        self._pcache = prompt_cache or default_prompt_cache()
         self._broadcaster = broadcaster
         self._planner_fn = planner_fn
         self._events: List[OrchestratorEvent] = []
@@ -206,29 +209,40 @@ class ConversationOrchestrator:
                 "user_open_id": plan.user_open_id,
             },
         )
+
+        # ── Collect parts for 3-layer prompt cache ──
+        # Layer 1 (Static): tool definitions, base personality, safety rules
+        static_parts: List[str] = []
+        tool_defs = self._tools.schema_block() if hasattr(self._tools, "schema_block") else ""
+        if tool_defs:
+            static_parts.append(tool_defs)
+        static_parts.append(f"permission_mode={self._perm.mode.value}")
+
+        # Layer 2 (Session): memory recall, AGENT_PILOT.md, skills metadata
+        session_parts: List[str] = []
+
         memory_injected = sess_payload.payload.get("memory_injected") or ""
         if memory_injected:
-            state.messages.append({"role": "system", "content": "[AGENT_PILOT.md]\n\n" + memory_injected})
+            session_parts.append("[AGENT_PILOT.md]\n\n" + memory_injected)
 
-        # Skills metadata (always in system prompt).
         try:
             skills_block = self._skills.metadata_block()
             if skills_block:
-                state.messages.append({"role": "system", "content": skills_block})
+                session_parts.append(skills_block)
         except Exception as exc:
             logger.debug("skills block skipped: %s", exc)
 
-        # Memory recall (semantic).
         try:
             mems = self._mem.recall(plan.intent, user_id=plan.user_open_id or "default", k=5)
             if mems:
                 lines = ["## 长期记忆召回（Mem0g / FlowMemory）", ""]
                 for m in mems:
                     lines.append(f"- [{m.scope}] {m.content[:160]}")
-                state.messages.append({"role": "system", "content": "\n".join(lines)})
+                session_parts.append("\n".join(lines))
         except Exception as exc:
             logger.debug("memory recall skipped: %s", exc)
 
+        # Layer 3 (Dynamic): user message, current plan state
         # UserPromptSubmit hook (classifier / sanitisation).
         up_payload = self._hooks.fire(
             HookEvent.USER_PROMPT_SUBMIT,
@@ -245,7 +259,24 @@ class ConversationOrchestrator:
             self._emit("plan_vetoed", plan_id=plan.plan_id, payload={"reason": up_payload.veto_reason})
             return
 
-        state.messages.append({"role": "user", "content": plan.intent})
+        dynamic_parts: List[Dict[str, str]] = [
+            {"role": "user", "content": plan.intent},
+        ]
+
+        session_id = plan.plan_id or "default"
+        messages, cache_stats = self._pcache.build_messages(
+            static_parts=static_parts,
+            session_parts=session_parts,
+            dynamic_parts=dynamic_parts,
+            session_id=session_id,
+        )
+        state.messages.extend(messages)
+
+        self._emit(
+            "prompt_cache_stats",
+            plan_id=plan.plan_id,
+            payload=cache_stats,
+        )
 
     # ── Node 2: plan (we use the provided Plan; replanning produces new steps) ──
 
@@ -279,7 +310,7 @@ class ConversationOrchestrator:
 
     # ── Pre-execution safety scan ──
 
-    def _pre_check_safety(self, step: Any, args: Dict[str, Any], plan: Any) -> Optional[ScanResult]:
+    def _pre_check_safety(self, step: PlanStep, args: Dict[str, Any], plan: Plan) -> Optional[ScanResult]:
         scan = scan_tool_call(step.tool, args)
         if not scan.is_safe():
             self._emit(
@@ -573,6 +604,10 @@ class ConversationOrchestrator:
     @property
     def skills(self) -> SkillsLoader:
         return self._skills
+
+    @property
+    def prompt_cache(self) -> PromptCacheManager:
+        return self._pcache
 
     @property
     def context_manager(self) -> ContextManager:

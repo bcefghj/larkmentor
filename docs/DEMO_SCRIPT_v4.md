@@ -177,4 +177,4 @@
 - 代码净增 +3500 行（vs v3 的 +6225，体量减少 44% 但完成度翻倍）
 - **飞书独家接入**：lark-cli 22 Skills + lark-mcp 2500 API + cardkit 流式 + Bitable AI 节点 + 长连接 WebSocket
 
-GitHub：`https://github.com/bcefghj/larkmentor`
+GitHub：`https://github.com/bcefghj/Agent-Pilot`

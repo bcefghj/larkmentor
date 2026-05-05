@@ -31,7 +31,7 @@ from core.security.transcript_classifier import (
     redact,
 )
 
-logger = logging.getLogger("flowguard.shield.v3")
+logger = logging.getLogger("agent_pilot.shield.v3")
 
 
 def _record_working_memory(

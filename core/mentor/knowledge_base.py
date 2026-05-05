@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
 
-logger = logging.getLogger("flowguard.mentor.kb")
+logger = logging.getLogger("agent_pilot.mentor.kb")
 
 
 # ── storage path ─────────────────────────────────────────────────────────────

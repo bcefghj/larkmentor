@@ -25,7 +25,7 @@ import random
 import sys
 import time
 import uuid as _uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -34,8 +34,10 @@ sys.path.insert(0, str(ROOT))
 DATA_DIR = ROOT / "data"
 STATIC_DIR = Path(__file__).parent / "static"
 
+from config import Config
+
 try:
-    from fastapi import FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi import APIRouter, FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
@@ -47,11 +49,14 @@ except ImportError as e:
 
 app = FastAPI(
     title="Agent-Pilot API",
-    description="Agent-Pilot v8 · 从 IM 对话到演示稿的一键智能闭环",
-    version="8.0.0",
+    description="Agent-Pilot v9 · 从 IM 对话到演示稿的一键智能闭环",
+    version="9.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# ── API v1 Router (P0-4) ──
+router_v1 = APIRouter(prefix="/api/v1", tags=["v1"])
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,12 +67,49 @@ app.add_middleware(
 )
 
 
+# ── Rate Limiter (P3-14 Security Hardening) ──
+
+
+class RateLimiter:
+    """Simple in-memory sliding-window rate limiter."""
+
+    def __init__(self, max_requests: int = 60, window_sec: int = 60):
+        self._max = max_requests
+        self._window = window_sec
+        self._requests: Dict[str, List[float]] = defaultdict(list)
+
+    def is_allowed(self, client_ip: str) -> bool:
+        now = time.time()
+        reqs = self._requests[client_ip]
+        reqs[:] = [t for t in reqs if now - t < self._window]
+        if len(reqs) >= self._max:
+            return False
+        reqs.append(now)
+        return True
+
+
+_rate_limiter = RateLimiter()
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    client_ip = request.client.host if request.client else "unknown"
+    if not _rate_limiter.is_allowed(client_ip):
+        from fastapi.responses import JSONResponse as _RateLimitResp
+
+        return _RateLimitResp({"error": "rate limit exceeded"}, status_code=429)
+    return await call_next(request)
+
+
+from core.structured_logging import new_request_id, set_request_context
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("X-Request-ID") or f"req_{_uuid.uuid4().hex[:12]}"
-        request.state.request_id = request_id
+        rid = request.headers.get("X-Request-ID") or new_request_id()
+        set_request_context(request_id=rid)
         response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Request-ID"] = rid
         return response
 
 
@@ -314,14 +356,37 @@ async def index():
     return "<h1>Agent-Pilot Dashboard</h1><p>Static UI not built. See dashboard/static/index.html</p>"
 
 
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "mode": "demo" if DEMO_MODE else "live"}
-
-
 @app.get("/health")
-async def health_alias():
-    return {"status": "ok", "mode": "demo" if DEMO_MODE else "live"}
+async def health_check():
+    """Kubernetes-style liveness probe."""
+    return {"status": "ok", "version": "9.0.0", "timestamp": time.time()}
+
+
+@app.get("/ready")
+async def readiness_check():
+    """Kubernetes-style readiness probe - checks dependencies."""
+    checks = {
+        "llm_configured": bool(Config.ARK_API_KEY),
+        "feishu_configured": bool(Config.FEISHU_APP_ID),
+    }
+    all_ready = all(checks.values())
+    return {"ready": all_ready, "checks": checks}
+
+
+@router_v1.get("/version")
+async def get_version():
+    return {
+        "version": "9.0.0",
+        "name": "Agent-Pilot",
+        "python": sys.version,
+        "features": ["orchestrator_v2", "mcp", "crdt", "function_calling"],
+    }
+
+
+@app.get("/api/health")
+async def health_legacy():
+    """Legacy health endpoint (backward compat)."""
+    return {"status": "ok", "version": "9.0.0", "mode": "demo" if DEMO_MODE else "live"}
 
 
 @app.get("/api/overview")
@@ -401,6 +466,93 @@ async def users():
             }
         )
     return out
+
+
+# ── /api/v1 router mirrors (P0-4 forward compat) ──
+
+
+@router_v1.get("/overview")
+async def v1_overview():
+    return _demo_overview() if DEMO_MODE else _real_overview()
+
+
+@router_v1.get("/decisions")
+async def v1_decisions(limit: int = Query(30, ge=1, le=200)):
+    if DEMO_MODE:
+        return _demo_decisions(limit)
+    raw = _decisions()
+    out = raw if isinstance(raw, list) else []
+    out = [d for d in out if isinstance(d, dict)]
+    out = sorted(out, key=lambda d: d.get("ts", 0), reverse=True)[:limit]
+    return out
+
+
+@router_v1.get("/profiles")
+async def v1_profiles(limit: int = Query(10, ge=1, le=100)):
+    if DEMO_MODE:
+        return _demo_profiles(limit)
+    raw = _profiles()
+    if not isinstance(raw, dict):
+        raw = {}
+    items = []
+    for sid, p in raw.items():
+        if not isinstance(p, dict):
+            continue
+        items.append(
+            {
+                "sender_id": sid,
+                "sender_name": p.get("name", sid[-8:]),
+                "identity_tag": p.get("identity_tag", "unknown"),
+                "relation_strength": round(p.get("relation_strength", 0.0), 2),
+                "msg_count_total": p.get("msg_count_total", 0),
+                "user_responded_count": p.get("user_responded_count", 0),
+                "importance_bias": round(p.get("importance_bias", 0.0), 2),
+            }
+        )
+    items.sort(key=lambda x: x["msg_count_total"], reverse=True)
+    return items[:limit]
+
+
+@router_v1.get("/heatmap")
+async def v1_heatmap():
+    return {"grid": _demo_heatmap() if DEMO_MODE else _real_heatmap()}
+
+
+@router_v1.get("/users")
+async def v1_users():
+    if DEMO_MODE:
+        return [
+            {
+                "user_id": f"u_demo_{i}",
+                "name": ["李洁盈", "戴尚好", "评委 A", "评委 B", "测试用户"][i],
+                "in_focus": i % 2 == 0,
+                "tasks": random.randint(0, 4),
+                "pending_msgs": random.randint(0, 12),
+            }
+            for i in range(5)
+        ]
+    raw_states = _user_states()
+    states = raw_states if isinstance(raw_states, dict) else {}
+    out = []
+    for uid, s in states.items():
+        if not isinstance(s, dict):
+            continue
+        fm = s.get("focus_mode", {}) if isinstance(s.get("focus_mode"), dict) else {}
+        out.append(
+            {
+                "user_id": uid,
+                "name": s.get("name", uid[-8:]),
+                "in_focus": fm.get("enabled", False),
+                "tasks": len(s.get("tasks", [])),
+                "pending_msgs": len(s.get("pending_msgs", [])),
+            }
+        )
+    return out
+
+
+@router_v1.get("/health")
+async def v1_health():
+    return {"status": "ok", "version": "9.0.0", "timestamp": time.time()}
 
 
 @app.get("/demo")
@@ -593,7 +745,7 @@ async def pilot_plan_detail(plan_id: str, sig: str = Query("")):
         # P1.6: if AGENT_PILOT_SHARE_SECRET is configured, verify the
         # HMAC signature and refuse unsigned / expired URLs. When the env
         # var is absent we run in legacy "open" mode for local dev.
-        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", os.getenv("LARKMENTOR_PILOT_SHARE_SECRET", ""))
+        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", "")
         if secret:
             from core.agent_pilot.share_sig import verify as _verify
 
@@ -615,7 +767,7 @@ async def pilot_sign(plan_id: str, ttl: int = Query(7 * 86400, ge=60, le=30 * 86
     try:
         from core.agent_pilot.share_sig import sign_url
 
-        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", os.getenv("LARKMENTOR_DASHBOARD_URL", ""))
+        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", "")
         return sign_url(plan_id, base_path=f"{base}/pilot/{plan_id}", ttl_sec=ttl)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -888,6 +1040,9 @@ async def sync_reconcile(room: str):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
+# ── Mount API v1 router (P0-4) ──
+app.include_router(router_v1)
 
 # ── Mount CRDT sync WebSocket ──
 try:

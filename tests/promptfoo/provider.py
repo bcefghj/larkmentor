@@ -1,4 +1,4 @@
-"""promptfoo Python provider that adapts FlowGuard TranscriptClassifier."""
+"""promptfoo Python provider that adapts Agent-Pilot TranscriptClassifier."""
 
 from __future__ import annotations
 

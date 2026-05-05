@@ -1,6 +1,6 @@
 [project]
 name = "agent-pilot"
-version = "8.0.0"
+version = "9.0.0"
 description = "Agent-Pilot: AI-driven office automation from IM to presentations"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -54,12 +54,11 @@ known-first-party = ["core", "agent", "bot", "llm", "memory", "dashboard", "util
 
 [tool.mypy]
 python_version = "3.10"
-ignore_missing_imports = true
-no_strict_optional = true
+warn_return_any = true
 warn_unused_configs = true
-warn_return_any = false
-warn_redundant_casts = false
 disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
 exclude = ["tests/", "mobile_desktop/", "sync_v4/"]
 
 [tool.pytest.ini_options]

@@ -15,14 +15,15 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+  String _currentPlanId = "default";
 
-  final _pages = const [
-    PilotHome(),
-    DocView(),
-    CanvasView(),
-    SlideView(),
-    VoiceInputScreen(),
-    SettingsScreen(),
+  List<Widget> get _pages => [
+    const PilotHome(),
+    DocView(planId: _currentPlanId),
+    CanvasView(planId: _currentPlanId),
+    const SlideView(),
+    const VoiceInputScreen(),
+    const SettingsScreen(),
   ];
 
   final _titles = const [
@@ -42,6 +43,12 @@ class _AppShellState extends State<AppShell> {
     Icons.mic,
     Icons.settings,
   ];
+
+  void switchToPlan(String planId) {
+    if (planId != _currentPlanId) {
+      setState(() => _currentPlanId = planId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

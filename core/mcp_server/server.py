@@ -272,12 +272,26 @@ class _MCPHandler(BaseHTTPRequestHandler):
         if path in ("/tools", "/mcp/tools", "/list_tools", "/mcp/tools.json"):
             if not self._check_auth():
                 return
+            raw_tools = list_tools()
+            openai_functions = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": t["name"],
+                        "description": t.get("description", ""),
+                        "parameters": t.get("inputSchema", {}),
+                    },
+                }
+                for t in raw_tools
+            ]
             self._json(
                 200,
                 {
                     "server": MCP_SERVER_NAME,
                     "version": MCP_SERVER_VERSION,
-                    "tools": list_tools(),
+                    "tools": raw_tools,
+                    "openai_functions": openai_functions,
+                    "count": len(raw_tools),
                 },
             )
             return
@@ -332,6 +346,41 @@ class _MCPHandler(BaseHTTPRequestHandler):
                 {
                     "content": [{"type": "text", "text": to_json(result)}],
                     "isError": bool(isinstance(result, dict) and result.get("error")),
+                },
+            )
+            return
+
+        # OpenAI function-calling compatible invoke endpoint
+        if path in ("/mcp/invoke", "/invoke"):
+            tool_name = body.get("tool") or body.get("function", {}).get("name", "") or body.get("name", "")
+            args = (
+                body.get("arguments", {})
+                or body.get("function", {}).get("arguments", {})
+                or body.get("params", {})
+                or {}
+            )
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except Exception:
+                    self._json(400, _err("bad_arguments", "arguments must be a JSON object"))
+                    return
+            if not tool_name:
+                self._json(400, _err("missing_tool", "'tool' or 'function.name' field required"))
+                return
+            result = call_tool(tool_name, args)
+            schema = get_tool_schema(tool_name)
+            self._json(
+                200,
+                {
+                    "ok": not (isinstance(result, dict) and result.get("error")),
+                    "tool": tool_name,
+                    "result": result,
+                    "schema": {
+                        "name": tool_name,
+                        "description": schema.get("description", "") if schema else "",
+                    },
+                    "ts": int(time.time()),
                 },
             )
             return

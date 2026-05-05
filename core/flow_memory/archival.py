@@ -26,7 +26,7 @@ ARCHIVE_DIR = ROOT / "data" / "archival"
 ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 ARCHIVE_FILE = ARCHIVE_DIR / "summaries.jsonl"
 
-logger = logging.getLogger("flowguard.memory.archival")
+logger = logging.getLogger("agent_pilot.memory.archival")
 
 
 @dataclass

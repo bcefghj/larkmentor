@@ -9,7 +9,7 @@ from llm.prompts import DAILY_ADVICE_PROMPT
 from memory.user_state import UserState, all_users
 from utils.time_utils import fmt_duration
 
-logger = logging.getLogger("flowguard.analytics")
+logger = logging.getLogger("agent_pilot.analytics")
 
 
 def generate_daily_stats(user: UserState) -> dict:

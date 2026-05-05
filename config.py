@@ -128,9 +128,13 @@ class Settings(BaseSettings):
     # ── Agent-Pilot orchestrator ──
     AGENT_PILOT_DEMO_MODE: bool = False
 
+    # ── Feishu CLI ──
+    LARK_CLI_PATH: str = Field(default="lark-cli", description="飞书 CLI 可执行文件路径")
+    LARK_CLI_TIMEOUT: int = Field(default=30, description="CLI 命令超时（秒）")
+
     # ── Sync & Security ──
     SYNC_HUB_PORT: int = 8002
-    AGENT_PILOT_SHARE_SECRET: str = ""  # previously LARKMENTOR_PILOT_SHARE_SECRET
+    AGENT_PILOT_SHARE_SECRET: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

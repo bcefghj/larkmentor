@@ -21,27 +21,27 @@ build() {
   case "$target" in
     android)
       flutter build apk --release
-      cp build/app/outputs/flutter-apk/app-release.apk "$DIST/larkmentor-android.apk"
+      cp build/app/outputs/flutter-apk/app-release.apk "$DIST/agent-pilot-android.apk"
       ;;
     ios)
       flutter build ipa --release || {
         echo "ios build needs Xcode signing; produced .app only."; exit 0;
       }
-      find build -name "*.ipa" | head -n1 | xargs -I{} cp {} "$DIST/larkmentor-ios.ipa"
+      find build -name "*.ipa" | head -n1 | xargs -I{} cp {} "$DIST/agent-pilot-ios.ipa"
       ;;
     macos)
       flutter build macos --release
       APP_PATH=$(ls -d build/macos/Build/Products/Release/*.app | head -n1)
-      hdiutil create -volname LarkMentor -srcfolder "$APP_PATH" -ov -format UDZO \
-        "$DIST/larkmentor-macos.dmg"
+      hdiutil create -volname AgentPilot -srcfolder "$APP_PATH" -ov -format UDZO \
+        "$DIST/agent-pilot-macos.dmg"
       ;;
     windows)
       flutter build windows --release
-      (cd build/windows/x64/runner/Release && zip -r -9 "$DIST/larkmentor-windows.zip" .)
+      (cd build/windows/x64/runner/Release && zip -r -9 "$DIST/agent-pilot-windows.zip" .)
       ;;
     web)
       flutter build web --release
-      (cd build/web && tar czf "$DIST/larkmentor-web.tgz" .)
+      (cd build/web && tar czf "$DIST/agent-pilot-web.tgz" .)
       ;;
     *) echo "unknown target: $target"; exit 1;;
   esac
