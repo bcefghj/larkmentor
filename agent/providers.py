@@ -62,6 +62,17 @@ class ProviderConfig:
 
 
 DEFAULT_CONFIGS: Dict[str, ProviderConfig] = {
+    "mimo": ProviderConfig(
+        name="mimo",
+        endpoint=os.getenv("MIMO_BASE_URL", "https://token-plan-cn.xiaomimimo.com/v1"),
+        api_key_env="MIMO_API_KEY",
+        model=os.getenv("MIMO_MODEL", "mimo-v2.5-pro"),
+        cost_input_per_1m=0.0,
+        cost_output_per_1m=0.0,
+        speed_tps=60,
+        context_window=128_000,
+        strength=["reasoning", "planning", "chinese"],
+    ),
     "doubao": ProviderConfig(
         name="doubao",
         endpoint="https://ark.cn-beijing.volces.com/api/v3",
@@ -121,7 +132,7 @@ DEFAULT_ROUTING = {
     "validation": "deepseek",
 }
 
-DEFAULT_FALLBACK = ["minimax", "doubao", "deepseek", "kimi"]
+DEFAULT_FALLBACK = ["mimo", "minimax", "doubao", "deepseek", "kimi"]
 
 
 @dataclass
@@ -518,37 +529,28 @@ class ProviderRouter:
         max_tokens: int,
         tools: Optional[List[Dict]] = None,
     ):
-        """OpenAI-compatible chat completion call. Works for Doubao, MiniMax, DeepSeek, Kimi."""
-        try:
-            import requests
-        except ImportError:
-            raise RuntimeError("requests not installed")
+        """OpenAI SDK-based chat completion (unified with llm_client)."""
+        from openai import OpenAI
 
         api_key = os.getenv(cfg.api_key_env, "")
         if not api_key:
             raise RuntimeError(f"{cfg.api_key_env} not set")
 
-        url = f"{cfg.endpoint.rstrip('/')}/chat/completions"
-        payload = {
+        client = OpenAI(api_key=api_key, base_url=cfg.endpoint)
+        kwargs: Dict[str, Any] = {
             "model": cfg.model,
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            "timeout": 60,
         }
         if tools:
-            payload["tools"] = tools
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        r = requests.post(url, json=payload, headers=headers, timeout=60)
-        if r.status_code != 200:
-            raise RuntimeError(f"http {r.status_code}: {r.text[:400]}")
-        data = r.json()
-        content = data["choices"][0]["message"]["content"] or ""
-        usage = data.get("usage") or {}
-        input_tokens = usage.get("prompt_tokens", 0)
-        output_tokens = usage.get("completion_tokens", 0)
+            kwargs["tools"] = tools
+
+        resp = client.chat.completions.create(**kwargs)
+        content = (resp.choices[0].message.content or "").strip()
+        input_tokens = resp.usage.prompt_tokens if resp.usage else 0
+        output_tokens = resp.usage.completion_tokens if resp.usage else 0
         return content, input_tokens, output_tokens
 
     # ─── Budget management ────────────────────────────────────────────────

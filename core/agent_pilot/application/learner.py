@@ -31,12 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-try:
-    import structlog  # type: ignore
-
-    logger = structlog.get_logger("pilot.application.learner")
-except Exception:  # pragma: no cover – structlog is optional
-    logger = logging.getLogger("pilot.application.learner")  # type: ignore[assignment]
+logger = logging.getLogger("pilot.application.learner")
 
 from ..domain import (
     EventBus,

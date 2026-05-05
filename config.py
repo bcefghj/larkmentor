@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings
 
 load_dotenv()
 
-VERSION = "11.0.0"
+VERSION = "12.0.0"
 
 
 class Settings(BaseSettings):

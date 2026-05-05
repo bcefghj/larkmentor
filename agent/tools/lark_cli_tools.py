@@ -24,14 +24,9 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-try:
-    import structlog
+import logging
 
-    logger = structlog.get_logger("agent.tools.lark_cli")
-except ImportError:
-    import logging
-
-    logger = logging.getLogger("agent.tools.lark_cli")  # type: ignore[assignment]
+logger = logging.getLogger("agent.tools.lark_cli")
 
 from .registry import tool
 

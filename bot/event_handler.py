@@ -16,6 +16,8 @@ import logging
 import threading
 
 import lark_oapi as lark
+
+from core.exceptions import AgentPilotError
 from lark_oapi.event.callback.model.p2_card_action_trigger import (
     P2CardActionTrigger,
     P2CardActionTriggerResponse,
@@ -85,6 +87,8 @@ def on_message_receive(data: lark.im.v1.P2ImMessageReceiveV1) -> None:
 def _handle_in_thread(data):
     try:
         _do_handle(data)
+    except AgentPilotError as e:
+        logger.error("AgentPilotError: %s", e.to_log_dict())
     except Exception as e:
         logger.exception("Error handling message: %s", e)
 

@@ -142,14 +142,19 @@ ARK_MODEL=doubao-seed-2.0-pro
 
 ---
 
-## 完整 `.env` 示例
+## 完整 `.env` 示例（v12）
 
 ```bash
 # 飞书（必填）
 FEISHU_APP_ID=cli_xxxxxxxxx
 FEISHU_APP_SECRET=xxxxxxxxxxxxxxxx
 
-# 火山方舟（必填）
+# MiMo LLM（v12 推荐首选，额度充足）
+MIMO_API_KEY=tp-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+MIMO_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
+MIMO_MODEL=mimo-v2.5-pro
+
+# 火山方舟（备选）
 ARK_API_KEY=ark-xxxxxxxxxxxx
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/coding/v3
 ARK_MODEL=doubao-seed-2.0-pro
@@ -158,8 +163,10 @@ ARK_MODEL=doubao-seed-2.0-pro
 BITABLE_APP_TOKEN=
 BITABLE_TABLE_ID=
 
-# Dashboard 端口（默认 8080）
-DASHBOARD_PORT=8080
+# Dashboard 端口（默认 8001）
+DASHBOARD_PORT=8001
 ```
+
+> **LLM 优先级**：MiMo > ARK (Doubao) > MiniMax。配置了哪个 API Key 就用哪个。
 
 其他配置项见 [`.env.example`](.env.example)。

@@ -341,11 +341,8 @@ def _default_llm_caller(im_text: str) -> str:
     except Exception:
         return ""
     try:
-        msgs = [
-            {"role": "system", "content": LLM_JUDGE_PROMPT},
-            {"role": "user", "content": im_text[:4000]},
-        ]
-        return _chat(messages=msgs, temperature=0.2, max_tokens=500) or ""
+        prompt = LLM_JUDGE_PROMPT + "\n\n" + im_text[:4000]
+        return _chat(prompt, temperature=0.2, system="") or ""
     except Exception as e:
         logger.debug("llm judge call failed: %s", e)
         return ""

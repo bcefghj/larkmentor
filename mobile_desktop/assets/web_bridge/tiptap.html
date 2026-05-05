@@ -54,6 +54,12 @@
     }
   }
   </script>
+  <script>
+    // v12: offline detection and graceful degradation
+    window.__AP_OFFLINE = !navigator.onLine;
+    window.addEventListener('online', () => { window.__AP_OFFLINE = false; document.getElementById('status').textContent = '在线'; });
+    window.addEventListener('offline', () => { window.__AP_OFFLINE = true; document.getElementById('status').textContent = '离线模式（本地编辑中）'; });
+  </script>
 </head>
 <body>
   <div id="toolbar">
@@ -103,12 +109,20 @@
     const idb = new IndexeddbPersistence(cfg.room, ydoc);
     idb.on("synced", () => post("offline:loaded", { room: cfg.room }));
 
-    const provider = new WebsocketProvider(cfg.wsUrl, cfg.room, ydoc, { connect: true });
+    // v12: graceful offline handling – only connect WS if online
+    const shouldConnect = !window.__AP_OFFLINE && cfg.wsUrl;
+    const provider = new WebsocketProvider(cfg.wsUrl || "ws://localhost:1234", cfg.room, ydoc, { connect: shouldConnect });
     provider.awareness.setLocalStateField("user", cfg.user);
     provider.on("status", ({ status }) => {
-      statusEl.textContent = status;
-      post("ws:status", { status });
+      if (window.__AP_OFFLINE) {
+        statusEl.textContent = "离线模式（本地编辑中）";
+      } else {
+        statusEl.textContent = status;
+      }
+      post("ws:status", { status, offline: window.__AP_OFFLINE });
     });
+    window.addEventListener("online", () => { if (!provider.wsconnected) provider.connect(); });
+    if (window.__AP_OFFLINE) statusEl.textContent = "离线模式（本地编辑中）";
     provider.awareness.on("change", () => {
       const peers = Array.from(provider.awareness.getStates().values())
         .map(s => s.user).filter(Boolean);

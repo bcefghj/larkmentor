@@ -9,14 +9,9 @@ import time
 from pathlib import Path
 from typing import Any, Dict
 
-try:
-    import structlog
+import logging
 
-    logger = structlog.get_logger("agent.tools.slides")
-except ImportError:
-    import logging
-
-    logger = logging.getLogger("agent.tools.slides")
+logger = logging.getLogger("agent.tools.slides")
 
 from .registry import tool
 

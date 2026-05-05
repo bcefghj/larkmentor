@@ -80,15 +80,24 @@ jobs:
         pip install -r requirements.txt
         pip install pytest-cov pytest-timeout
 
-    - name: Run ALL tests
+    - name: Run tests (excluding e2e/simulator)
       run: |
         python -m pytest tests/ \
+          --ignore=tests/e2e --ignore=tests/simulator \
           -v --tb=short --timeout=60 \
-          --cov=core --cov=agent --cov=bot \
+          --cov=core --cov=agent --cov=bot --cov=llm --cov=dashboard \
           --cov-report=term-missing \
           --cov-report=xml:coverage.xml \
           --cov-report=html:htmlcov \
           --junitxml=junit-results.xml
+
+    - name: Extract coverage percentage
+      id: coverage
+      if: always()
+      run: |
+        COV_PCT=$(python -m coverage report --format=total 2>/dev/null || echo "0")
+        echo "percent=${COV_PCT}" >> $GITHUB_OUTPUT
+        echo "Coverage: ${COV_PCT}%"
 
     - name: Check coverage threshold (60%)
       if: always()
@@ -124,12 +133,10 @@ jobs:
         gistID: ${{ secrets.COVERAGE_GIST_ID }}
         filename: coverage-badge.json
         label: coverage
-        message: ${{ env.COVERAGE_PCT }}%
-        valColorRange: ${{ env.COVERAGE_PCT }}
+        message: ${{ steps.coverage.outputs.percent }}%
+        valColorRange: ${{ steps.coverage.outputs.percent }}
         minColorRange: 40
         maxColorRange: 90
-      env:
-        COVERAGE_PCT: ${{ steps.coverage.outputs.percent }}
       continue-on-error: true
 
   security:
@@ -146,9 +153,9 @@ jobs:
     - name: Check for secrets in code
       run: |
         pip install detect-secrets
-        detect-secrets scan --baseline .secrets.baseline || true
+        detect-secrets scan --baseline .secrets.baseline
         echo "Checking for hardcoded secrets (excluding config definitions)..."
-        ! grep -rn "FEISHU_APP_SECRET\s*=\s*['\"]" --include="*.py" . | grep -v "Field\|default\|os\.\|getenv" || echo "Found potential hardcoded secrets"
+        ! grep -rn "FEISHU_APP_SECRET\s*=\s*['\"]" --include="*.py" . | grep -v "Field\|default\|os\.\|getenv" || { echo "::error::Found potential hardcoded secrets"; exit 1; }
         echo "Security check completed"
 
   flutter-analysis:

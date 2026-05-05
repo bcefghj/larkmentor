@@ -1,16 +1,8 @@
-"""Agent-Pilot Dashboard - FastAPI realtime monitoring server.
+"""Agent-Pilot Dashboard – FastAPI realtime monitoring server (v12 refactored).
 
-Endpoints:
-    GET  /                     – static index.html
-    GET  /api/overview         – metrics summary
-    GET  /api/decisions        – recent classifications
-    GET  /api/profiles         – top sender profiles
-    GET  /api/heatmap          – 24h interruption heatmap
-    GET  /api/users            – per-user state snapshot
-    GET  /api/health           – live/ready probe
-    GET  /demo                 – switch to demo mode (synthetic data)
-    GET  /live                 – switch back to live mode
-    WS   /ws                   – live updates (broadcast every 5s)
+Routes are split into ``dashboard/routes/`` submodules; middleware lives in
+``dashboard/middleware.py``.  This file is the composition root that wires
+everything together.
 
 Run:
     uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
@@ -25,7 +17,7 @@ import random
 import sys
 import time
 import uuid as _uuid
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -37,12 +29,10 @@ STATIC_DIR = Path(__file__).parent / "static"
 from config import Config
 
 try:
-    from fastapi import APIRouter, FastAPI, File, Form, Query, UploadFile, WebSocket, WebSocketDisconnect
+    from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import HTMLResponse, JSONResponse
     from fastapi.staticfiles import StaticFiles
-    from starlette.middleware.base import BaseHTTPMiddleware
-    from starlette.requests import Request
     from starlette.responses import StreamingResponse
 except ImportError as e:
     raise RuntimeError("Install fastapi & uvicorn: pip install fastapi uvicorn") from e
@@ -59,105 +49,60 @@ async def lifespan(app):
 
 app = FastAPI(
     title="Agent-Pilot API",
-    description="Agent-Pilot v11 · 从 IM 对话到演示稿的一键智能闭环",
-    version="11.0.0",
+    description="Agent-Pilot v12 · 从 IM 对话到演示稿的一键智能闭环",
+    version=Config.VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
 )
 
-# ── API v1 Router (P0-4) ──
-router_v1 = APIRouter(prefix="/api/v1", tags=["v1"])
-
+# ── CORS ──
+_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+_cors_origins = [o.strip() for o in _cors_origins if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials="*" not in _cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ── Middleware (extracted) ──
+from dashboard.middleware import OptionalAPIKeyMiddleware, RequestIDMiddleware, rate_limit_middleware
 
-# ── Rate Limiter (P3-14 Security Hardening) ──
-
-
-class RateLimiter:
-    """Simple in-memory sliding-window rate limiter."""
-
-    def __init__(self, max_requests: int = 60, window_sec: int = 60):
-        self._max = max_requests
-        self._window = window_sec
-        self._requests: Dict[str, List[float]] = defaultdict(list)
-
-    def is_allowed(self, client_ip: str) -> bool:
-        now = time.time()
-        reqs = self._requests[client_ip]
-        reqs[:] = [t for t in reqs if now - t < self._window]
-        if len(reqs) >= self._max:
-            return False
-        reqs.append(now)
-        return True
-
-
-_rate_limiter = RateLimiter()
-
-
-@app.middleware("http")
-async def rate_limit_middleware(request, call_next):
-    client_ip = request.client.host if request.client else "unknown"
-    if not _rate_limiter.is_allowed(client_ip):
-        from fastapi.responses import JSONResponse as _RateLimitResp
-
-        return _RateLimitResp({"error": "rate limit exceeded"}, status_code=429)
-    return await call_next(request)
-
-
-from core.structured_logging import new_request_id, set_request_context
-
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        rid = request.headers.get("X-Request-ID") or new_request_id()
-        set_request_context(request_id=rid)
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = rid
-        return response
-
-
+app.middleware("http")(rate_limit_middleware)
 app.add_middleware(RequestIDMiddleware)
-
-
-class OptionalAPIKeyMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        api_key = os.getenv("AGENT_PILOT_API_KEY", "")
-        if api_key and request.url.path.startswith("/api/"):
-            provided = request.headers.get("X-API-Key") or request.query_params.get("api_key") or ""
-            if provided != api_key:
-                from starlette.responses import JSONResponse as _JR
-
-                return _JR({"error": "unauthorized"}, status_code=401)
-        return await call_next(request)
-
-
 app.add_middleware(OptionalAPIKeyMiddleware)
 
-# P5.1: Prometheus /metrics + OpenTelemetry tracing; both optional.
+# ── Observability (optional) ──
 try:
     from core.observability import install_fastapi as _install_obs
-
     _install_obs(app)
-except Exception as _e_obs:  # noqa: BLE001
-    pass  # observability is optional; dashboard works without it
+except Exception:
+    pass
 
-# P10/v7: Pilot 三视角驾驶舱（任务列表 / 6 级 Memory / 三线雷达）
+# ── Route modules (extracted) ──
+from dashboard.routes.health import router as _health_router
+from dashboard.routes.pilot import router as _pilot_router
+from dashboard.routes.legacy import router as _legacy_router
+
+app.include_router(_health_router)
+app.include_router(_pilot_router)
+app.include_router(_legacy_router)
+
+# ── v7 Pilot routes (optional) ──
 try:
     from dashboard.api_v7 import install_v7_routes
-
     install_v7_routes(app)
-except Exception as _e_v7:  # noqa: BLE001
-    import logging as _lg
+except Exception:
+    pass
 
-    _lg.getLogger("dashboard.server").debug("v7 routes not mounted: %s", _e_v7)
+# ── Mentor stats (optional) ──
+try:
+    from dashboard.mentor_stats import register as _register_mentor_stats
+    _register_mentor_stats(app)
+except Exception:
+    pass
 
 # ----- runtime state -----
 DEMO_MODE = False
@@ -170,7 +115,7 @@ def _read_json(path: Path, default: Any) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return default  # corrupt JSON on disk; return safe default
+        return default
 
 
 def _decisions() -> List[Dict[str, Any]]:
@@ -187,96 +132,53 @@ def _user_states() -> Dict[str, Any]:
 
 # ----- demo data generator -----
 
-
 def _demo_overview() -> Dict[str, Any]:
     return {
-        "decisions_today": 142,
-        "p0_today": 8,
-        "p1_today": 24,
-        "p2_today": 45,
-        "p3_today": 65,
-        "auto_replied": 45,
-        "archived": 65,
-        "active_users": 6,
-        "in_focus_now": 3,
-        "circuit_breakers_today": 1,
-        "llm_call_rate": 0.108,
-        "accuracy_rate": 0.99,
-        "uptime_hours": 168.5,
-        "mode": "demo",
-        "ts": int(time.time()),
+        "decisions_today": 142, "p0_today": 8, "p1_today": 24,
+        "p2_today": 45, "p3_today": 65, "auto_replied": 45,
+        "archived": 65, "active_users": 6, "in_focus_now": 3,
+        "circuit_breakers_today": 1, "llm_call_rate": 0.108,
+        "accuracy_rate": 0.99, "uptime_hours": 168.5,
+        "mode": "demo", "ts": int(time.time()),
     }
 
 
 def _demo_decisions(limit: int = 30) -> List[Dict[str, Any]]:
-    senders = [
-        "陈总监",
-        "李 PM",
-        "王同事",
-        "TestBot",
-        "财务系统",
-        "客户张总",
-        "运营小赵",
-        "上级 CTO",
-        "陌生人 X",
-        "HR 系统",
-    ]
-    summaries = [
-        "线上故障 RCA 立刻处理",
-        "今天会议改时间",
-        "Q3 方案数据怎么取",
-        "周报记得交",
-        "今天天气真好",
-        "明天面试时间确认",
-        "增长方案第二版出了",
-        "本周市场周报",
-        "请教 SQL 写法",
-        "30 分钟内能给答复吗",
-    ]
+    senders = ["陈总监", "李 PM", "王同事", "TestBot", "财务系统",
+               "客户张总", "运营小赵", "上级 CTO", "陌生人 X", "HR 系统"]
+    summaries = ["线上故障 RCA 立刻处理", "今天会议改时间", "Q3 方案数据怎么取",
+                 "周报记得交", "今天天气真好", "明天面试时间确认",
+                 "增长方案第二版出了", "本周市场周报", "请教 SQL 写法",
+                 "30 分钟内能给答复吗"]
     levels = ["P0"] * 1 + ["P1"] * 3 + ["P2"] * 5 + ["P3"] * 8
     out = []
     now = int(time.time())
     for i in range(limit):
-        lv = random.choice(levels)
-        out.append(
-            {
-                "decision_id": f"dec_{i:08x}",
-                "sender_name": random.choice(senders),
-                "level": lv,
-                "score": round(random.uniform(0.05, 0.95), 3),
-                "summary": random.choice(summaries),
-                "ts": now - i * random.randint(60, 300),
-                "rolled_back": random.random() < 0.05,
-            }
-        )
+        out.append({
+            "decision_id": f"dec_{i:08x}",
+            "sender_name": random.choice(senders),
+            "level": random.choice(levels),
+            "score": round(random.uniform(0.05, 0.95), 3),
+            "summary": random.choice(summaries),
+            "ts": now - i * random.randint(60, 300),
+            "rolled_back": random.random() < 0.05,
+        })
     return out
 
 
 def _demo_profiles(limit: int = 10) -> List[Dict[str, Any]]:
+    names = ["陈总监", "李 PM", "王同事", "财务", "客户张总",
+             "运营小赵", "上级 CTO", "HR", "TestBot", "陌生人 X"]
     out = []
-    for i in range(limit):
-        out.append(
-            {
-                "sender_id": f"u_{i:06x}",
-                "sender_name": [
-                    "陈总监",
-                    "李 PM",
-                    "王同事",
-                    "财务",
-                    "客户张总",
-                    "运营小赵",
-                    "上级 CTO",
-                    "HR",
-                    "TestBot",
-                    "陌生人 X",
-                ][i],
-                "identity_tag": random.choice(["superior", "peer", "vip", "occasional", "bot"]),
-                "relation_strength": round(random.uniform(0.1, 0.95), 2),
-                "msg_count_total": random.randint(10, 500),
-                "user_responded_count": random.randint(0, 50),
-                "importance_bias": round(random.uniform(-0.2, 0.3), 2),
-            }
-        )
+    for i in range(min(limit, len(names))):
+        out.append({
+            "sender_id": f"u_{i:06x}", "sender_name": names[i],
+            "identity_tag": random.choice(["superior", "peer", "vip", "occasional", "bot"]),
+            "relation_strength": round(random.uniform(0.1, 0.95), 2),
+            "msg_count_total": random.randint(10, 500),
+            "user_responded_count": random.randint(0, 50),
+            "importance_bias": round(random.uniform(-0.2, 0.3), 2),
+        })
     return out
 
 
@@ -297,7 +199,6 @@ def _demo_heatmap() -> List[List[int]]:
 
 # ----- aggregation from real data -----
 
-
 def _real_overview() -> Dict[str, Any]:
     decisions = _decisions() if isinstance(_decisions(), list) else []
     today_start = int(time.time()) - 86400
@@ -305,29 +206,21 @@ def _real_overview() -> Dict[str, Any]:
     counts = Counter(d.get("level", "P3") for d in today)
     raw_states = _user_states()
     states = raw_states if isinstance(raw_states, dict) else {}
-    in_focus = 0
-    for u in states.values():
-        if not isinstance(u, dict):
-            continue
-        fm = u.get("focus_mode")
-        if isinstance(fm, dict) and fm.get("enabled"):
-            in_focus += 1
+    in_focus = sum(
+        1 for u in states.values()
+        if isinstance(u, dict) and isinstance(u.get("focus_mode"), dict) and u["focus_mode"].get("enabled")
+    )
     return {
         "decisions_today": len(today),
-        "p0_today": counts.get("P0", 0),
-        "p1_today": counts.get("P1", 0),
-        "p2_today": counts.get("P2", 0),
-        "p3_today": counts.get("P3", 0),
-        "auto_replied": counts.get("P2", 0),
-        "archived": counts.get("P3", 0),
-        "active_users": len(states),
-        "in_focus_now": in_focus,
+        "p0_today": counts.get("P0", 0), "p1_today": counts.get("P1", 0),
+        "p2_today": counts.get("P2", 0), "p3_today": counts.get("P3", 0),
+        "auto_replied": counts.get("P2", 0), "archived": counts.get("P3", 0),
+        "active_users": len(states), "in_focus_now": in_focus,
         "circuit_breakers_today": sum(1 for d in today if d.get("circuit_breaker_triggered")),
         "llm_call_rate": round(sum(1 for d in today if d.get("llm_used")) / max(1, len(today)), 3),
         "accuracy_rate": 0.99,
         "uptime_hours": round((time.time() - app.state.start_ts) / 3600, 1),
-        "mode": "live",
-        "ts": int(time.time()),
+        "mode": "live", "ts": int(time.time()),
     }
 
 
@@ -350,8 +243,7 @@ def _real_heatmap() -> List[List[int]]:
     return grid
 
 
-# ----- routes -----
-
+# ----- core routes (kept in server.py for state access) -----
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -359,39 +251,6 @@ async def index():
     if idx.exists():
         return idx.read_text(encoding="utf-8")
     return "<h1>Agent-Pilot Dashboard</h1><p>Static UI not built. See dashboard/static/index.html</p>"
-
-
-@app.get("/health")
-async def health_check():
-    """Kubernetes-style liveness probe."""
-    return {"status": "ok", "version": "11.0.0", "timestamp": time.time()}
-
-
-@app.get("/ready")
-async def readiness_check():
-    """Kubernetes-style readiness probe - checks dependencies."""
-    checks = {
-        "llm_configured": bool(Config.ARK_API_KEY),
-        "feishu_configured": bool(Config.FEISHU_APP_ID),
-    }
-    all_ready = all(checks.values())
-    return {"ready": all_ready, "checks": checks}
-
-
-@router_v1.get("/version")
-async def get_version():
-    return {
-        "version": "11.0.0",
-        "name": "Agent-Pilot",
-        "python": sys.version,
-        "features": ["orchestrator_v2", "mcp", "crdt", "function_calling", "harness_v2", "lark_cli_skills", "exec_trace"],
-    }
-
-
-@app.get("/api/health")
-async def health_legacy():
-    """Legacy health endpoint (backward compat)."""
-    return {"status": "ok", "version": "11.0.0", "mode": "demo" if DEMO_MODE else "live"}
 
 
 @app.get("/api/overview")
@@ -404,10 +263,8 @@ async def decisions(limit: int = Query(30, ge=1, le=200)):
     if DEMO_MODE:
         return _demo_decisions(limit)
     raw = _decisions()
-    out = raw if isinstance(raw, list) else []
-    out = [d for d in out if isinstance(d, dict)]
-    out = sorted(out, key=lambda d: d.get("ts", 0), reverse=True)[:limit]
-    return out
+    out = [d for d in raw if isinstance(d, dict)] if isinstance(raw, list) else []
+    return sorted(out, key=lambda d: d.get("ts", 0), reverse=True)[:limit]
 
 
 @app.get("/api/profiles")
@@ -421,17 +278,14 @@ async def profiles(limit: int = Query(10, ge=1, le=100)):
     for sid, p in raw.items():
         if not isinstance(p, dict):
             continue
-        items.append(
-            {
-                "sender_id": sid,
-                "sender_name": p.get("name", sid[-8:]),
-                "identity_tag": p.get("identity_tag", "unknown"),
-                "relation_strength": round(p.get("relation_strength", 0.0), 2),
-                "msg_count_total": p.get("msg_count_total", 0),
-                "user_responded_count": p.get("user_responded_count", 0),
-                "importance_bias": round(p.get("importance_bias", 0.0), 2),
-            }
-        )
+        items.append({
+            "sender_id": sid, "sender_name": p.get("name", sid[-8:]),
+            "identity_tag": p.get("identity_tag", "unknown"),
+            "relation_strength": round(p.get("relation_strength", 0.0), 2),
+            "msg_count_total": p.get("msg_count_total", 0),
+            "user_responded_count": p.get("user_responded_count", 0),
+            "importance_bias": round(p.get("importance_bias", 0.0), 2),
+        })
     items.sort(key=lambda x: x["msg_count_total"], reverse=True)
     return items[:limit]
 
@@ -445,13 +299,10 @@ async def heatmap():
 async def users():
     if DEMO_MODE:
         return [
-            {
-                "user_id": f"u_demo_{i}",
-                "name": ["李洁盈", "戴尚好", "评委 A", "评委 B", "测试用户"][i],
-                "in_focus": i % 2 == 0,
-                "tasks": random.randint(0, 4),
-                "pending_msgs": random.randint(0, 12),
-            }
+            {"user_id": f"u_demo_{i}",
+             "name": ["李洁盈", "戴尚好", "评委 A", "评委 B", "测试用户"][i],
+             "in_focus": i % 2 == 0, "tasks": random.randint(0, 4),
+             "pending_msgs": random.randint(0, 12)}
             for i in range(5)
         ]
     raw_states = _user_states()
@@ -461,49 +312,40 @@ async def users():
         if not isinstance(s, dict):
             continue
         fm = s.get("focus_mode", {}) if isinstance(s.get("focus_mode"), dict) else {}
-        out.append(
-            {
-                "user_id": uid,
-                "name": s.get("name", uid[-8:]),
-                "in_focus": fm.get("enabled", False),
-                "tasks": len(s.get("tasks", [])),
-                "pending_msgs": len(s.get("pending_msgs", [])),
-            }
-        )
+        out.append({
+            "user_id": uid, "name": s.get("name", uid[-8:]),
+            "in_focus": fm.get("enabled", False),
+            "tasks": len(s.get("tasks", [])),
+            "pending_msgs": len(s.get("pending_msgs", [])),
+        })
     return out
 
 
-# ── /api/v1 router mirrors (P0-4 forward compat) ──
+# ── /api/v1 mirrors ──
 
-
-@router_v1.get("/overview")
+@app.get("/api/v1/overview")
 async def v1_overview():
     return await overview()
 
 
-@router_v1.get("/decisions")
+@app.get("/api/v1/decisions")
 async def v1_decisions(limit: int = Query(30, ge=1, le=200)):
     return await decisions(limit)
 
 
-@router_v1.get("/profiles")
+@app.get("/api/v1/profiles")
 async def v1_profiles(limit: int = Query(10, ge=1, le=100)):
     return await profiles(limit)
 
 
-@router_v1.get("/heatmap")
+@app.get("/api/v1/heatmap")
 async def v1_heatmap():
     return await heatmap()
 
 
-@router_v1.get("/users")
+@app.get("/api/v1/users")
 async def v1_users():
     return await users()
-
-
-@router_v1.get("/health")
-async def v1_health():
-    return await health_legacy()
 
 
 @app.get("/demo")
@@ -537,351 +379,23 @@ async def _broadcast_loop():
         await asyncio.sleep(5)
         if not WS_CLIENTS:
             continue
-        payload = {
-            "type": "tick",
-            "overview": _demo_overview() if DEMO_MODE else _real_overview(),
-        }
+        payload = {"type": "tick", "overview": _demo_overview() if DEMO_MODE else _real_overview()}
         msg = json.dumps(payload, ensure_ascii=False)
         dead = []
         for ws in WS_CLIENTS:
             try:
                 await ws.send_text(msg)
             except Exception:
-                dead.append(ws)  # stale websocket, will be removed below
+                dead.append(ws)
         for d in dead:
             if d in WS_CLIENTS:
                 WS_CLIENTS.remove(d)
 
 
-# ----- v3 endpoints: weekly/monthly/audit/team -----
-
-
-@app.get("/api/v3/weekly")
-async def v3_weekly(open_id: str = Query(..., min_length=4)):
-    try:
-        from core.work_review.weekly_report import generate_weekly_report
-
-        report = generate_weekly_report(open_id, publish=False)
-        return {
-            "open_id": open_id,
-            "week_start_ts": report.week_start_ts,
-            "week_end_ts": report.week_end_ts,
-            "stats": report.stats,
-            "body_md": report.body_md,
-            "used_llm": report.used_llm,
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/v3/wrapped")
-async def v3_wrapped(open_id: str = Query(..., min_length=4), days: int = Query(30, ge=7, le=120)):
-    try:
-        from core.work_review.monthly_wrapped import generate_monthly_wrapped
-
-        card = generate_monthly_wrapped(open_id, days=days)
-        return {
-            "open_id": open_id,
-            "headline": card.headline,
-            "bullets": card.bullets,
-            "stats": card.stats,
-            "month_start_ts": card.month_start_ts,
-            "month_end_ts": card.month_end_ts,
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/v3/audit")
-async def v3_audit(limit: int = Query(50, ge=1, le=500), actor: str = Query(""), severity: str = Query("")):
-    try:
-        from core.security.audit_log import query_audit
-
-        kwargs = {"limit": limit}
-        if actor:
-            kwargs["actor"] = actor
-        if severity:
-            kwargs["severities"] = [severity.upper()]
-        items = query_audit(**kwargs)
-        return [
-            {
-                "ts": i.ts,
-                "actor": i.actor[-8:],
-                "action": i.action,
-                "resource": i.resource[-12:],
-                "outcome": i.outcome,
-                "severity": i.severity,
-                "meta": i.meta,
-            }
-            for i in items
-        ]
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/v3/team_insights")
-async def v3_team_insights():
-    """Aggregate metrics across all known users (demo-friendly)."""
-    states = _user_states() if isinstance(_user_states(), dict) else {}
-    decisions = _decisions() if isinstance(_decisions(), list) else []
-    today_start = int(time.time()) - 86400 * 7
-    week = [d for d in decisions if isinstance(d, dict) and d.get("ts", 0) >= today_start]
-    by_level: Dict[str, int] = {}
-    by_user: Dict[str, int] = {}
-    for d in week:
-        by_level[d.get("level", "P3")] = by_level.get(d.get("level", "P3"), 0) + 1
-        uid = (d.get("user_open_id") or "")[-8:] or "anon"
-        by_user[uid] = by_user.get(uid, 0) + 1
-    in_focus = sum(
-        1
-        for u in states.values()
-        if isinstance(u, dict) and isinstance(u.get("focus_mode"), dict) and u["focus_mode"].get("enabled")
-    )
-    top_users = sorted(by_user.items(), key=lambda t: t[1], reverse=True)[:8]
-    return {
-        "users_total": len(states),
-        "users_in_focus": in_focus,
-        "decisions_7d": len(week),
-        "by_level_7d": by_level,
-        "top_users_7d": [{"user": u, "count": c} for u, c in top_users],
-        "ts": int(time.time()),
-    }
-
-
-@app.get("/api/v3/memory")
-async def v3_memory(
-    open_id: str = Query(..., min_length=4), limit: int = Query(20, ge=1, le=100), kind: str = Query("")
-):
-    try:
-        from core.flow_memory.archival import query_archival
-
-        kinds = [kind] if kind else None
-        items = query_archival(open_id, kinds=kinds, limit=limit)
-        return [{"ts": i.ts, "kind": i.kind, "summary_md": i.summary_md, "meta": i.meta} for i in items]
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/v3", response_class=HTMLResponse)
-async def dashboard_v3():
-    page = STATIC_DIR / "dashboard_v3.html"
-    if page.exists():
-        return page.read_text(encoding="utf-8")
-    return "<h1>Dashboard v3</h1><p>Static page missing.</p>"
-
-
-# ── Agent-Pilot v1: My Mentor Stats ──
-try:
-    from dashboard.mentor_stats import register as _register_mentor_stats
-
-    _register_mentor_stats(app)
-except Exception as _e:  # noqa: BLE001
-    pass  # mentor stats routes are optional
-
-
-# ── Agent-Pilot v2: Agent-Pilot endpoints ──
-@app.get("/api/pilot/plans")
-async def pilot_plans(limit: int = Query(20, ge=1, le=100), open_id: str = Query("")):
-    try:
-        from core.agent_pilot.service import list_plans
-
-        return list_plans(user_open_id=open_id, limit=limit)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/plan/{plan_id}")
-async def pilot_plan_detail(plan_id: str, sig: str = Query("")):
-    try:
-        # P1.6: if AGENT_PILOT_SHARE_SECRET is configured, verify the
-        # HMAC signature and refuse unsigned / expired URLs. When the env
-        # var is absent we run in legacy "open" mode for local dev.
-        secret = os.getenv("AGENT_PILOT_SHARE_SECRET", "")
-        if secret:
-            from core.agent_pilot.share_sig import verify as _verify
-
-            if not _verify(plan_id, sig, secret=secret):
-                return JSONResponse({"error": "invalid_or_expired_signature"}, status_code=403)
-        from core.agent_pilot.service import get_plan
-
-        plan = get_plan(plan_id)
-        if not plan:
-            return JSONResponse({"error": "not_found"}, status_code=404)
-        return plan.to_dict()
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/sign/{plan_id}")
-async def pilot_sign(plan_id: str, ttl: int = Query(7 * 86400, ge=60, le=30 * 86400)):
-    """Generate a signed share URL (used by share cards / AppLinks)."""
-    try:
-        from core.agent_pilot.share_sig import sign_url
-
-        base = os.getenv("AGENT_PILOT_DASHBOARD_URL", "")
-        return sign_url(plan_id, base_path=f"{base}/pilot/{plan_id}", ttl_sec=ttl)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/context")
-async def pilot_context():
-    """Evaluator-facing snapshot: tokens used, compaction layer, hook trips.
-
-    Exposes the /context "judge wow" view — used in the demo when the
-    presenter types ``/context`` in IM to display the harness state.
-    """
-    try:
-        from core.agent_pilot.harness import default_orchestrator
-
-        orch = default_orchestrator()
-        return {
-            "tools": orch.tools.names(),
-            "permission_mode": orch.permissions.mode.value,
-            "skills": [s.name for s in orch.skills.list()],
-            "hook_history": orch.hooks.history()[-20:],
-            "recent_events": orch.events()[-30:],
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/skills")
-async def pilot_skills():
-    try:
-        from core.agent_pilot.harness import default_skills
-
-        return [
-            {
-                "name": s.name,
-                "description": s.description,
-                "source": s.source,
-                "version": s.version,
-                "path": s.path,
-                "when_to_use": s.when_to_use,
-            }
-            for s in default_skills().list()
-        ]
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/mcp/servers")
-async def pilot_mcp_servers():
-    try:
-        from core.agent_pilot.harness import default_mcp_manager
-
-        mgr = default_mcp_manager()
-        return {
-            "aliases": mgr.list_aliases(),
-            "tools": [
-                {"alias": a, "tool": t.get("name"), "desc": (t.get("description") or "")[:120]}
-                for a, t in mgr.list_tools()
-            ],
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.post("/api/pilot/bitable")
-async def pilot_bitable_hook(body: Dict[str, Any]):
-    """Endpoint the Feishu Bitable AI Agent node hits on row change.
-
-    Expected body::
-
-        {
-          "app_token": "...", "table_id": "...", "record_id": "...",
-          "fields": {"需求": "生成评审方案", "要求": "..."},
-          "ai_field_name": "AI 结果",
-          "intent_template": "{需求} 生成文档 + PPT"
-        }
-    """
-    try:
-        from core.agent_pilot.service import launch
-        from core.feishu_advanced.bitable_agent import (
-            build_intent_from_fields,
-            writeback_ai_result,
-        )
-
-        data = body or {}
-        intent = build_intent_from_fields(data.get("fields") or {}, data.get("intent_template", ""))
-        if not intent:
-            return JSONResponse({"error": "empty intent"}, status_code=400)
-        plan = launch(
-            intent,
-            user_open_id=data.get("user_open_id", ""),
-            meta={
-                "bitable_hook": True,
-                "app_token": data.get("app_token", ""),
-                "table_id": data.get("table_id", ""),
-                "record_id": data.get("record_id", ""),
-            },
-            async_run=True,
-        )
-        if data.get("app_token") and data.get("table_id") and data.get("record_id"):
-            writeback_ai_result(
-                app_token=data["app_token"],
-                table_id=data["table_id"],
-                record_id=data["record_id"],
-                ai_field_name=data.get("ai_field_name", "AI 结果"),
-                verdict="处理中",
-                share_url=f"/pilot/{plan.plan_id}",
-            )
-        return {"plan_id": plan.plan_id, "intent": intent, "steps": len(plan.steps)}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/scenarios")
-async def pilot_scenarios():
-    try:
-        from core.agent_pilot.scenarios import ScenarioRegistry
-
-        return [
-            {"key": s.key, "name": s.name, "description": s.description, "entry_tools": s.entry_tools}
-            for s in ScenarioRegistry.all()
-        ]
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.post("/api/pilot/launch")
-async def pilot_launch(body: Dict[str, Any]):
-    try:
-        from core.agent_pilot.service import launch
-
-        intent = (body or {}).get("intent", "").strip()
-        if not intent:
-            return JSONResponse({"error": "intent required"}, status_code=400)
-        plan = launch(intent, user_open_id=(body or {}).get("open_id", ""), async_run=True)
-        return {"plan_id": plan.plan_id, "total_steps": len(plan.steps), "intent": plan.intent}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/pilot/{plan_id}", response_class=HTMLResponse)
-async def pilot_share_view(plan_id: str):
-    """Standalone share page (used in archive_tool's share_url)."""
-    page = STATIC_DIR / "pilot_share.html"
-    if page.exists():
-        html = page.read_text(encoding="utf-8")
-        return html.replace("{{PLAN_ID}}", plan_id)
-    return f"<h1>Pilot Plan {plan_id}</h1><p>Share page not built.</p>"
-
-
-# ── SSE Streaming Endpoint (real-time orchestrator events) ──
-
+# ── SSE Streaming Endpoint ──
 
 @app.get("/api/pilot/stream/{plan_id}")
 async def pilot_stream_sse(plan_id: str):
-    """Server-Sent Events stream for orchestrator events on a plan.
-
-    Subscribes to the CRDT hub's room for *plan_id* and relays every
-    event/state message as an SSE ``data:`` frame.  A heartbeat comment
-    is sent every 15 s to keep the connection alive.  The stream closes
-    automatically when a ``plan_done`` event is received.
-    """
-
     async def _event_generator():
         queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
 
@@ -901,16 +415,13 @@ async def pilot_stream_sse(plan_id: str):
         client_id = f"sse_{plan_id}_{_uuid.uuid4().hex[:8]}"
         hub.subscribe(client_id, _on_msg)
         history = hub.join(client_id, plan_id)
-
         try:
             for evt in history:
                 yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
-
             while True:
                 try:
                     payload = await asyncio.wait_for(queue.get(), timeout=15.0)
                     yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
                     ev = payload.get("event") or payload.get("state") or {}
                     if isinstance(ev, dict) and ev.get("type") == "plan_done":
                         break
@@ -923,200 +434,23 @@ async def pilot_stream_sse(plan_id: str):
     return StreamingResponse(
         _event_generator(),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
-# ── DAG Visualization Page (Mermaid.js) ──
+# ── DAG Visualization (template served from static file or inline fallback) ──
 
-_DAG_HTML = """\
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>DAG · {{PLAN_ID}}</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-     background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column}
-header{width:100%;padding:16px 24px;background:#1e293b;display:flex;align-items:center;gap:12px;
-       border-bottom:1px solid #334155}
-header h1{font-size:18px;font-weight:600}
-header .badge{font-size:12px;padding:2px 8px;border-radius:9999px;background:#334155}
-#intent{font-size:13px;color:#94a3b8;padding:4px 24px;max-width:800px;overflow:hidden;
-        text-overflow:ellipsis;white-space:nowrap}
-#status-bar{font-size:12px;color:#64748b;padding:8px 24px;width:100%}
-.main-layout{display:flex;flex:1;overflow:hidden}
-#dag-container{flex:1;display:flex;justify-content:center;align-items:flex-start;
-               padding:24px 16px;overflow:auto}
-#dag-container .mermaid svg{max-width:100%;cursor:pointer}
-#detail-panel{width:380px;background:#1e293b;border-left:1px solid #334155;overflow-y:auto;
-              transition:width .2s;padding:0}
-#detail-panel.collapsed{width:0;padding:0;overflow:hidden}
-#detail-panel .panel-header{padding:12px 16px;font-size:14px;font-weight:600;
-                             border-bottom:1px solid #334155;display:flex;justify-content:space-between}
-#detail-panel .panel-body{padding:12px 16px;font-size:13px;line-height:1.6}
-#detail-panel .field{margin-bottom:10px}
-#detail-panel .field-label{color:#94a3b8;font-size:11px;text-transform:uppercase;margin-bottom:2px}
-#detail-panel .field-value{color:#e2e8f0;word-break:break-all}
-#detail-panel .status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
-.legend{display:flex;gap:16px;padding:8px 24px;flex-wrap:wrap}
-.legend span{display:flex;align-items:center;gap:4px;font-size:12px}
-.legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-.dot-done{background:#22c55e}.dot-running{background:#eab308}
-.dot-failed{background:#ef4444}.dot-pending{background:#64748b}
-#error-box{color:#fca5a5;padding:16px 24px;display:none}
-#log-stream{max-height:200px;overflow-y:auto;background:#0f172a;border-radius:6px;
-            margin-top:8px;padding:8px;font-family:monospace;font-size:11px;line-height:1.5}
-#log-stream .log-entry{color:#94a3b8;border-bottom:1px solid #1e293b;padding:2px 0}
-#log-stream .log-entry.error{color:#fca5a5}
-</style>
-</head>
-<body>
-<header>
-  <h1>Agent-Pilot v11 DAG</h1>
-  <span class="badge" id="plan-badge">{{PLAN_ID}}</span>
-</header>
-<div id="intent"></div>
-<div class="legend">
-  <span><i class="dot dot-done"></i> done</span>
-  <span><i class="dot dot-running"></i> running</span>
-  <span><i class="dot dot-failed"></i> failed</span>
-  <span><i class="dot dot-pending"></i> pending</span>
-</div>
-<div id="status-bar">Loading…</div>
-<div id="error-box"></div>
-<div class="main-layout">
-  <div id="dag-container"><div class="mermaid" id="mermaid-target"></div></div>
-  <div id="detail-panel" class="collapsed">
-    <div class="panel-header"><span>Step Details</span><button onclick="closeDetail()" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px">&times;</button></div>
-    <div class="panel-body" id="detail-body"></div>
-  </div>
-</div>
-
-<script>
-const PLAN_ID = "{{PLAN_ID}}";
-const STATUS_COLOR = {done:"#22c55e",running:"#eab308",failed:"#ef4444",pending:"#64748b"};
-let currentSteps = [];
-let logEntries = [];
-
-mermaid.initialize({startOnLoad:false,theme:"dark",flowchart:{curve:"basis",padding:16}});
-
-function buildMermaid(steps){
-  let lines = ["graph TD"];
-  for(const s of steps){
-    const label = (s.description||s.tool).replace(/"/g,"'");
-    lines.push('  '+s.step_id+'["'+label+'"]');
-    const color = STATUS_COLOR[s.status]||STATUS_COLOR.pending;
-    lines.push('  style '+s.step_id+' fill:'+color+',stroke:'+color+',color:#fff');
-    for(const dep of (s.depends_on||[])){
-      lines.push('  '+dep+' --> '+s.step_id);
-    }
-  }
-  return lines.join("\\n");
-}
-
-function showStepDetail(stepId){
-  const step = currentSteps.find(s=>s.step_id===stepId);
-  if(!step) return;
-  const panel = document.getElementById("detail-panel");
-  const body = document.getElementById("detail-body");
-  const statusColors = {done:"#22c55e",running:"#eab308",failed:"#ef4444",pending:"#64748b"};
-  const color = statusColors[step.status]||statusColors.pending;
-  let html = '<div class="field"><div class="field-label">Step ID</div><div class="field-value"><code>'+step.step_id+'</code></div></div>';
-  html += '<div class="field"><div class="field-label">Tool</div><div class="field-value">'+step.tool+'</div></div>';
-  html += '<div class="field"><div class="field-label">Status</div><div class="field-value"><span class="status-badge" style="background:'+color+'">'+step.status+'</span></div></div>';
-  html += '<div class="field"><div class="field-label">Description</div><div class="field-value">'+(step.description||'-')+'</div></div>';
-  if(step.error) html += '<div class="field"><div class="field-label">Error</div><div class="field-value" style="color:#fca5a5">'+step.error+'</div></div>';
-  if(step.depends_on&&step.depends_on.length) html += '<div class="field"><div class="field-label">Dependencies</div><div class="field-value">'+step.depends_on.join(', ')+'</div></div>';
-  if(step.result) html += '<div class="field"><div class="field-label">Result Keys</div><div class="field-value">'+Object.keys(step.result).join(', ')+'</div></div>';
-  html += '<div class="field"><div class="field-label">Live Log</div><div id="log-stream">';
-  const stepLogs = logEntries.filter(l=>(l.step_id||"")==stepId || (l.payload&&l.payload.step_id==stepId));
-  for(const l of stepLogs.slice(-20)){
-    html += '<div class="log-entry'+(l.kind==="error"?" error":"")+'">['+(l.ts||"")+ '] '+JSON.stringify(l.payload||l).substring(0,200)+'</div>';
-  }
-  if(!stepLogs.length) html += '<div class="log-entry">Waiting for events…</div>';
-  html += '</div></div>';
-  body.innerHTML = html;
-  panel.classList.remove("collapsed");
-}
-
-function closeDetail(){document.getElementById("detail-panel").classList.add("collapsed")}
-
-function attachClickHandlers(){
-  document.querySelectorAll("#mermaid-target .node").forEach(node=>{
-    node.style.cursor="pointer";
-    node.addEventListener("click",function(){
-      const id = this.id.replace(/^flowchart-/,"").replace(/-\\d+$/,"");
-      showStepDetail(id);
-    });
-  });
-}
-
-async function renderDag(){
-  try{
-    const resp = await fetch("/api/pilot/plan/"+PLAN_ID);
-    if(!resp.ok){document.getElementById("error-box").textContent="Plan not found ("+resp.status+")";
-                  document.getElementById("error-box").style.display="block";return;}
-    const plan = await resp.json();
-    currentSteps = plan.steps||[];
-    document.getElementById("intent").textContent = plan.intent||"";
-    const code = buildMermaid(currentSteps);
-    const target = document.getElementById("mermaid-target");
-    const {svg} = await mermaid.render("dag-svg-"+Date.now(), code);
-    target.innerHTML = svg;
-    attachClickHandlers();
-    const done = currentSteps.filter(s=>s.status==="done").length;
-    document.getElementById("status-bar").textContent =
-      "Steps: "+done+"/"+currentSteps.length+" done · updated "+new Date().toLocaleTimeString();
-  }catch(e){
-    document.getElementById("error-box").textContent = "Error: "+e;
-    document.getElementById("error-box").style.display = "block";
-  }
-}
-
-function connectSSE(){
-  const es = new EventSource("/api/pilot/stream/"+PLAN_ID);
-  es.onmessage = function(e){
-    try{
-      const d = JSON.parse(e.data);
-      logEntries.push({...d, ts:new Date().toLocaleTimeString()});
-      if(logEntries.length>200) logEntries = logEntries.slice(-200);
-      const ev = d.event||d.state||{};
-      if(ev.type==="step_status_changed"||ev.type==="plan_done"||d.kind==="state"){
-        renderDag();
-      }
-      if(ev.type==="plan_done") es.close();
-    }catch(_){}
-  };
-  es.onerror = function(){
-    document.getElementById("status-bar").textContent += " (SSE reconnecting…)";
-  };
-}
-
-renderDag().then(connectSSE);
-</script>
-</body>
-</html>
-"""
-
-
+@app.get("/v12/dag/{plan_id}", response_class=HTMLResponse)
 @app.get("/v11/dag/{plan_id}", response_class=HTMLResponse)
 @app.get("/v10/dag/{plan_id}", response_class=HTMLResponse)
 async def dag_visualization(plan_id: str):
-    """Self-contained DAG visualization page (Mermaid.js).
-
-    Loads plan data from /api/pilot/plan/{plan_id}, renders a flowchart
-    with color-coded step status, and auto-refreshes via the SSE stream.
-    """
-    return _DAG_HTML.replace("{{PLAN_ID}}", plan_id)
+    dag_page = STATIC_DIR / "dag.html"
+    if dag_page.exists():
+        return dag_page.read_text(encoding="utf-8").replace("{{PLAN_ID}}", plan_id)
+    return f"<h1>DAG Visualization for {plan_id}</h1><p>Static page not built.</p>"
 
 
+@app.get("/v12/dashboard", response_class=HTMLResponse)
 @app.get("/v11/dashboard", response_class=HTMLResponse)
 @app.get("/dashboard/pilot", response_class=HTMLResponse)
 @app.get("/pilot", response_class=HTMLResponse)
@@ -1124,211 +458,44 @@ async def pilot_dashboard_page():
     page = STATIC_DIR / "pilot.html"
     if page.exists():
         return page.read_text(encoding="utf-8")
-    return "<h1>Agent-Pilot v11 Dashboard</h1><p>Static UI not built yet.</p>"
+    return f"<h1>Agent-Pilot v12 Dashboard</h1><p>Static UI not built yet.</p>"
 
 
-@app.get("/v7/pilot", response_class=HTMLResponse)
-@app.get("/v7", response_class=HTMLResponse)
-async def pilot_v7_dashboard():
-    v7_dir = Path(__file__).parent / "static_v7"
-    page = v7_dir / "pilot_v7.html"
+@app.get("/pilot/{plan_id}", response_class=HTMLResponse)
+async def pilot_share_view(plan_id: str):
+    page = STATIC_DIR / "pilot_share.html"
     if page.exists():
-        return page.read_text(encoding="utf-8")
-    return HTMLResponse(status_code=301, headers={"Location": "/v11/dashboard"})
+        return page.read_text(encoding="utf-8").replace("{{PLAN_ID}}", plan_id)
+    return f"<h1>Pilot Plan {plan_id}</h1><p>Share page not built.</p>"
 
 
-# ── Advanced Agent endpoints (clarify / summarise / recommend) ──
-
-
-@app.post("/api/pilot/clarify")
-async def pilot_clarify(body: Dict[str, Any]):
-    """Mentor.clarify pre-flight check. Returns the same ClarifyDecision
-    dataclass as the Planner would consult internally. Useful for a
-    "dry-run" UI that lets the user see whether their intent is clear
-    BEFORE launching a Pilot.
-    """
-    try:
-        from core.agent_pilot.advanced import diagnose_intent
-
-        intent = (body or {}).get("intent", "").strip()
-        if not intent:
-            return JSONResponse({"error": "intent required"}, status_code=400)
-        d = diagnose_intent(intent)
-        return {
-            "should_clarify": d.should_clarify,
-            "ambiguity": d.ambiguity,
-            "questions": d.questions,
-            "missing_dimensions": d.missing_dimensions,
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.post("/api/pilot/summarise")
-async def pilot_summarise(body: Dict[str, Any]):
-    try:
-        from core.agent_pilot.advanced import summarise_messages
-
-        msgs = (body or {}).get("messages") or []
-        return {"summary": summarise_messages(msgs)}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/recommend/{plan_id}")
-async def pilot_recommend(plan_id: str):
-    try:
-        from core.agent_pilot.advanced import recommend_next_steps
-        from core.agent_pilot.service import get_plan
-
-        plan = get_plan(plan_id)
-        if not plan:
-            return JSONResponse({"error": "not_found"}, status_code=404)
-        return {"plan_id": plan_id, "next_steps": recommend_next_steps(plan.to_dict())}
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/trace/{plan_id}")
-async def pilot_trace(plan_id: str):
-    """Execution trace for a plan: step-by-step inputs, outputs, timing, tokens."""
-    try:
-        from core.agent_pilot.service import get_plan
-
-        plan = get_plan(plan_id)
-        if not plan:
-            return JSONResponse({"error": "not_found"}, status_code=404)
-        steps_trace = []
-        for s in plan.steps:
-            steps_trace.append({
-                "step_id": s.step_id,
-                "tool": s.tool,
-                "status": s.status,
-                "description": s.description,
-                "started_ts": getattr(s, "started_ts", 0),
-                "finished_ts": getattr(s, "finished_ts", 0),
-                "duration_ms": (
-                    (getattr(s, "finished_ts", 0) - getattr(s, "started_ts", 0)) * 1000
-                    if getattr(s, "finished_ts", 0) and getattr(s, "started_ts", 0)
-                    else 0
-                ),
-                "error": s.error or "",
-                "result_keys": list((s.result or {}).keys()) if s.result else [],
-                "depends_on": s.depends_on or [],
-            })
-        return {
-            "plan_id": plan_id,
-            "intent": plan.intent,
-            "total_steps": len(plan.steps),
-            "steps": steps_trace,
-            "meta": plan.meta or {},
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.get("/api/pilot/cost")
-async def pilot_cost_summary():
-    """Aggregate cost and token usage across recent plans."""
-    try:
-        from core.agent_pilot.harness.orchestrator_v2 import default_orchestrator
-
-        orch = default_orchestrator()
-        events = orch.events()
-        plan_done_events = [e for e in events if e.get("kind") == "plan_done"]
-        total_tokens = sum(e.get("payload", {}).get("total_tokens", 0) for e in plan_done_events)
-        total_cost = sum(e.get("payload", {}).get("cost_usd", 0.0) for e in plan_done_events)
-        return {
-            "plans_completed": len(plan_done_events),
-            "total_tokens": total_tokens,
-            "total_cost_usd": round(total_cost, 4),
-            "recent_plans": [
-                {
-                    "plan_id": e.get("plan_id", ""),
-                    "verdict": e.get("payload", {}).get("verdict", ""),
-                    "tokens": e.get("payload", {}).get("total_tokens", 0),
-                    "elapsed_sec": e.get("payload", {}).get("elapsed_sec", 0),
-                }
-                for e in plan_done_events[-10:]
-            ],
-        }
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.post("/api/pilot/voice/transcribe")
-async def pilot_voice_transcribe(
-    audio: UploadFile = File(None),
-    open_id: str = Form(""),
-    minute_token: str = Form(""),
-    url: str = Form(""),
-):
-    """Accept either a multipart audio file (mobile client) or a
-    ``minute_token`` / remote ``url`` reference (desktop client).
-
-    Backends tried in order: Feishu Minutes → Doubao ASR → Whisper.cpp.
-    Flutter uploads an ``audio`` m4a file captured by `package:record`.
-    """
-    try:
-        import tempfile
-
-        from core.agent_pilot.planner import PlanStep
-        from core.agent_pilot.tools.voice_tool import voice_transcribe
-
-        args: Dict[str, Any] = {"open_id": open_id}
-        if minute_token:
-            args["minute_token"] = minute_token
-        if url:
-            args["url"] = url
-        if audio is not None:
-            # Persist the upload to a tmp file and let the tool read it.
-            suffix = os.path.splitext(audio.filename or "audio.m4a")[1] or ".m4a"
-            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-            tmp.write(await audio.read())
-            tmp.close()
-            args["file_path"] = tmp.name
-
-        step = PlanStep(step_id="http", tool="voice.transcribe", description="http")
-        return voice_transcribe(step, {"resolved_args": args, "plan_id": "", "step_results": {}})
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-# ── Offline merge reconciliation ──
-
+# ── Offline merge ──
 
 @app.get("/api/sync/reconcile/{room}")
 async def sync_reconcile(room: str):
     try:
         from core.sync.offline_merge import reconcile
-
         return reconcile(room)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# ── Mount API v1 router (P0-4) ──
-app.include_router(router_v1)
-
-# ── Mount CRDT sync WebSocket ──
+# ── Mount sync router (optional) ──
 try:
     from core.sync.ws_server import router as _sync_router
-
     if _sync_router is not None:
         app.include_router(_sync_router)
-except Exception as _e_sync:  # noqa: BLE001
-    pass  # sync router is optional; CRDT features disabled
+except Exception:
+    pass
 
-
-# ── Artifacts (doc/slide/canvas outputs served as downloads) ──
+# ── Artifacts ──
 ARTIFACT_DIR = ROOT / "data" / "pilot_artifacts"
 try:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/artifacts", StaticFiles(directory=str(ARTIFACT_DIR)), name="artifacts")
 except Exception:
-    pass  # artifact serving is best-effort; dir may not exist in test envs
+    pass
 
-
-# Static mount
+# ── Static mount ──
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

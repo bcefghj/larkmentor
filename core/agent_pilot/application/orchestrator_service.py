@@ -47,6 +47,8 @@ except ImportError:
     def trace_tool_call(*a: Any, **kw: Any):  # type: ignore[misc]
         yield None
 
+from core.exceptions import PlanningError, ToolExecutionError
+
 from ..domain import (
     Plan as DomainPlan,
 )
@@ -99,16 +101,24 @@ def _default_llm_fn(prompt: str) -> str:
 
 def _fallback_doc_content(intent: str, ctx: Dict[str, Any]) -> str:
     plan_id = ctx.get("plan_id", "")
+    cp = ctx.get("context_pack")
+    source_text = ""
+    if cp and hasattr(cp, "source_messages") and cp.source_messages:
+        source_text = "\n".join(f"- {m.text}" for m in cp.source_messages[:5] if hasattr(m, "text"))
     return (
         f"## 背景与目标\n\n"
         f"本文档由 Agent-Pilot 计划 `{plan_id}` 自动生成。\n\n"
-        f"任务目标：{intent}\n\n"
-        f"## 核心内容\n\n"
-        f"（Agent 正在分析上下文并生成内容...）\n\n"
+        f"**任务目标**：{intent}\n\n"
+        + (f"## 来源讨论摘要\n\n{source_text}\n\n" if source_text else "")
+        + f"## 核心内容\n\n"
+        f"基于上述讨论，以下为初步分析要点：\n\n"
+        f"1. **需求梳理**：{intent[:60]}\n"
+        f"2. **关键约束**：需进一步与相关方确认\n"
+        f"3. **初步方案**：建议从可行性和优先级两个维度评估\n\n"
         f"## 下一步行动\n\n"
-        f"- [ ] 评审文档内容\n"
-        f"- [ ] 补充细节\n"
-        f"- [ ] 确认后转为 PPT\n"
+        f"- [ ] 评审文档内容并补充细节\n"
+        f"- [ ] 与团队对齐方案共识\n"
+        f"- [ ] 确认后转为 PPT 或画布\n"
     )
 
 
@@ -181,7 +191,10 @@ class OrchestratorService:
     def run(self, task: Task, *, advance_state: bool = True) -> Task:
         plan = task.plan
         if plan is None or not plan.steps:
-            raise ValueError("Task.plan must be a non-empty DomainPlan")
+            raise PlanningError(
+                "Task.plan must be a non-empty DomainPlan",
+                phase="pre_execution", plan_id=getattr(plan, "plan_id", ""),
+            )
 
         incr("pilot_requests_total", source="orchestrator", status="started")
         audit("plan_started", task_id=task.task_id, plan_id=plan.plan_id, step_count=plan.step_count())
@@ -341,18 +354,28 @@ class OrchestratorService:
                 step.status = "done"
                 step.error = ""
             else:
-                logger.error("tool not registered: %s", step.tool)
+                err = ToolExecutionError(
+                    f"tool_not_registered: {step.tool}",
+                    tool_name=step.tool, step_id=step.step_id,
+                )
+                logger.error("%s", err.to_log_dict())
                 step.status = "failed"
-                step.error = f"tool_not_registered: {step.tool}"
-                step.result = {"error": step.error}
+                step.error = err.message
+                step.result = {"error": err.message}
         else:
             with trace_tool_call(step.tool, args):
                 try:
                     result = tool_fn(step, {**ctx, "resolved_args": args}) or {}
                     step.result = result
                     step.status = "done"
+                except ToolExecutionError:
+                    raise
                 except Exception as e:
-                    logger.exception("step %s failed: %s", step.step_id, e)
+                    te = ToolExecutionError(
+                        str(e), tool_name=step.tool, step_id=step.step_id,
+                        input_summary=str(args)[:200],
+                    )
+                    logger.exception("step %s failed: %s", step.step_id, te.to_log_dict())
                     step.status = "failed"
                     step.error = f"{type(e).__name__}: {e}"
                     step.result = {"error": step.error, "traceback": traceback.format_exc(limit=3)}

@@ -7,14 +7,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    import structlog
+import logging
 
-    logger = structlog.get_logger("agent.tools.doc")
-except ImportError:
-    import logging
-
-    logger = logging.getLogger("agent.tools.doc")
+logger = logging.getLogger("agent.tools.doc")
 
 from .registry import tool
 

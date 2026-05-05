@@ -5,7 +5,7 @@
 [![CI](https://github.com/bcefghj/Agent-Pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/bcefghj/Agent-Pilot/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v11.0.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-v12.0.0-orange.svg)]()
 
 ---
 
@@ -64,11 +64,12 @@ flowchart TB
 | 创新性 | 三闸门主动任务发现（无需显式指令）；6 级 Memory 真实注入 system prompt；学习闭环 3 次相似任务自动生成 SKILL.md；cardkit.v1 流式打字机卡片 | `intent_detector.py` · `memory_inject.py` · `learner.py` · `cards_pilot.py` |
 | 技术实现性 | 5 命名 Agent 协同（Builder-Validator 严格分离）；DAG 并行编排引擎；8 层安全栈全链路必经；Promptfoo 红队 32/32 通过；480+ pytest 全通过 | `multi_agent_pipeline.py` · `orchestrator.py` · `core/security/` · `tests/` |
 
-三个评委 Wow 点：
+四个评委 Wow 点：
 
-1. **cardkit.v1 流式打字机** — `task_progress_card` 实时 patch，生成过程中评委即可看到内容逐步呈现
-2. **6 级 Memory 真实注入** — Enterprise → Workspace → Department → Group → User → Session 自动合并到 system prompt，低层覆盖高层
-3. **学习闭环 SKILL.md** — 3 次相似任务后自动生成技能文件，第 4 次命中直接复用，纯 Python 实现，2C2G 可运行
+1. **Streaming 流式打字机** — LLM `chat_stream()` + cardkit.v1 patch，生成过程中评委即可看到内容逐步呈现
+2. **3-Tier Prompt Cache** — 借鉴 Claude Code 架构，Role+Tools / Memory+Rules / Env 三层缓存，降低 90% 重复 prompt 开销
+3. **多 Agent 实时辩论** — 正方/反方/调停者 三角辩论 + Judge 裁决，全过程飞书卡片实时展示
+4. **6 级 Memory 真实注入** — Enterprise → Workspace → Department → Group → User → Session 自动合并到 system prompt，学习闭环 SKILL.md 自动生成
 
 ---
 
@@ -78,7 +79,7 @@ flowchart TB
 |---|---------|
 | 后端框架 | Python 3.10+ · FastAPI · lark-oapi（飞书官方 SDK，WebSocket 长连接） |
 | 前端展示 | Flutter 四端一套代码（iOS/Android/macOS/Windows）· Tiptap 富文本 · tldraw 白板 |
-| AI 能力 | 豆包 Doubao（主力）· MiniMax · DeepSeek · Kimi · OpenAI Function Calling · MCP 协议 |
+| AI 能力 | MiMo（主力）· 豆包 Doubao · MiniMax · DeepSeek · Kimi · OpenAI Function Calling · MCP 协议 |
 | 推理模式 | ReAct · Reflection · CoT · Debate · Tree-of-Thoughts（根据意图自动选择） |
 | 多 Agent | Fan-out · Pipeline · Map-Reduce · Specialist Delegation（4 种协同模式） |
 | 多端同步 | Yjs y-py CRDT Hub · WebSocket 广播 · 离线日志合并对账 |
@@ -115,8 +116,8 @@ PYTHONPATH=. pytest tests/ -q --ignore=tests/e2e --ignore=tests/simulator
 bash run_services.sh
 # 一次性启动 3 个进程：Bot + Dashboard + MCP Server
 # Dashboard:    http://localhost:8001
-# Pilot 驾驶舱: http://localhost:8001/v11/dashboard
-# DAG 可视化:   http://localhost:8001/v11/dag/{plan_id}
+# Pilot 驾驶舱: http://localhost:8001/v12/dashboard
+# DAG 可视化:   http://localhost:8001/v12/dag/{plan_id}
 # API 文档:     http://localhost:8001/docs
 # MCP Server:   http://localhost:8767
 
@@ -213,8 +214,8 @@ Agent-Pilot/
 | `/api/pilot/trace/{plan_id}` | GET | 执行追踪：步骤级耗时/Token/重试详情 |
 | `/api/pilot/cost` | GET | 成本汇总：Token 总量与费用统计 |
 | `/sync/ws` | WebSocket | Yjs CRDT 多端同步通道 |
-| `/v11/dashboard` | GET | Pilot v11 驾驶舱主入口 |
-| `/v11/dag/{plan_id}` | GET | DAG 可视化（步骤详情 + 实时日志流） |
+| `/v12/dashboard` | GET | Pilot v12 驾驶舱主入口 |
+| `/v12/dag/{plan_id}` | GET | DAG 可视化（步骤详情 + 实时日志流） |
 | `/docs` | GET | OpenAPI 自动生成文档 |
 
 完整 API 文档启动后访问 `http://localhost:8001/docs` 查看。
@@ -241,7 +242,7 @@ Agent-Pilot/
 
 - 赛题核心要求：从一次 IM 对话开始，Agent 自动串联 IM + 文档 + 演示稿/画布，实现多端实时同步的全链路自动化
 - 在线体验：http://118.178.242.26/
-- Pilot 驾驶舱：http://118.178.242.26/v11/dashboard
+- Pilot 驾驶舱：http://118.178.242.26/v12/dashboard
 - 技术文档：[架构文档](docs/ARCHITECTURE_v8.md) · [PRD 实现地图](docs/PRD_IMPLEMENTATION.md) · [演化历程](docs/EVOLUTION.md) · [Demo 脚本](docs/DEMO_SCRIPT.md)
 
 | 成员 | 角色 | 联系 |

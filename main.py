@@ -162,7 +162,7 @@ def main():
     sync_port = int(os.getenv("SYNC_HUB_PORT", "8002") or "8002")
     print(r"""
     ╔══════════════════════════════════════════════════════════╗
-    ║  Agent-Pilot v11 · 三线产品 · 飞书 AI 校园挑战赛          ║
+    ║  Agent-Pilot v12 · 三线产品 · 飞书 AI 校园挑战赛          ║
     ║  从 IM 对话到演示稿的一键智能闭环                          ║
     ║                                                          ║
     ║  [✓] @pilot   主驾驶 · IntentDetector + ContextPack +     ║

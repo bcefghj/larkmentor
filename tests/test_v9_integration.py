@@ -1,4 +1,4 @@
-"""Agent-Pilot v11 integration tests.
+"""Agent-Pilot v12 integration tests.
 
 Tests the full pipeline: IM message → IntentDetector → PlannerService →
 ConversationOrchestrator → Tool execution → Result delivery.
@@ -183,7 +183,7 @@ class TestAPIContract:
         assert resp.status_code == 200
         data = resp.json()
         assert "version" in data
-        assert data["version"] == "11.0.0"
+        assert data["version"] == "12.0.0"
 
     def test_overview_endpoint(self):
         from dashboard.server import app

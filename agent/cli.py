@@ -42,7 +42,7 @@ def cmd_status(args) -> None:
     from config import Config
 
     status = {
-        "version": "11.0.0",
+        "version": "12.0.0",
         "feishu_app_id": Config.FEISHU_APP_ID[:8] + "..." if Config.FEISHU_APP_ID else "(not set)",
         "ark_model": Config.ARK_MODEL,
         "dashboard_port": Config.DASHBOARD_PORT,
