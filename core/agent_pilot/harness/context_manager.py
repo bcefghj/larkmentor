@@ -255,13 +255,6 @@ class ContextManager:
             from llm.llm_client import chat
         except ImportError:
             return ""
-        try:
-            from config import Config
-            if not Config.ARK_API_KEY:
-                return ""
-        except Exception:
-            return ""
-
         user_intent = (first_user or {}).get("content", "")[:300]
         msg_digest = []
         for m in messages[-20:]:

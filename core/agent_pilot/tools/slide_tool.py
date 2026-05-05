@@ -195,9 +195,6 @@ def _generate_outline_via_llm(title: str, ctx: Dict[str, Any]) -> List[Dict[str,
 4. 只输出 JSON 数组，不要其他内容"""
 
     try:
-        from config import Config
-        if not Config.ARK_API_KEY:
-            return []
         result = chat(prompt, temperature=0.4)
         if result:
             import json as _json
@@ -373,13 +370,6 @@ def _generate_speaker_note_via_llm(title: str, bullets: List[str]) -> str:
     try:
         from llm.llm_client import chat
     except ImportError:
-        return ""
-
-    try:
-        from config import Config
-        if not Config.ARK_API_KEY:
-            return ""
-    except Exception:
         return ""
 
     bullets_text = "\n".join(f"- {b}" for b in bullets[:5]) if bullets else "（无要点）"

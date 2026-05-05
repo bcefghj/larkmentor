@@ -198,6 +198,22 @@ def _do_handle(data):
                 return
         except Exception as e:
             logger.debug("PilotRouter DM routing skipped: %s", e)
+
+        # NOT_INTENT: try LLM conversational reply before falling back to welcome card
+        try:
+            from llm.llm_client import chat as _llm_chat
+
+            reply = _llm_chat(
+                f"你是 Agent-Pilot，飞书里的 AI 办公助手。用户发送了：「{text}」\n"
+                "请简短友好地回复，并提醒用户可以用自然语言描述任务（如'帮我写个文档'）或使用 /pilot 命令。",
+                temperature=0.6,
+            )
+            if reply and len(reply.strip()) > 5:
+                send_text(open_id, reply.strip())
+                return
+        except Exception as e:
+            logger.debug("LLM conversational reply skipped: %s", e)
+
         send_card(open_id, first_time_welcome_card())
         return
 

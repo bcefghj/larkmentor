@@ -22,7 +22,7 @@ async def health_check():
 async def readiness_check():
     """Kubernetes-style readiness probe - checks dependencies."""
     checks = {
-        "llm_configured": bool(Config.ARK_API_KEY or getattr(Config, "MIMO_API_KEY", "")),
+        "llm_configured": bool(getattr(Config, "MIMO_API_KEY", "") or getattr(Config, "MINIMAX_API_KEY", "") or Config.ARK_API_KEY),
         "feishu_configured": bool(Config.FEISHU_APP_ID),
     }
     all_ready = all(checks.values())

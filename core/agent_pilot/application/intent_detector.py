@@ -36,14 +36,28 @@ KEYWORDS_OFFICE = {
     "拉齐一下",
     "沉淀一下",
     "形成材料",
-    # 文档 / 方案
+    # 文档 / 方案（扩充常见表达）
     "做个方案",
     "出个文档",
     "起草",
     "做个计划书",
     "写个大纲",
+    "写个文档",
+    "写文档",
+    "帮我写",
+    "帮我做",
+    "帮我生成",
+    "帮我准备",
+    "帮我整理",
+    "生成文档",
+    "创建文档",
+    "做个文档",
+    "写一份",
+    "做一份",
     "PRD",
     "需求文档",
+    "产品文档",
+    "技术文档",
     # 演示 / 汇报
     "生成 PPT",
     "做 PPT",
@@ -56,6 +70,9 @@ KEYWORDS_OFFICE = {
     "做汇报",
     "准备演示",
     "演讲稿",
+    "做个PPT",
+    "写个PPT",
+    "帮我做PPT",
     # 复盘 / 季度
     "做个复盘",
     "复盘汇报",
@@ -69,6 +86,12 @@ KEYWORDS_OFFICE = {
     "出一版",
     "完结",
     "归档",
+    # 画布 / 白板
+    "画个图",
+    "做个图",
+    "流程图",
+    "架构图",
+    "思维导图",
     # 英文常见
     "ppt",
     "deck",
@@ -78,6 +101,8 @@ KEYWORDS_OFFICE = {
     "proposal",
     "wrap up",
     "follow up",
+    "document",
+    "write",
 }
 
 # 任务语义动词（次要规则，用 substring 匹配，覆盖更广）
@@ -96,6 +121,18 @@ SEMANTIC_VERBS = (
     "材料",
     "成果",
     "交付",
+    "撰写",
+    "编写",
+    "生成",
+    "制作",
+    "创建",
+    "准备",
+    "草拟",
+    "起草",
+    "分析",
+    "总结",
+    "规划",
+    "设计",
 )
 
 # 时间节点信号（提升任务真实性）
@@ -251,12 +288,18 @@ def detect_rules(messages: List[ChatMessage]) -> RuleHit:
     score += 0.15 if hit.has_resource_signal else 0.0
     score += 0.15 if hit.multi_speaker else 0.0
     score += 0.10 if hit.consecutive_msgs >= 5 else 0.0
+
+    # Boost: semantic verb + document/artifact noun co-occurrence
+    _ARTIFACT_NOUNS = ("文档", "文件", "PPT", "ppt", "演示", "报告", "方案", "画布", "白板", "大纲", "复盘")
+    if hit.semantic_hits and any(n in text_concat for n in _ARTIFACT_NOUNS):
+        score += 0.15
+
     hit.score = min(score, 1.0)
     return hit
 
 
-def rule_passes(hit: RuleHit, *, threshold: float = 0.40) -> bool:
-    """闸门 1 通过条件：score >= threshold（默认 0.40）."""
+def rule_passes(hit: RuleHit, *, threshold: float = 0.25) -> bool:
+    """闸门 1 通过条件：score >= threshold（默认 0.25）."""
     return hit.score >= threshold
 
 

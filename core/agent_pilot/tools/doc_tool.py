@@ -240,14 +240,8 @@ def _generate_doc_via_llm(intent: str, context: str, plan_id: str) -> str:
         from llm.llm_client import chat
     except ImportError:
         return ""
-    try:
-        from config import Config
-        if not Config.ARK_API_KEY:
-            return ""
-    except Exception:
-        return ""
 
-    prompt = f"""你是一个专业文档撰写助手。请根据以下信息生成一份结构化的 Markdown 需求文档。
+    prompt = f"""你是一个专业文档撰写助手。请根据以下信息生成一份结构化的 Markdown 文档。
 
 用户意图：{intent}
 计划编号：{plan_id}
@@ -257,13 +251,14 @@ def _generate_doc_via_llm(intent: str, context: str, plan_id: str) -> str:
 要求：
 1. 包含「背景与目标」「核心需求」「关键决策」「下一步行动」等章节
 2. 使用 Markdown 格式（## 标题、- 列表）
-3. 内容具体、可操作，300-500 字
-4. 直接输出 Markdown，不要包裹代码块"""
+3. 内容具体、可操作，300-800 字
+4. 直接输出 Markdown，不要包裹代码块
+5. 根据用户意图适配内容深度和方向"""
 
     try:
         result = chat(prompt, temperature=0.4)
         if result and len(result.strip()) > 50:
             return result.strip()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("doc LLM generation failed: %s", e)
     return ""

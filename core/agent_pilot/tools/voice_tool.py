@@ -43,19 +43,20 @@ def voice_transcribe(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _try_doubao_asr(file_path: str) -> str:
-    """Attempt ASR via Volcano Ark (OpenAI-compatible whisper endpoint)."""
+    """Attempt ASR via available OpenAI-compatible provider (MiMo/ARK/MiniMax)."""
     if not file_path:
         return ""
     try:
         from config import Config
-        if not Config.ARK_API_KEY:
+        from llm.llm_client import _select_provider
+
+        api_key, base_url = _select_provider()
+        if not api_key:
             return ""
 
         from openai import OpenAI
-        client = OpenAI(
-            api_key=Config.ARK_API_KEY,
-            base_url=Config.ARK_BASE_URL.replace("/coding/v3", "/v3"),
-        )
+        asr_base_url = base_url.replace("/coding/v3", "/v3")
+        client = OpenAI(api_key=api_key, base_url=asr_base_url)
 
         with open(file_path, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(
@@ -67,7 +68,7 @@ def _try_doubao_asr(file_path: str) -> str:
         if text and len(text.strip()) > 1:
             return text.strip()
     except Exception as e:
-        logger.debug("doubao asr failed: %s", e)
+        logger.debug("ASR failed: %s", e)
     return ""
 
 

@@ -137,13 +137,18 @@ def _embed(texts: List[str]) -> List[List[float]]:
         from openai import OpenAI
 
         from config import Config
+        from llm.llm_client import _select_provider
 
-        client = OpenAI(
-            api_key=Config.ARK_API_KEY,
-            base_url=Config.ARK_EMBED_BASE_URL,
-        )
+        api_key, base_url = _select_provider()
+        embed_base = getattr(Config, "ARK_EMBED_BASE_URL", base_url)
+        embed_model = getattr(Config, "ARK_EMBED_MODEL", "text-embedding-3-small")
+
+        if not api_key:
+            return None
+
+        client = OpenAI(api_key=api_key, base_url=embed_base)
         resp = client.embeddings.create(
-            model=Config.ARK_EMBED_MODEL,
+            model=embed_model,
             input=texts,
         )
         return [d.embedding for d in resp.data]
