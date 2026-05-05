@@ -72,11 +72,16 @@ logger = logging.getLogger("pilot.application.orchestrator_service")
 
 
 def _default_llm_fn(prompt: str) -> str:
-    """Try providers -> llm_client -> return empty."""
+    """Try providers -> llm_client -> return empty.
+
+    Uses the multi-provider router with circuit breaker and auto-fallback.
+    If all providers are unavailable, falls back to the basic ARK client.
+    """
     try:
         from agent.providers import default_providers
 
-        return default_providers().chat(
+        router = default_providers()
+        return router.chat(
             messages=[{"role": "user", "content": prompt}],
             task_kind="chinese_chat",
             max_tokens=2000,
@@ -86,7 +91,7 @@ def _default_llm_fn(prompt: str) -> str:
     try:
         from llm.llm_client import chat as _chat
 
-        return _chat(messages=[{"role": "user", "content": prompt}], temperature=0.4, max_tokens=2000)
+        return _chat(prompt, temperature=0.4)
     except Exception as e:
         logger.debug("default_llm_fn llm_client fallback: %s", e)
         return ""
@@ -117,6 +122,8 @@ class OrchestratorConfig:
     fail_fast: bool = False
     max_retry_per_step: int = 1
     demo_mode: bool = False
+    step_timeout_sec: int = 120
+    plan_timeout_sec: int = 600
 
 
 class OrchestratorService:
@@ -150,6 +157,22 @@ class OrchestratorService:
                 self._broadcaster({"kind": kind, "plan_id": plan_id, "step_id": step_id, "payload": payload or {}})
             except Exception as e:
                 logger.debug("broadcaster failed: %s", e)
+
+    def _broadcast_progress(self, plan: DomainPlan) -> None:
+        """Emit a progress event with percentage completion."""
+        total = plan.step_count()
+        done = sum(1 for s in plan.steps if s.status in ("done", "failed"))
+        pct = int((done / total) * 100) if total > 0 else 0
+        self._broadcast(
+            "progress",
+            plan_id=plan.plan_id,
+            payload={
+                "done": done,
+                "total": total,
+                "percent": pct,
+                "running": [s.step_id for s in plan.steps if s.status == "running"],
+            },
+        )
 
     def register_tool(self, name: str, fn: ToolFn) -> None:
         self._tools[name] = fn
@@ -198,8 +221,29 @@ class OrchestratorService:
             "context_pack": task.context_pack,
         }
 
+        self._broadcast(
+            "plan_started",
+            plan_id=plan.plan_id,
+            payload={
+                "intent": task.intent,
+                "total_steps": plan.step_count(),
+                "reasoning_pattern": plan.reasoning_pattern,
+            },
+        )
+
         # 主循环：拓扑就绪即跑，parallel_group 并发
+        plan_start_ts = time.time()
         while True:
+            # Plan-level timeout check
+            if time.time() - plan_start_ts > self.cfg.plan_timeout_sec:
+                logger.warning("plan timeout after %ds", self.cfg.plan_timeout_sec)
+                self._broadcast(
+                    "plan_timeout",
+                    plan_id=plan.plan_id,
+                    payload={"timeout_sec": self.cfg.plan_timeout_sec},
+                )
+                break
+
             ready = self._ready_steps(plan)
             if not ready:
                 break
@@ -213,6 +257,7 @@ class OrchestratorService:
 
             for s in singles:
                 self._run_step(s, task, ctx)
+                self._broadcast_progress(plan)
                 if self.cfg.fail_fast and s.status == "failed":
                     self._finalize_failure(task, s.error)
                     return task
@@ -220,11 +265,13 @@ class OrchestratorService:
             for grp, gs in groups.items():
                 if len(gs) == 1:
                     self._run_step(gs[0], task, ctx)
+                    self._broadcast_progress(plan)
                     continue
                 with ThreadPoolExecutor(max_workers=min(self.cfg.max_parallel, len(gs))) as pool:
                     futs = {pool.submit(self._run_step, s, task, ctx): s for s in gs}
                     for fut in as_completed(futs):
                         fut.result()
+                self._broadcast_progress(plan)
             # safety
             still_pending = [s for s in plan.steps if s.status == "pending"]
             just_ran = [s for s in ready if s.status in ("done", "failed")]
@@ -379,6 +426,9 @@ class OrchestratorService:
         return out
 
     def _enrich_doc_content(self, task: Task, ctx: Dict[str, Any]) -> str:
+        if self.cfg.demo_mode:
+            return _fallback_doc_content(task.intent, ctx)
+
         cp = task.context_pack
         source_text = ""
         if cp and cp.source_messages:
@@ -395,6 +445,14 @@ class OrchestratorService:
         return result if result else _fallback_doc_content(task.intent, ctx)
 
     def _enrich_slide_outline(self, task: Task, ctx: Dict[str, Any]) -> str:
+        if self.cfg.demo_mode:
+            return [
+                {"title": "项目背景与目标", "bullets": ["团队痛点分析", "解决方案概述", "预期收益"]},
+                {"title": "核心方案", "bullets": ["技术架构", "关键模块设计", "实现路径"]},
+                {"title": "时间规划", "bullets": ["第一阶段: 基础搭建", "第二阶段: 功能迭代", "第三阶段: 上线运营"]},
+                {"title": "总结与下一步", "bullets": ["核心成果回顾", "待确认事项", "行动计划"]},
+            ]
+
         step_results = ctx.get("step_results") or {}
         doc_content = ""
         for r in step_results.values():

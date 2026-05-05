@@ -40,6 +40,14 @@ class _CanvasViewState extends State<CanvasView> {
   }
 
   @override
+  void didUpdateWidget(covariant CanvasView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.planId != widget.planId) {
+      _reload();
+    }
+  }
+
+  @override
   void dispose() {
     if (_settingsListener != null) {
       SettingsService.instance.removeChangeListener(_settingsListener!);

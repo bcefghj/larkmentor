@@ -39,15 +39,6 @@ def build_default_registry() -> Dict[str, Callable]:
         "mentor.clarify": mentor_clarify,
         "mentor.summarize": mentor_summarize,
     }
-
-    try:
-        from core.agent_pilot.harness.tool_registry import default_registry
-        mismatches = default_registry().validate_against(registry)
-        if mismatches:
-            logger.warning("tool registry mismatches: %s", mismatches)
-    except Exception as e:
-        logger.debug("tool registry validation skipped: %s", e)
-
     return registry
 
 

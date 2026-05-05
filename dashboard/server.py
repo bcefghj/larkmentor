@@ -43,6 +43,7 @@ try:
     from fastapi.staticfiles import StaticFiles
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.requests import Request
+    from starlette.responses import StreamingResponse
 except ImportError as e:
     raise RuntimeError("Install fastapi & uvicorn: pip install fastapi uvicorn") from e
 
@@ -916,6 +917,190 @@ async def pilot_share_view(plan_id: str):
         html = page.read_text(encoding="utf-8")
         return html.replace("{{PLAN_ID}}", plan_id)
     return f"<h1>Pilot Plan {plan_id}</h1><p>Share page not built.</p>"
+
+
+# ── SSE Streaming Endpoint (real-time orchestrator events) ──
+
+
+@app.get("/api/pilot/stream/{plan_id}")
+async def pilot_stream_sse(plan_id: str):
+    """Server-Sent Events stream for orchestrator events on a plan.
+
+    Subscribes to the CRDT hub's room for *plan_id* and relays every
+    event/state message as an SSE ``data:`` frame.  A heartbeat comment
+    is sent every 15 s to keep the connection alive.  The stream closes
+    automatically when a ``plan_done`` event is received.
+    """
+
+    async def _event_generator():
+        queue: asyncio.Queue[Dict[str, Any]] = asyncio.Queue()
+
+        def _on_msg(payload: Dict[str, Any]) -> None:
+            try:
+                queue.put_nowait(payload)
+            except asyncio.QueueFull:
+                pass
+
+        try:
+            from core.sync.crdt_hub import default_hub
+            hub = default_hub()
+        except Exception:
+            yield f"data: {json.dumps({'error': 'crdt_hub_unavailable'})}\n\n"
+            return
+
+        client_id = f"sse_{plan_id}_{_uuid.uuid4().hex[:8]}"
+        hub.subscribe(client_id, _on_msg)
+        history = hub.join(client_id, plan_id)
+
+        try:
+            for evt in history:
+                yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
+
+            while True:
+                try:
+                    payload = await asyncio.wait_for(queue.get(), timeout=15.0)
+                    yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                    ev = payload.get("event") or payload.get("state") or {}
+                    if isinstance(ev, dict) and ev.get("type") == "plan_done":
+                        break
+                except asyncio.TimeoutError:
+                    yield ": heartbeat\n\n"
+        finally:
+            hub.leave(client_id, plan_id)
+            hub.unsubscribe(client_id)
+
+    return StreamingResponse(
+        _event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ── DAG Visualization Page (Mermaid.js) ──
+
+_DAG_HTML = """\
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DAG · {{PLAN_ID}}</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+     background:#0f172a;color:#e2e8f0;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+header{width:100%;padding:16px 24px;background:#1e293b;display:flex;align-items:center;gap:12px;
+       border-bottom:1px solid #334155}
+header h1{font-size:18px;font-weight:600}
+header .badge{font-size:12px;padding:2px 8px;border-radius:9999px;background:#334155}
+#intent{font-size:13px;color:#94a3b8;margin-top:4px;max-width:600px;overflow:hidden;
+        text-overflow:ellipsis;white-space:nowrap}
+#status-bar{font-size:12px;color:#64748b;padding:8px 24px;width:100%}
+#dag-container{flex:1;width:100%;display:flex;justify-content:center;align-items:flex-start;
+               padding:32px 16px;overflow:auto}
+#dag-container .mermaid svg{max-width:100%}
+.legend{display:flex;gap:16px;padding:12px 24px;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:4px;font-size:12px}
+.legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot-done{background:#22c55e}.dot-running{background:#eab308}
+.dot-failed{background:#ef4444}.dot-pending{background:#64748b}
+#error-box{color:#fca5a5;padding:16px 24px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent-Pilot DAG</h1>
+  <span class="badge" id="plan-badge">{{PLAN_ID}}</span>
+</header>
+<div id="intent"></div>
+<div class="legend">
+  <span><i class="dot dot-done"></i> done</span>
+  <span><i class="dot dot-running"></i> running</span>
+  <span><i class="dot dot-failed"></i> failed</span>
+  <span><i class="dot dot-pending"></i> pending</span>
+</div>
+<div id="status-bar">Loading…</div>
+<div id="error-box"></div>
+<div id="dag-container"><div class="mermaid" id="mermaid-target"></div></div>
+
+<script>
+const PLAN_ID = "{{PLAN_ID}}";
+const STATUS_COLOR = {done:"#22c55e",running:"#eab308",failed:"#ef4444",pending:"#64748b"};
+
+mermaid.initialize({startOnLoad:false,theme:"dark",flowchart:{curve:"basis",padding:16}});
+
+function buildMermaid(steps){
+  let lines = ["graph TD"];
+  for(const s of steps){
+    const label = s.description||s.tool;
+    const clean = label.replace(/"/g,"'");
+    lines.push('  '+s.step_id+'["'+clean+'"]');
+    const color = STATUS_COLOR[s.status]||STATUS_COLOR.pending;
+    lines.push('  style '+s.step_id+' fill:'+color+',stroke:'+color+',color:#fff');
+    for(const dep of (s.depends_on||[])){
+      lines.push('  '+dep+' --> '+s.step_id);
+    }
+  }
+  return lines.join("\\n");
+}
+
+async function renderDag(){
+  try{
+    const resp = await fetch("/api/pilot/plan/"+PLAN_ID);
+    if(!resp.ok){document.getElementById("error-box").textContent="Plan not found ("+resp.status+")";
+                  document.getElementById("error-box").style.display="block";return;}
+    const plan = await resp.json();
+    document.getElementById("intent").textContent = plan.intent||"";
+    const code = buildMermaid(plan.steps||[]);
+    const target = document.getElementById("mermaid-target");
+    const {svg} = await mermaid.render("dag-svg", code);
+    target.innerHTML = svg;
+    const done = (plan.steps||[]).filter(s=>s.status==="done").length;
+    document.getElementById("status-bar").textContent =
+      "Steps: "+done+"/"+(plan.steps||[]).length+" done · updated "+new Date().toLocaleTimeString();
+  }catch(e){
+    document.getElementById("error-box").textContent = "Error: "+e;
+    document.getElementById("error-box").style.display = "block";
+  }
+}
+
+function connectSSE(){
+  const es = new EventSource("/api/pilot/stream/"+PLAN_ID);
+  es.onmessage = function(e){
+    try{
+      const d = JSON.parse(e.data);
+      const ev = d.event||d.state||{};
+      if(ev.type==="step_status_changed"||ev.type==="plan_done"||d.kind==="state"){
+        renderDag();
+      }
+      if(ev.type==="plan_done") es.close();
+    }catch(_){}
+  };
+  es.onerror = function(){
+    document.getElementById("status-bar").textContent += " (SSE reconnecting…)";
+  };
+}
+
+renderDag().then(connectSSE);
+</script>
+</body>
+</html>
+"""
+
+
+@app.get("/v10/dag/{plan_id}", response_class=HTMLResponse)
+async def dag_visualization(plan_id: str):
+    """Self-contained DAG visualization page (Mermaid.js).
+
+    Loads plan data from /api/pilot/plan/{plan_id}, renders a flowchart
+    with color-coded step status, and auto-refreshes via the SSE stream.
+    """
+    return _DAG_HTML.replace("{{PLAN_ID}}", plan_id)
 
 
 @app.get("/dashboard/pilot", response_class=HTMLResponse)

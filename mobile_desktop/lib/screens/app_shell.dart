@@ -18,7 +18,7 @@ class _AppShellState extends State<AppShell> {
   String _currentPlanId = "default";
 
   List<Widget> get _pages => [
-    const PilotHome(),
+    PilotHome(onPlanSelected: switchToPlan),
     DocView(planId: _currentPlanId),
     CanvasView(planId: _currentPlanId),
     const SlideView(),

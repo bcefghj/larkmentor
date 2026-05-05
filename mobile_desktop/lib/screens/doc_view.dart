@@ -38,6 +38,14 @@ class _DocViewState extends State<DocView> {
   }
 
   @override
+  void didUpdateWidget(covariant DocView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.planId != widget.planId) {
+      _reload();
+    }
+  }
+
+  @override
   void dispose() {
     if (_settingsListener != null) {
       SettingsService.instance.removeChangeListener(_settingsListener!);

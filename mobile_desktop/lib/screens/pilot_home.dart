@@ -6,7 +6,8 @@ import '../services/api_service.dart';
 import '../services/sync_service.dart';
 
 class PilotHome extends StatefulWidget {
-  const PilotHome({super.key});
+  const PilotHome({super.key, this.onPlanSelected});
+  final ValueChanged<String>? onPlanSelected;
   @override
   State<PilotHome> createState() => _PilotHomeState();
 }
@@ -59,6 +60,7 @@ class _PilotHomeState extends State<PilotHome> {
       _selectedPlanId = planId;
       _events.clear();
     });
+    widget.onPlanSelected?.call(planId);
     await SyncService.instance.join(planId);
     await _loadPlan(planId);
   }

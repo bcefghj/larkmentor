@@ -73,9 +73,9 @@ class CronScheduler:
                 tenant_id = job.get("tenant_id", "default")
                 logger.info("cron run %s: %s", job.get("name"), kind)
                 if kind == "pilot":
-                    from bot.handlers_v4 import _run_pilot
+                    from core.agent_pilot.service import launch
 
-                    _run_pilot(task, user_open_id=user_open_id, chat_id="", tenant_id=tenant_id)
+                    launch(task, user_open_id=user_open_id)
                 elif kind == "weekly_report":
                     from agent.tools.mentor_tools import weekly_report
 

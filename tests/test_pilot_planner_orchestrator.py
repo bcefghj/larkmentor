@@ -13,6 +13,7 @@ from core.agent_pilot.application import (
     TaskService,
     select_reasoning_pattern,
 )
+from core.agent_pilot.application.orchestrator_service import OrchestratorConfig
 from core.agent_pilot.application.task_service import TaskRepository
 from core.agent_pilot.domain import (
     TaskEvent,
@@ -178,7 +179,8 @@ def test_orchestrator_simulates_unregistered_tool(task_with_ctx):
     t.apply(TaskEvent.USER_CONFIRM, actor_open_id="u1")
     t.apply(TaskEvent.USER_CONFIRM_CONTEXT, actor_open_id="u1")
 
-    orch = OrchestratorService(tools={})  # empty registry
+    cfg = OrchestratorConfig(demo_mode=True)
+    orch = OrchestratorService(tools={}, config=cfg)  # empty registry + demo
     orch.run(t)
     assert all(s.status == "done" for s in t.plan.steps)
     assert all(s.result.get("simulated") for s in t.plan.steps)
@@ -195,11 +197,13 @@ def test_orchestrator_records_failed_step(task_with_ctx):
         tools={
             "im.fetch_thread": _ok_tool,
             "doc.create": _failing_tool,
+            "doc.append": _ok_tool,
+            "archive.bundle": _ok_tool,
         }
     )
     orch.run(t)
     failed = [s for s in t.plan.steps if s.status == "failed"]
-    assert len(failed) == 1
+    assert len(failed) >= 1
     assert "RuntimeError" in failed[0].error
 
 

@@ -5,7 +5,7 @@
 [![CI](https://github.com/bcefghj/Agent-Pilot/actions/workflows/ci.yml/badge.svg)](https://github.com/bcefghj/Agent-Pilot/actions)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v9.0.0-orange.svg)]()
+[![Version](https://img.shields.io/badge/version-v10.0.0-orange.svg)]()
 
 ---
 

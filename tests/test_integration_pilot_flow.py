@@ -167,7 +167,7 @@ class TestOrchestratorServiceBroadcasting:
             OrchestratorConfig,
             OrchestratorService,
         )
-        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task
+        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task, TaskState
 
         events = []
         svc = OrchestratorService(
@@ -177,9 +177,10 @@ class TestOrchestratorServiceBroadcasting:
         svc.set_broadcaster(lambda ev: events.append(ev))
 
         task = Task(task_id="t_broadcast", intent="test broadcasting", source_chat_id="chat_test")
-        task.apply_unsafe(state="planning")
+        task.state = TaskState.PLANNING
         task.plan = DomainPlan(
             plan_id="p_broadcast",
+            task_id="t_broadcast",
             intent="test",
             steps=[
                 DomainPlanStep(step_id="s1", tool="test.tool", description="test step"),
@@ -206,18 +207,19 @@ class TestOrchestratorServiceBroadcasting:
             OrchestratorConfig,
             OrchestratorService,
         )
-        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task
+        from core.agent_pilot.domain import Plan as DomainPlan, PlanStep as DomainPlanStep, Task, TaskState
 
         svc = OrchestratorService(
             tools={},
             config=OrchestratorConfig(demo_mode=True),
         )
         task = Task(task_id="t_demo", intent="test demo", source_chat_id="c")
-        task.apply_unsafe(state="planning")
+        task.state = TaskState.PLANNING
         task.plan = DomainPlan(
             plan_id="p_demo",
+            task_id="t_demo",
             intent="test",
-            steps=[PlanStep(step_id="s1", tool="missing.tool", description="test")],
+            steps=[DomainPlanStep(step_id="s1", tool="missing.tool", description="test")],
             owner_open_id="u1",
         )
         result = svc.run(task, advance_state=False)
