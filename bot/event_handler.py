@@ -195,9 +195,8 @@ def _do_handle(data):
 
             hit = detect_rules([_QuickMsg(text, open_id)])
             if rule_passes(hit):
-                # Auto-launch task like /pilot
-                from bot.handlers.pilot import handle_pilot_command
-                if handle_pilot_command("pilot_run", {"intent": text}, open_id, user, text):
+                from bot.handlers.pilot import handle_pilot_command as _pilot_handle
+                if _pilot_handle("pilot_run", {"intent": text}, open_id, user, text):
                     return
         except Exception as e:
             logger.debug("Auto-launch intent detection skipped: %s", e)
