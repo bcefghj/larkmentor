@@ -141,7 +141,7 @@ def create_app():
             for s in reg.list_specs()
         ]
 
-    # ── WebSocket ──
+    # ── WebSocket（基础心跳）──
     @app.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
         await ws.accept()
@@ -154,6 +154,60 @@ def create_app():
         except WebSocketDisconnect:
             if ws in app.state.ws_clients:
                 app.state.ws_clients.remove(ws)
+
+    # ── Sync Hub WebSocket ──
+    @app.websocket("/sync/ws/{room_id}")
+    async def sync_ws(ws: WebSocket, room_id: str):
+        from pilot.surface.sync.hub import default_hub
+
+        hub = default_hub()
+        await ws.accept()
+        client_id = ""
+        try:
+            client_id = await hub.join(room_id=room_id, ws=ws)
+            while True:
+                raw = await ws.receive_text()
+                try:
+                    msg = json.loads(raw)
+                except Exception:
+                    continue
+                kind = msg.get("kind", "")
+                if kind == "publish":
+                    await hub.publish(
+                        room_id=room_id,
+                        kind=msg.get("event_kind", "user_event"),
+                        payload=msg.get("payload", {}),
+                        from_client_id=client_id,
+                    )
+                elif kind == "yjs.update":
+                    await hub.yjs_apply_update(
+                        room_id=room_id,
+                        update_b64=msg.get("update_b64", ""),
+                        from_client_id=client_id,
+                    )
+                elif kind == "reconcile.request":
+                    diff = await hub.reconcile(
+                        room_id=room_id,
+                        client_state_b64=msg.get("state_vector", ""),
+                    )
+                    await ws.send_text(json.dumps({
+                        "kind": "reconcile.response",
+                        "update_b64": diff,
+                    }))
+                elif kind == "ping":
+                    await ws.send_text(json.dumps({"kind": "pong"}))
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            logger.warning("sync ws error: %s", e)
+        finally:
+            if client_id:
+                await hub.leave(room_id=room_id, client_id=client_id)
+
+    @app.get("/api/sync/stats")
+    async def sync_stats():
+        from pilot.surface.sync.hub import default_hub
+        return default_hub().stats()
 
     # ── Artifacts ──
     artifacts_dir = DATA_DIR / "artifacts"
