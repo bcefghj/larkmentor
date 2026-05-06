@@ -174,14 +174,6 @@ def _title_from_ctx(ctx: Dict[str, Any]) -> str:
 
 def _generate_canvas_spec(title: str, ctx: Dict[str, Any]) -> Dict[str, Any]:
     """Use LLM to synthesize a structured node/edge graph from any available doc context."""
-    # 0. fast path: 4-Agent workforce already produced a canvas spec?
-    workforce = ctx.get("__workforce__") or {}
-    cached = workforce.get("canvas_spec") or {}
-    if isinstance(cached, dict) and cached.get("nodes"):
-        logger.info("canvas.spec: using 4-Agent workforce cached spec (%d nodes)",
-                    len(cached["nodes"]))
-        return cached
-
     doc_md = ""
     step_results = ctx.get("step_results") or {}
     for r in step_results.values():

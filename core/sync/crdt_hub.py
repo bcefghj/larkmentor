@@ -811,6 +811,18 @@ class CrdtHub:
         }
         return self._fanout(room, payload)
 
+    def broadcast(self, payload: Dict[str, Any], room: str = "") -> int:
+        """Send payload to all subscribers, optionally filtered by room."""
+        with self._lock:
+            if room:
+                client_ids = list(self._by_room.get(room, set()))
+            else:
+                client_ids = list(self._subs.keys())
+            subs = [self._subs[c] for c in client_ids if c in self._subs]
+        for s in subs:
+            s.send(payload)
+        return len(subs)
+
     def publish_state(self, room: str, state: Dict[str, Any]) -> int:
         payload = {
             "kind": "state",

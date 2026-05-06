@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Agent-Pilot v13 · 多端协同实时监控</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root {
+  --bg: #0a0f1a; --card: #111827; --border: #1e293b;
+  --text: #e2e8f0; --muted: #64748b; --accent: #3b82f6;
+  --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+  --gold: #f0a530; --navy: #0a1f3b; --purple: #8b5cf6;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); padding: 0; min-height: 100vh; }
+
+/* ── Header ── */
+.header { background: linear-gradient(135deg, var(--navy) 0%, #0f2847 100%);
+  padding: 20px 28px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 2px solid var(--gold); position: sticky; top: 0; z-index: 100; }
+.header .brand { display: flex; align-items: center; gap: 14px; }
+.header .logo { width: 36px; height: 36px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.header h1 { font-size: 20px; font-weight: 700; letter-spacing: 0.3px; }
+.header .subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.device-tag { background: rgba(59,130,246,0.15); color: var(--accent);
+  padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+.status-dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status-dot.err { background: var(--danger); }
+.status-dot.warn { background: var(--warning); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── Controls ── */
+.controls { padding: 16px 28px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  background: var(--card); border-bottom: 1px solid var(--border); }
+.controls input { background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; flex: 1; min-width: 220px;
+  outline: none; transition: border 0.2s; }
+.controls input:focus { border-color: var(--accent); }
+.controls button { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  border: none; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.conn-badge { font-size: 12px; padding: 4px 12px; border-radius: 16px; }
+
+/* ── Layout ── */
+.main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 28px; }
+@media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; transition: border-color 0.3s; }
+.panel:hover { border-color: rgba(59,130,246,0.3); }
+.panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; }
+.panel-head h2 { font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--accent); }
+.panel-body { padding: 16px 18px; min-height: 180px; }
+.panel-full { grid-column: 1 / -1; }
+
+/* ── DAG Steps ── */
+.dag-flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dag-node { display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+  border-radius: 8px; font-size: 12px; border: 1px solid var(--border);
+  background: var(--bg); transition: all 0.3s; position: relative; }
+.dag-node.done { border-color: var(--success); background: rgba(16,185,129,0.08); }
+.dag-node.done::before { content: '✓'; color: var(--success); font-weight: 700; }
+.dag-node.running { border-color: var(--warning); background: rgba(245,158,11,0.08);
+  animation: glow-warn 2s infinite; }
+.dag-node.running::before { content: '⟳'; color: var(--warning); animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes glow-warn { 0%,100% { box-shadow: 0 0 0 rgba(245,158,11,0); } 50% { box-shadow: 0 0 12px rgba(245,158,11,0.3); } }
+.dag-node.pending { opacity: 0.5; }
+.dag-node.pending::before { content: '○'; color: var(--muted); }
+.dag-node.failed { border-color: var(--danger); background: rgba(239,68,68,0.08); }
+.dag-node.failed::before { content: '✗'; color: var(--danger); font-weight: 700; }
+.dag-arrow { color: var(--muted); font-size: 16px; }
+.dag-tool { font-weight: 600; color: var(--text); }
+.dag-desc { color: var(--muted); font-size: 11px; max-width: 120px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Agent Trace Cards ── */
+.agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.agent-card { background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; text-align: center; transition: all 0.3s; }
+.agent-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.agent-ring { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  border: 3px solid var(--border); position: relative; transition: border-color 0.5s; }
+.agent-card.done .agent-ring { border-color: var(--success); }
+.agent-card.running .agent-ring { border-color: var(--warning); animation: pulse 1.5s infinite; }
+.agent-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.agent-time { font-size: 11px; color: var(--muted); }
+.agent-summary { font-size: 10px; color: var(--muted); margin-top: 4px;
+  max-height: 30px; overflow: hidden; }
+
+/* ── Artifacts ── */
+.artifact-item { display: flex; align-items: center; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid rgba(30,41,59,0.5); }
+.artifact-item:last-child { border-bottom: none; }
+.artifact-icon { width: 36px; height: 36px; border-radius: 8px; display: flex;
+  align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.artifact-icon.doc { background: rgba(59,130,246,0.15); }
+.artifact-icon.ppt { background: rgba(245,158,11,0.15); }
+.artifact-icon.canvas { background: rgba(139,92,246,0.15); }
+.artifact-icon.share { background: rgba(16,185,129,0.15); }
+.artifact-info { flex: 1; }
+.artifact-label { font-size: 12px; font-weight: 600; }
+.artifact-url { font-size: 11px; color: var(--accent); text-decoration: none;
+  word-break: break-all; }
+.artifact-url:hover { text-decoration: underline; }
+
+/* ── Presence ── */
+.presence-bar { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+.presence-chip { display: flex; align-items: center; gap: 6px; padding: 4px 10px;
+  border-radius: 16px; font-size: 11px; background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2); }
+.presence-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+/* ── Log ── */
+.log-area { max-height: 250px; overflow-y: auto; font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+  font-size: 11px; line-height: 1.7; }
+.log-line { padding: 2px 6px; border-radius: 4px; margin-bottom: 2px;
+  white-space: pre-wrap; word-break: break-all; }
+.log-line:nth-child(odd) { background: rgba(15,23,42,0.5); }
+.log-ts { color: var(--muted); }
+.log-kind { font-weight: 700; }
+.log-kind.event { color: var(--accent); }
+.log-kind.state { color: var(--success); }
+.log-kind.yupdate { color: var(--purple); }
+
+/* ── Footer ── */
+.footer { padding: 20px 28px; text-align: center; color: var(--muted); font-size: 11px;
+  border-top: 1px solid var(--border); margin-top: 16px; }
+.footer a { color: var(--accent); text-decoration: none; }
+
+/* ── Empty state ── */
+.empty { text-align: center; padding: 30px; color: var(--muted); }
+.empty-icon { font-size: 40px; margin-bottom: 10px; opacity: 0.3; }
+
+/* ── Plan info bar ── */
+.plan-info { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3);
+  border-radius: 8px; padding: 10px 16px; margin: 0 28px 0; font-size: 13px;
+  display: none; align-items: center; gap: 8px; }
+.plan-info.show { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="brand">
+    <div class="logo">🛰️</div>
+    <div>
+      <h1>Agent-Pilot v13</h1>
+      <div class="subtitle">多端协同实时监控 · 飞书 IM · Web · Flutter</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="presence-bar" id="presenceBar"></div>
+    <span class="device-tag" id="deviceTag"></span>
+    <span id="connStatus"><span class="status-dot err"></span> 未连接</span>
+  </div>
+</div>
+
+<div class="controls">
+  <input type="text" id="planInput" placeholder="输入 plan_id（如 plan_1234567_abcdef）">
+  <button class="btn-primary" onclick="join()">订阅</button>
+  <button class="btn-ghost" onclick="disconnect()">断开</button>
+</div>
+
+<div class="plan-info" id="planInfo">
+  <span class="status-dot ok"></span>
+  <strong>正在监控：</strong> <code id="planInfoId"></code>
+</div>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-head"><h2>📋 DAG 任务流</h2><span id="stepCount" style="font-size:11px;color:var(--muted)"></span></div>
+    <div class="panel-body" id="dagPanel">
+      <div class="empty"><div class="empty-icon">📋</div>订阅 plan_id 后显示 DAG 步骤</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>🤖 4-Agent 工坊</h2></div>
+    <div class="panel-body" id="agentPanel">
+      <div class="empty"><div class="empty-icon">🤖</div>Researcher → Writer → Critic → Presenter</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>📦 产物清单</h2></div>
+    <div class="panel-body" id="artifactPanel">
+      <div class="empty"><div class="empty-icon">📦</div>产物将在任务完成后显示</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>📡 实时事件流</h2><span id="msgCount" style="font-size:11px;color:var(--muted)"></span></div>
+    <div class="panel-body">
+      <div class="log-area" id="logArea"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Agent-Pilot v13 · <a href="https://github.com/bcefghj/Agent-Pilot">GitHub</a> ·
+  戴尚好 / 李洁盈 · 飞书 AI 校园挑战赛
+</div>
+
+<script>
+let ws = null, currentRoom = null, msgCounter = 0;
+const $ = id => document.getElementById(id);
+
+// Device detection
+$('deviceTag').textContent = (() => {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) return '📱 iOS';
+  if (/Android/.test(ua)) return '📱 Android';
+  if (/Macintosh/.test(ua)) return '💻 macOS';
+  if (/Windows/.test(ua)) return '💻 Windows';
+  return '🌐 Web';
+})();
+
+function setConn(text, cls) {
+  $('connStatus').innerHTML = `<span class="status-dot ${cls}"></span> ${text}`;
+}
+
+function appendLog(text, kind = '') {
+  const d = document.createElement('div');
+  d.className = 'log-line';
+  const ts = new Date().toLocaleTimeString();
+  const kindCls = kind ? ` log-kind ${kind}` : '';
+  d.innerHTML = `<span class="log-ts">[${ts}]</span> <span class="${kindCls}">${kind || 'info'}</span> ${esc(text)}`;
+  $('logArea').prepend(d);
+  while ($('logArea').children.length > 80) $('logArea').removeChild($('logArea').lastChild);
+  msgCounter++;
+  $('msgCount').textContent = `${msgCounter} msgs`;
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getUrlParams() {
+  const p = new URLSearchParams(location.search);
+  const h = new URLSearchParams(location.hash.replace('#',''));
+  return { plan_id: p.get('plan_id') || h.get('plan_id') || p.get('planId') || h.get('planId') };
+}
+
+function connect() {
+  if (ws && ws.readyState === 1) return;
+  setConn('连接中…', 'warn');
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/sync/ws?token=demo`);
+  ws.onopen = () => { setConn('已连接', 'ok'); appendLog('WebSocket 连接成功', 'event'); };
+  ws.onclose = () => { setConn('已断开', 'err'); appendLog('连接断开', 'event'); };
+  ws.onerror = () => { setConn('错误', 'err'); };
+  ws.onmessage = e => {
+    try { handleMessage(JSON.parse(e.data)); } catch(err) { appendLog('Bad: ' + e.data, 'event'); }
+  };
+}
+
+function join() {
+  const id = $('planInput').value.trim();
+  if (!id) { alert('请输入 plan_id'); return; }
+  if (!ws || ws.readyState !== 1) connect();
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) {
+      currentRoom = id;
+      ws.send(JSON.stringify({ op: 'join', room: id }));
+      appendLog('JOIN ' + id, 'event');
+      $('planInfo').classList.add('show');
+      $('planInfoId').textContent = id;
+      fetchPlanState(id);
+    }
+  }, 300);
+}
+
+function disconnect() {
+  if (ws) ws.close();
+  ws = null; currentRoom = null;
+  setConn('未连接', 'err');
+  $('planInfo').classList.remove('show');
+}
+
+function handleMessage(m) {
+  appendLog(JSON.stringify(m).slice(0, 180), m.kind || 'state');
+  if (m.kind === 'event' && m.event) handleEvent(m.event);
+  else if (m.kind === 'state' && m.state) renderPlanState(m.state);
+}
+
+function handleEvent(ev) {
+  if (['step.done','step.failed','step.running'].includes(ev.type)) fetchPlanState(currentRoom);
+}
+
+async function fetchPlanState(id) {
+  if (!id) return;
+  try {
+    let r = await fetch(`/api/pilot/plan/${id}`);
+    if (!r.ok) r = await fetch(`/api/pilot/status/${id}`);
+    if (r.ok) renderPlanState(await r.json());
+  } catch(e) { appendLog('fetch err: ' + e.message, 'event'); }
+}
+
+function renderPlanState(data) {
+  if (!data) return;
+  const steps = data.steps || [];
+  const done = steps.filter(s => s.status === 'done').length;
+  const total = steps.length;
+  $('stepCount').textContent = `${done}/${total} 完成`;
+
+  // DAG
+  let dagHtml = '<div class="dag-flow">';
+  steps.forEach((s, i) => {
+    if (i > 0) dagHtml += '<span class="dag-arrow">→</span>';
+    dagHtml += `<div class="dag-node ${s.status}">
+      <span class="dag-tool">${esc(s.tool || '')}</span>
+      <span class="dag-desc">${esc((s.description || '').slice(0, 30))}</span>
+    </div>`;
+  });
+  dagHtml += '</div>';
+  if (data.intent) {
+    dagHtml = `<div style="margin-bottom:12px;font-size:13px"><strong>意图：</strong>${esc(data.intent.slice(0,80))}</div>` + dagHtml;
+  }
+  $('dagPanel').innerHTML = dagHtml;
+
+  // Artifacts
+  const arts = [];
+  const seen = new Set();
+  for (const s of steps) {
+    const r = s.result || {};
+    for (const [key, label, icon] of [
+      ['feishu_url','飞书文档','doc'], ['pptx_url','演示稿 PPT','ppt'],
+      ['url','产物链接','doc'], ['tldraw_url','画布','canvas'],
+      ['share_url','分享链接','share'], ['slidev_url','Slidev','ppt']
+    ]) {
+      const u = r[key];
+      if (u && !seen.has(u) && !u.startsWith('/artifacts/') && !u.includes('localhost')) {
+        seen.add(u);
+        arts.push({ label, url: u, icon });
+      }
+    }
+  }
+  if (arts.length) {
+    $('artifactPanel').innerHTML = arts.map(a =>
+      `<div class="artifact-item">
+        <div class="artifact-icon ${a.icon}">${a.icon==='doc'?'📄':a.icon==='ppt'?'📊':a.icon==='canvas'?'🎨':'🔗'}</div>
+        <div class="artifact-info">
+          <div class="artifact-label">${a.label}</div>
+          <a class="artifact-url" href="${a.url}" target="_blank">${a.url.slice(0,70)}</a>
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  // Agent traces
+  if (data.plan_id) {
+    fetch(`/api/pilot/agent_traces/${data.plan_id}`).then(r => r.ok ? r.json() : null).then(j => {
+      if (!j || !j.traces || !j.traces.length) return;
+      const icons = { Researcher: '🔬', Writer: '✍️', Critic: '🔍', 'Presenter-Slides': '📊', 'Presenter-Canvas': '🎨' };
+      $('agentPanel').innerHTML = '<div class="agent-grid">' + j.traces.slice(0, 6).map(t => {
+        const st = t.notes === 'ok' || t.notes?.startsWith('ok') ? 'done' : t.finished_ts ? 'done' : 'running';
+        return `<div class="agent-card ${st}">
+          <div class="agent-ring">${icons[t.name] || '🤖'}</div>
+          <div class="agent-name">${t.name}</div>
+          <div class="agent-time">${(t.duration_sec || 0).toFixed(1)}s</div>
+          <div class="agent-summary">${esc(t.output_summary || '')}</div>
+        </div>`;
+      }).join('') + '</div>';
+    }).catch(() => {});
+  }
+}
+
+// Presence display
+function updatePresence(clients) {
+  if (!clients || !clients.length) return;
+  $('presenceBar').innerHTML = clients.map(c =>
+    `<span class="presence-chip"><span class="dot"></span>${c.name || c.client_id?.slice(-6) || '端'}</span>`
+  ).join('');
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  const urlParams = getUrlParams();
+  if (urlParams.plan_id) {
+    $('planInput').value = urlParams.plan_id;
+    appendLog('自动检测 plan_id: ' + urlParams.plan_id, 'event');
+    setTimeout(() => join(), 100);
+  } else {
+    connect();
+  }
+});
+
+if (document.readyState !== 'loading') {
+  const urlParams = getUrlParams();
+  if (urlParams.plan_id) {
+    $('planInput').value = urlParams.plan_id;
+    setTimeout(() => join(), 100);
+  } else { connect(); }
+}
+</script>
+</body>
+</html>

@@ -49,7 +49,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="Agent-Pilot API",
-    description="Agent-Pilot v12 · 从 IM 对话到演示稿的一键智能闭环",
+    description="Agent-Pilot v13 · 从 IM 对话到演示稿的一键智能闭环",
     version=Config.VERSION,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -458,7 +458,7 @@ async def pilot_dashboard_page():
     page = STATIC_DIR / "pilot.html"
     if page.exists():
         return page.read_text(encoding="utf-8")
-    return f"<h1>Agent-Pilot v12 Dashboard</h1><p>Static UI not built yet.</p>"
+    return f"<h1>Agent-Pilot v13 Dashboard</h1><p>Static UI not built yet.</p>"
 
 
 @app.get("/v13/multi-end", response_class=HTMLResponse)
@@ -466,9 +466,13 @@ async def pilot_dashboard_page():
 @app.get("/v13", response_class=HTMLResponse)
 async def v13_multi_end_page():
     """v13 多端协同实时监控页面，订阅 WebSocket /sync/ws 房间。"""
-    page = STATIC_DIR / "v13_multi_end.html"
+    page = STATIC_DIR / "v13_multi_end_fixed.html"
     if page.exists():
         return page.read_text(encoding="utf-8")
+    # fallback to original
+    page_orig = STATIC_DIR / "v13_multi_end.html"
+    if page_orig.exists():
+        return page_orig.read_text(encoding="utf-8")
     return "<h1>Agent-Pilot v13 多端协同</h1><p>Page not yet built.</p>"
 
 
@@ -495,10 +499,36 @@ async def agent_traces(plan_id: str):
 
 @app.get("/pilot/{plan_id}", response_class=HTMLResponse)
 async def pilot_share_view(plan_id: str):
+    # 如果有v13修复版本，优先使用它
+    page_v13 = STATIC_DIR / "v13_multi_end_fixed.html"
+    if page_v13.exists():
+        content = page_v13.read_text(encoding="utf-8")
+        # 在页面中注入plan_id，这样它会自动订阅该plan
+        content = content.replace(
+            "const urlParams = getUrlParams();",
+            f"const urlParams = {{ plan_id: '{plan_id}' }};"
+        )
+        return content
+    
+    # fallback to original pilot_share.html
     page = STATIC_DIR / "pilot_share.html"
     if page.exists():
         return page.read_text(encoding="utf-8").replace("{{PLAN_ID}}", plan_id)
     return f"<h1>Pilot Plan {plan_id}</h1><p>Share page not built.</p>"
+
+@app.get("/dashboard/{plan_id}", response_class=HTMLResponse) 
+async def dashboard_plan_view(plan_id: str):
+    """Dashboard with specific plan_id pre-loaded."""
+    page = STATIC_DIR / "v13_multi_end_fixed.html"
+    if page.exists():
+        content = page.read_text(encoding="utf-8")
+        # 在页面中注入plan_id，这样它会自动订阅该plan
+        content = content.replace(
+            "const urlParams = getUrlParams();",
+            f"const urlParams = {{ plan_id: '{plan_id}' }};"
+        )
+        return content
+    return f"<h1>Dashboard for Plan {plan_id}</h1><p>Dashboard not available.</p>"
 
 
 # ── Offline merge ──

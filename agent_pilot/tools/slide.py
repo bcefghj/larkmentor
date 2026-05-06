@@ -130,32 +130,97 @@ def slide_generate(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def slide_rehearse(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate professional speaker notes via a dedicated LLM call."""
     args = ctx.get("resolved_args") or {}
     slide_id = args.get("slide_id") or ""
     outline = args.get("outline") or []
 
     if (not outline) and slide_id:
-        # find the most recent slide artifact dir
         d = ARTIFACTS_DIR / slide_id
         for child in [d / f"{slide_id}.slidev.md"]:
             if child.exists():
                 outline = _parse_slidev_md(child)
                 break
-    notes: List[Dict[str, Any]] = []
-    for i, page in enumerate(outline or [], start=1):
-        notes.append(
+
+    notes = _llm_rehearsal_notes(outline)
+    if not notes:
+        notes = [
             {
                 "page": i,
                 "title": page.get("title", ""),
                 "speaker_note": _speaker_note_for_page(page),
                 "duration_sec": 45,
+                "transition": "",
             }
-        )
+            for i, page in enumerate(outline or [], start=1)
+        ]
+
+    if slide_id:
+        notes_path = ARTIFACTS_DIR / slide_id / f"{slide_id}.rehearsal.md"
+        _ensure_dir(notes_path.parent)
+        lines = ["# 演讲排练稿\n"]
+        for n in notes:
+            lines.append(f"## 第 {n['page']} 页：{n['title']}  (建议 {n['duration_sec']}s)\n")
+            lines.append(n["speaker_note"])
+            if n.get("transition"):
+                lines.append(f"\n> 过渡：{n['transition']}\n")
+            lines.append("")
+        notes_path.write_text("\n".join(lines), encoding="utf-8")
+
     return {
         "slide_id": slide_id,
         "rehearsal_pages": len(notes),
+        "total_duration_sec": sum(n.get("duration_sec", 45) for n in notes),
         "speaker_notes": notes,
     }
+
+
+def _llm_rehearsal_notes(outline: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not outline:
+        return []
+    try:
+        from llm.llm_client import chat, LLM_FALLBACK_MSG
+    except ImportError:
+        return []
+
+    pages_summary = "\n".join(
+        f"第{i}页「{p.get('title','')}」要点：{'；'.join((p.get('bullets') or [])[:3])}"
+        for i, p in enumerate(outline, 1)
+    )
+    prompt = f"""你是一位演讲教练。请为以下 PPT 的每一页编写自然口语化的演讲稿。
+
+## PPT 大纲
+{pages_summary}
+
+请输出 JSON 数组，每个元素：
+{{"page": 1, "title": "页面标题", "speaker_note": "120-180字的自然口语演讲稿，像真人在台上讲", "duration_sec": 45, "transition": "到下一页的过渡语（15字以内）"}}
+
+要求：
+1. 演讲稿 120-180 字，自然口语，不要书面语
+2. 封面页简短开场（60字），Thank You 页简短致谢（60字）
+3. 内容页要有逻辑过渡，引用要点中的数据
+4. duration_sec 根据内容长度给出合理估计（30-90秒）
+5. transition 是过渡到下一页的一句话
+直接输出 JSON 数组。"""
+
+    raw = chat(prompt, temperature=0.5, max_tokens=6000)
+    if not raw or raw.strip() == LLM_FALLBACK_MSG:
+        return []
+    arr = safe_json_parse(raw, expected_type=list, debug_label="rehearsal")
+    if not arr:
+        return []
+    result = []
+    for item in arr:
+        if not isinstance(item, dict):
+            continue
+        result.append({
+            "page": int(item.get("page", len(result) + 1)),
+            "title": str(item.get("title", "")),
+            "speaker_note": str(item.get("speaker_note", "")),
+            "duration_sec": int(item.get("duration_sec", 45)),
+            "transition": str(item.get("transition", "")),
+        })
+    return result
 
 
 # ── Outline derivation ────────────────────────────────────────────────────────
@@ -172,14 +237,7 @@ def _title_from_ctx(ctx: Dict[str, Any]) -> str:
 
 
 def _build_outline_from_doc_or_intent(ctx: Dict[str, Any], title: str) -> List[Dict[str, Any]]:
-    """Try workforce-cached outline → LLM with doc → LLM with title → template."""
-    # 0. fast path: 4-Agent workforce already produced an outline?
-    workforce = ctx.get("__workforce__") or {}
-    cached = workforce.get("slide_outline") or []
-    if isinstance(cached, list) and len(cached) >= 4:
-        logger.info("slide.outline: using 4-Agent workforce cached outline (%d pages)", len(cached))
-        return _normalise_outline(cached)
-
+    """LLM with doc → LLM with title → template."""
     doc_md = ""
     step_results = ctx.get("step_results") or {}
     for r in step_results.values():
@@ -331,135 +389,252 @@ def _normalise_outline(outline: Any) -> List[Dict[str, Any]]:
 # ── Real PPTX rendering ──────────────────────────────────────────────────────
 
 
-# Brand colors used in the PPT template (PRD: deep navy + gold accents)
-_NAVY = (0x00, 0x3D, 0x5B)
-_GOLD = (0xF4, 0xA2, 0x61)
+_NAVY = (0x0A, 0x1F, 0x3B)
+_NAVY_MID = (0x14, 0x3A, 0x6B)
+_GOLD = (0xF0, 0xA5, 0x30)
+_GOLD_LIGHT = (0xF7, 0xCC, 0x7F)
 _LIGHT = (0xF5, 0xF5, 0xF5)
 _WHITE = (0xFF, 0xFF, 0xFF)
+_DARK = (0x2C, 0x2C, 0x2C)
+_MUTED = (0x88, 0x88, 0x88)
+_ACCENT_BLUE = (0x3B, 0x82, 0xF6)
+_ACCENT_GREEN = (0x10, 0xB9, 0x81)
+_ACCENT_PURPLE = (0x8B, 0x5C, 0xF6)
+_ACCENT_RED = (0xEF, 0x44, 0x44)
+
+_BULLET_ICONS = ["▸", "◆", "●", "■", "★"]
+_SECTION_COLORS = [_ACCENT_BLUE, _ACCENT_GREEN, _ACCENT_PURPLE, _GOLD, _ACCENT_RED]
 
 
 def _make_pptx(title: str, outline: List[Dict[str, Any]], out_path: Path) -> int:
-    """Render the outline into a real .pptx file. Returns slide count."""
+    """Render a professional .pptx with varied layouts per slide type."""
     from pptx import Presentation
     from pptx.dml.color import RGBColor
     from pptx.enum.shapes import MSO_SHAPE
-    from pptx.util import Inches, Pt
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Emu, Inches, Pt
 
     prs = Presentation()
     prs.slide_width = Inches(13.33)
     prs.slide_height = Inches(7.5)
+    SW, SH = prs.slide_width, prs.slide_height
+    blank = prs.slide_layouts[6]
 
-    blank_layout = prs.slide_layouts[6]  # Blank
+    def _rect(slide, l, t, w, h, rgb, *, alpha=None):
+        s = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, l, t, w, h)
+        s.line.fill.background()
+        s.fill.solid()
+        s.fill.fore_color.rgb = RGBColor(*rgb)
+        return s
 
-    def _add_color_bar(slide, color_rgb: Tuple[int, int, int]) -> None:
-        """Add a left-side color bar for visual identity."""
-        bar = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.4), prs.slide_height,
-        )
-        bar.line.fill.background()
-        bar.fill.solid()
-        bar.fill.fore_color.rgb = RGBColor(*color_rgb)
-
-    def _add_text(slide, left, top, width, height, text, *, font_size=18,
-                  bold=False, color=(0x33, 0x33, 0x33), align="left") -> None:
-        from pptx.enum.text import PP_ALIGN
-        tx = slide.shapes.add_textbox(left, top, width, height)
+    def _text(slide, l, t, w, h, text, *, sz=18, bold=False, rgb=_DARK, align="left", font="Microsoft YaHei"):
+        tx = slide.shapes.add_textbox(l, t, w, h)
         tf = tx.text_frame
         tf.word_wrap = True
         p = tf.paragraphs[0]
         p.alignment = {"left": PP_ALIGN.LEFT, "center": PP_ALIGN.CENTER, "right": PP_ALIGN.RIGHT}[align]
         run = p.add_run()
         run.text = text
-        run.font.name = "Microsoft YaHei"
-        run.font.size = Pt(font_size)
+        run.font.name = font
+        run.font.size = Pt(sz)
         run.font.bold = bold
-        run.font.color.rgb = RGBColor(*color)
+        run.font.color.rgb = RGBColor(*rgb)
+        return tx
 
-    def _add_bullets(slide, left, top, width, height, bullets: List[str]) -> None:
-        from pptx.enum.text import PP_ALIGN
-        tx = slide.shapes.add_textbox(left, top, width, height)
+    def _numbered_bullets(slide, l, t, w, h, bullets, *, accent=_ACCENT_BLUE, sz=18):
+        tx = slide.shapes.add_textbox(l, t, w, h)
         tf = tx.text_frame
         tf.word_wrap = True
         for i, b in enumerate(bullets):
             p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
             p.alignment = PP_ALIGN.LEFT
-            p.space_before = Pt(8)
-            p.space_after = Pt(8)
-            run = p.add_run()
-            run.text = "• " + b
-            run.font.name = "Microsoft YaHei"
-            run.font.size = Pt(20)
-            run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+            p.space_before = Pt(10)
+            p.space_after = Pt(6)
+            p.level = 0
+            num = p.add_run()
+            num.text = f"{i + 1}  "
+            num.font.name = "Microsoft YaHei"
+            num.font.size = Pt(sz + 4)
+            num.font.bold = True
+            num.font.color.rgb = RGBColor(*accent)
+            body = p.add_run()
+            body.text = b
+            body.font.name = "Microsoft YaHei"
+            body.font.size = Pt(sz)
+            body.font.color.rgb = RGBColor(*_DARK)
 
-    def _set_notes(slide, text: str) -> None:
+    def _icon_bullets(slide, l, t, w, h, bullets, *, icon_color=_GOLD, sz=18):
+        tx = slide.shapes.add_textbox(l, t, w, h)
+        tf = tx.text_frame
+        tf.word_wrap = True
+        for i, b in enumerate(bullets):
+            p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            p.alignment = PP_ALIGN.LEFT
+            p.space_before = Pt(10)
+            p.space_after = Pt(6)
+            icon = p.add_run()
+            icon.text = _BULLET_ICONS[i % len(_BULLET_ICONS)] + "  "
+            icon.font.name = "Microsoft YaHei"
+            icon.font.size = Pt(sz)
+            icon.font.bold = True
+            icon.font.color.rgb = RGBColor(*icon_color)
+            body = p.add_run()
+            body.text = b
+            body.font.name = "Microsoft YaHei"
+            body.font.size = Pt(sz)
+            body.font.color.rgb = RGBColor(*_DARK)
+
+    def _set_notes(slide, text):
         if not text:
             return
         try:
-            ns = slide.notes_slide.notes_text_frame
-            ns.text = text
-        except Exception as e:
-            logger.debug("set notes failed: %s", e)
+            slide.notes_slide.notes_text_frame.text = text
+        except Exception:
+            pass
 
-    # Slide 1: COVER
-    cover = prs.slides.add_slide(blank_layout)
+    def _footer(slide, page_num, total):
+        _text(slide, Inches(0.6), SH - Inches(0.45), Inches(4), Inches(0.3),
+              "Agent-Pilot v13 · 飞书 AI 校园挑战赛", sz=9, rgb=_MUTED)
+        _text(slide, SW - Inches(1.5), SH - Inches(0.45), Inches(1.2), Inches(0.3),
+              f"{page_num} / {total}", sz=9, rgb=_MUTED, align="right")
+
+    total_pages = len(outline)
+
+    # ═══════ SLIDE 1: COVER ═══════
+    cover = prs.slides.add_slide(blank)
     cover.background.fill.solid()
     cover.background.fill.fore_color.rgb = RGBColor(*_NAVY)
-    # decorative accent bar at bottom
-    accent = cover.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, 0, prs.slide_height - Inches(0.3),
-        prs.slide_width, Inches(0.3),
-    )
-    accent.line.fill.background()
-    accent.fill.solid()
-    accent.fill.fore_color.rgb = RGBColor(*_GOLD)
-    _add_text(cover, Inches(0.8), Inches(2.6), Inches(12), Inches(1.3),
-              title, font_size=48, bold=True, color=_WHITE)
+    _rect(cover, 0, 0, Inches(0.5), SH, _GOLD)
+    _rect(cover, 0, SH - Inches(0.15), SW, Inches(0.15), _GOLD)
+    _rect(cover, Inches(0.5), 0, Inches(0.08), SH, _NAVY_MID)
+    _text(cover, Inches(1.2), Inches(1.8), Inches(11), Inches(1.6),
+          title, sz=52, bold=True, rgb=_WHITE)
     subtitle = (outline[0].get("bullets") or [""])[0] if outline else ""
     if subtitle:
-        _add_text(cover, Inches(0.8), Inches(4.0), Inches(12), Inches(0.6),
-                  subtitle, font_size=22, color=_LIGHT)
-    _add_text(cover, Inches(0.8), Inches(6.4), Inches(12), Inches(0.5),
-              "Agent-Pilot · 飞书 AI 校园挑战赛", font_size=16, color=_GOLD)
-    _set_notes(cover, outline[0].get("note", "") if outline else "开场介绍")
+        _rect(cover, Inches(1.2), Inches(3.7), Inches(3), Inches(0.04), _GOLD)
+        _text(cover, Inches(1.2), Inches(3.9), Inches(11), Inches(0.7),
+              subtitle, sz=22, rgb=_GOLD_LIGHT)
+    _text(cover, Inches(1.2), Inches(5.8), Inches(5), Inches(0.4),
+          "Agent-Pilot · 飞书 AI 校园挑战赛", sz=14, rgb=_MUTED)
+    _text(cover, Inches(1.2), Inches(6.3), Inches(5), Inches(0.4),
+          "戴尚好 / 李洁盈", sz=14, rgb=_GOLD_LIGHT)
+    _set_notes(cover, outline[0].get("note", "") if outline else "")
 
-    # Slides 2..n: content
-    content_pages = outline[1:-1] if len(outline) > 2 else outline
-    for page in content_pages:
-        slide = prs.slides.add_slide(blank_layout)
+    # ═══════ SLIDE 2: TOC (if outline[1] is a 目录) ═══════
+    content_start = 1
+    if len(outline) > 2 and "目录" in (outline[1].get("title") or ""):
+        toc = prs.slides.add_slide(blank)
+        toc.background.fill.solid()
+        toc.background.fill.fore_color.rgb = RGBColor(*_WHITE)
+        _rect(toc, 0, 0, SW, Inches(1.6), _NAVY)
+        _text(toc, Inches(0.8), Inches(0.4), Inches(10), Inches(1.0),
+              outline[1].get("title", "目录"), sz=36, bold=True, rgb=_WHITE)
+        _rect(toc, Inches(0.8), Inches(1.3), Inches(2.5), Inches(0.04), _GOLD)
+        toc_bullets = outline[1].get("bullets") or []
+        cols = min(len(toc_bullets), 3)
+        col_w = Inches(3.8)
+        for idx, item in enumerate(toc_bullets):
+            col = idx % cols
+            row = idx // cols
+            x = Inches(0.8) + col * col_w
+            y = Inches(2.2) + row * Inches(1.4)
+            _rect(toc, x, y, Inches(3.4), Inches(1.1), _LIGHT)
+            _rect(toc, x, y, Inches(0.08), Inches(1.1), _SECTION_COLORS[idx % len(_SECTION_COLORS)])
+            num_text = f"0{idx + 1}" if idx < 9 else str(idx + 1)
+            _text(toc, x + Inches(0.3), y + Inches(0.15), Inches(0.6), Inches(0.5),
+                  num_text, sz=24, bold=True, rgb=_SECTION_COLORS[idx % len(_SECTION_COLORS)])
+            _text(toc, x + Inches(1.0), y + Inches(0.25), Inches(2.2), Inches(0.6),
+                  item, sz=16, rgb=_DARK)
+        _footer(toc, 2, total_pages)
+        _set_notes(toc, outline[1].get("note", ""))
+        content_start = 2
+
+    # ═══════ CONTENT SLIDES ═══════
+    content_pages = outline[content_start:-1] if len(outline) > content_start + 1 else outline[content_start:]
+    for ci, page in enumerate(content_pages):
+        slide_num = content_start + ci + 1
+        slide = prs.slides.add_slide(blank)
         slide.background.fill.solid()
         slide.background.fill.fore_color.rgb = RGBColor(*_WHITE)
-        _add_color_bar(slide, _NAVY)
-        # title
-        _add_text(slide, Inches(0.8), Inches(0.5), Inches(12), Inches(0.9),
-                  page.get("title", ""), font_size=32, bold=True, color=_NAVY)
-        # gold underline
-        underline = slide.shapes.add_shape(
-            MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.5), Inches(2.0), Inches(0.05),
+        section_color = _SECTION_COLORS[ci % len(_SECTION_COLORS)]
+        page_title = page.get("title", "")
+        bullets = page.get("bullets") or []
+        use_split = len(bullets) >= 3 and ci % 3 == 0
+        use_cards = len(bullets) >= 3 and ci % 3 == 1
+
+        # top nav bar
+        _rect(slide, 0, 0, SW, Inches(0.06), section_color)
+        # left accent strip
+        _rect(slide, 0, 0, Inches(0.35), SH, _NAVY)
+        _rect(slide, Inches(0.35), 0, Inches(0.06), SH, section_color)
+
+        # section number circle
+        circle = slide.shapes.add_shape(
+            MSO_SHAPE.OVAL, Inches(0.7), Inches(0.4), Inches(0.7), Inches(0.7),
         )
-        underline.line.fill.background()
-        underline.fill.solid()
-        underline.fill.fore_color.rgb = RGBColor(*_GOLD)
-        # bullets
-        _add_bullets(slide, Inches(1.0), Inches(2.0), Inches(11.5), Inches(4.5),
-                     page.get("bullets") or [])
-        # footer
-        _add_text(slide, Inches(0.8), Inches(7.0), Inches(12), Inches(0.3),
-                  "Agent-Pilot · v13", font_size=10, color=(0x99, 0x99, 0x99))
+        circle.line.fill.background()
+        circle.fill.solid()
+        circle.fill.fore_color.rgb = RGBColor(*section_color)
+        _text(slide, Inches(0.7), Inches(0.48), Inches(0.7), Inches(0.6),
+              f"{slide_num - 1}", sz=22, bold=True, rgb=_WHITE, align="center")
+
+        # title
+        _text(slide, Inches(1.6), Inches(0.4), Inches(10), Inches(0.8),
+              page_title, sz=30, bold=True, rgb=_NAVY)
+        _rect(slide, Inches(1.6), Inches(1.2), Inches(1.5), Inches(0.04), section_color)
+
+        if use_cards and len(bullets) >= 3:
+            # card layout: 3 across
+            card_w = Inches(3.6)
+            gap = Inches(0.3)
+            start_x = Inches(0.8)
+            for bi, b in enumerate(bullets[:6]):
+                col = bi % 3
+                row = bi // 3
+                cx = start_x + col * (card_w + gap)
+                cy = Inches(1.8) + row * Inches(2.4)
+                _rect(slide, cx, cy, card_w, Inches(2.1), _LIGHT)
+                _rect(slide, cx, cy, card_w, Inches(0.06), section_color)
+                _text(slide, cx + Inches(0.3), cy + Inches(0.25), card_w - Inches(0.6), Inches(0.4),
+                      _BULLET_ICONS[bi % len(_BULLET_ICONS)], sz=28, rgb=section_color, bold=True)
+                _text(slide, cx + Inches(0.3), cy + Inches(0.75), card_w - Inches(0.6), Inches(1.2),
+                      b, sz=15, rgb=_DARK)
+        elif use_split:
+            # split: left bullets, right highlight box
+            _numbered_bullets(slide, Inches(0.8), Inches(1.8), Inches(6.5), Inches(4.5),
+                              bullets, accent=section_color, sz=18)
+            _rect(slide, Inches(8.0), Inches(1.8), Inches(4.8), Inches(4.5), _LIGHT)
+            _rect(slide, Inches(8.0), Inches(1.8), Inches(0.06), Inches(4.5), section_color)
+            highlight = bullets[0] if bullets else page_title
+            _text(slide, Inches(8.4), Inches(2.4), Inches(4.0), Inches(1.0),
+                  "核心观点", sz=14, bold=True, rgb=section_color)
+            _text(slide, Inches(8.4), Inches(3.0), Inches(4.0), Inches(2.5),
+                  highlight, sz=16, rgb=_DARK)
+        else:
+            # standard: icon bullets full width
+            _icon_bullets(slide, Inches(0.8), Inches(1.8), Inches(11.5), Inches(4.8),
+                          bullets, icon_color=section_color, sz=18)
+
+        _footer(slide, slide_num, total_pages)
         _set_notes(slide, page.get("note", ""))
 
-    # Last slide: Thank You
+    # ═══════ LAST SLIDE: THANK YOU ═══════
     thank = outline[-1] if len(outline) > 1 else {"title": "Thank You", "bullets": [], "note": ""}
-    last = prs.slides.add_slide(blank_layout)
+    last = prs.slides.add_slide(blank)
     last.background.fill.solid()
     last.background.fill.fore_color.rgb = RGBColor(*_NAVY)
-    _add_text(last, Inches(0.8), Inches(2.8), Inches(12), Inches(1.4),
-              thank.get("title", "Thank You"),
-              font_size=54, bold=True, color=_WHITE, align="center")
+    _rect(last, 0, 0, Inches(0.5), SH, _GOLD)
+    _rect(last, 0, SH - Inches(0.15), SW, Inches(0.15), _GOLD)
+
+    _text(last, Inches(1.0), Inches(2.2), Inches(11), Inches(1.4),
+          thank.get("title", "Thank You"), sz=56, bold=True, rgb=_WHITE, align="center")
+    _rect(last, Inches(5.5), Inches(3.8), Inches(2.5), Inches(0.04), _GOLD)
     extras = thank.get("bullets") or []
     if extras:
-        body_text = "\n".join(extras)
-        _add_text(last, Inches(0.8), Inches(4.5), Inches(12), Inches(2.0),
-                  body_text, font_size=18, color=_LIGHT, align="center")
+        _text(last, Inches(1.0), Inches(4.2), Inches(11), Inches(2.0),
+              "\n".join(extras), sz=16, rgb=_GOLD_LIGHT, align="center")
+    _text(last, Inches(1.0), Inches(6.4), Inches(11), Inches(0.4),
+          "戴尚好 / 李洁盈 · Agent-Pilot · 飞书 AI 校园挑战赛", sz=13, rgb=_MUTED, align="center")
     _set_notes(last, thank.get("note", "致谢评委"))
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -691,7 +866,6 @@ def _upload_pptx_to_feishu_drive(pptx_path: Path) -> Optional[str]:
         from config import Config
         if not (Config.FEISHU_APP_ID and Config.FEISHU_APP_SECRET):
             return None
-        # Import lazily to avoid hard dependency at module load
         import lark_oapi as lark  # noqa: F401
         from bot.feishu_client import get_client
         from lark_oapi.api.drive.v1 import (
@@ -701,19 +875,23 @@ def _upload_pptx_to_feishu_drive(pptx_path: Path) -> Optional[str]:
 
         folder_token = os.getenv("FEISHU_FOLDER_TOKEN", "")
         client = get_client()
-        with open(pptx_path, "rb") as f:
-            data = f.read()
-        body = (
-            UploadAllFileRequestBody.builder()
-            .file_name(pptx_path.name)
-            .parent_type("explorer")
-            .parent_node(folder_token or "")
-            .size(len(data))
-            .file(data)
-            .build()
-        )
-        req = UploadAllFileRequest.builder().request_body(body).build()
-        resp = client.drive.v1.file.upload_all(req)
+        file_size = pptx_path.stat().st_size  # 用 stat() 而非 read-all 获取真实大小
+        fh = open(pptx_path, "rb")
+        try:
+            body = (
+                UploadAllFileRequestBody.builder()
+                .file_name(pptx_path.name)
+                .parent_type("explorer")
+                .parent_node(folder_token or "")
+                .size(file_size)
+                .file(fh)             # 传文件句柄（io stream），不是 bytes
+                .build()
+            )
+            req = UploadAllFileRequest.builder().request_body(body).build()
+            resp = client.drive.v1.file.upload_all(req)
+        finally:
+            fh.close()
+
         if not resp.success() or not resp.data:
             logger.warning("pptx upload failed: code=%s msg=%s",
                            getattr(resp, "code", "?"), getattr(resp, "msg", "?"))

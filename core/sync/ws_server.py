@@ -94,8 +94,34 @@ if _FASTAPI:
             out[r] = {"clients": hub.room_clients(r)}
         return {"rooms": out}
 
+    # ── Presence tracking ────────────────────────────────────────────────
+    _presence: Dict[str, Dict[str, Any]] = {}  # client_id -> {name, device, rooms, ts}
+
+    def _broadcast_presence(room: str = ""):
+        """Push current presence list to all clients in a room (or all)."""
+        clients = []
+        for cid, info in _presence.items():
+            if not room or room in info.get("rooms", set()):
+                clients.append({
+                    "client_id": cid,
+                    "name": info.get("name", cid[-6:]),
+                    "device": info.get("device", "web"),
+                    "since": info.get("ts", 0),
+                })
+        payload = {"kind": "presence", "clients": clients}
+        hub = default_hub()
+        hub.broadcast(payload, room=room)
+
+    @router.get("/presence")
+    def get_presence() -> Dict[str, Any]:
+        return {"clients": [
+            {"client_id": cid, "name": info.get("name", ""), "device": info.get("device", "")}
+            for cid, info in _presence.items()
+        ]}
+
     @router.websocket("/ws")
     async def ws_endpoint(ws: WebSocket):
+        import time as _time
         token = ws.query_params.get("token", "")
         if not _verify_ws_token(token):
             await ws.close(code=4001, reason="invalid_token")
@@ -106,11 +132,18 @@ if _FASTAPI:
         queue: asyncio.Queue = asyncio.Queue(maxsize=200)
         loop = asyncio.get_event_loop()
 
+        device = ws.query_params.get("device", "web")
+        client_name = ws.query_params.get("name", client_id[-6:])
+        _presence[client_id] = {
+            "name": client_name, "device": device,
+            "rooms": set(), "ts": _time.time(),
+        }
+
         def _send(payload: Dict[str, Any]) -> None:
             try:
                 loop.call_soon_threadsafe(queue.put_nowait, payload)
             except Exception:
-                pass  # queue full or loop closed; drop payload silently
+                pass
 
         hub.subscribe(client_id, _send)
         await ws.send_text(json.dumps({"kind": "hello", "client_id": client_id}))
@@ -119,7 +152,7 @@ if _FASTAPI:
             while True:
                 payload = await queue.get()
                 try:
-                    await ws.send_text(json.dumps(payload, ensure_ascii=False))
+                    await ws.send_text(json.dumps(payload, ensure_ascii=False, default=str))
                 except Exception:
                     break
 
@@ -139,30 +172,21 @@ if _FASTAPI:
                 if op == "ping":
                     await ws.send_text(json.dumps({"kind": "pong"}))
                 elif op == "join" and room:
+                    if client_id in _presence:
+                        _presence[client_id]["rooms"].add(room)
                     history = hub.join(client_id, room)
                     await ws.send_text(
-                        json.dumps(
-                            {
-                                "kind": "history",
-                                "room": room,
-                                "items": history,
-                            },
-                            ensure_ascii=False,
-                        )
+                        json.dumps({"kind": "history", "room": room, "items": history}, ensure_ascii=False)
                     )
                     snap = hub.snapshot(room)
                     if snap:
-                        await ws.send_text(
-                            json.dumps(
-                                {
-                                    "kind": "snapshot",
-                                    "room": room,
-                                    "update_b64": snap,
-                                }
-                            )
-                        )
+                        await ws.send_text(json.dumps({"kind": "snapshot", "room": room, "update_b64": snap}))
+                    _broadcast_presence(room)
                 elif op == "leave" and room:
                     hub.leave(client_id, room)
+                    if client_id in _presence:
+                        _presence[client_id]["rooms"].discard(room)
+                    _broadcast_presence(room)
                 elif op == "state" and room:
                     hub.publish_state(room, msg.get("state") or {})
                 elif op == "yupdate" and room:
@@ -170,13 +194,16 @@ if _FASTAPI:
                 else:
                     await ws.send_text(json.dumps({"kind": "error", "reason": f"unknown_op:{op}"}))
         except WebSocketDisconnect:
-            pass  # normal client disconnect; cleanup in finally block
+            pass
         except Exception as e:
             logger.debug("ws loop error client=%s: %s", client_id, e)
         finally:
+            rooms_was = _presence.pop(client_id, {}).get("rooms", set())
             hub.unsubscribe(client_id)
             sender_task.cancel()
+            for r in rooms_was:
+                _broadcast_presence(r)
             try:
                 await ws.close()
             except Exception:
-                pass  # already closed
+                pass

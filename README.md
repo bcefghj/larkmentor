@@ -185,21 +185,25 @@ flowchart TB
 
 ```
 Agent-Pilot/
-├── agent_pilot/              # ★ v13 顶层包
-│   ├── runtime/              # planner / state_machine / tool_registry
-│   ├── tools/                # doc.py / canvas.py / slide.py
-│   ├── intel/                # multi_agent.py / context_pack.py / clarifier
+├── agent_pilot/              # ★ v13 核心包（活跃代码路径）
+│   ├── runtime/              # planner (DAG) / state_machine / tool_registry
+│   ├── tools/                # doc.py / canvas.py / slide.py（真产物生成）
+│   ├── intel/                # multi_agent.py (4-Agent) / context_pack / clarifier
 │   ├── io/feishu/            # event_router / cards / voice / streaming
 │   ├── io/dashboard/         # FastAPI routes
 │   ├── io/sync/              # WebSocket Hub
 │   └── llm/                  # safe_json + few_shot
-├── core/                     # 老兼容层（thin re-exports）
-├── bot/                      # 飞书事件分发
-├── dashboard/                # FastAPI Dashboard + 多端监控
-├── llm/                      # LLM 客户端
-├── mobile_desktop/           # Flutter 工程
+├── core/
+│   ├── agent_pilot/          # 服务层：service.py (入口) + tools/ (mentor/im/archive)
+│   ├── sync/                 # CRDT Hub (Yjs/y-py) + WebSocket server + presence
+│   └── mentor/               # Mentor 4 Skills
+├── bot/                      # 飞书事件分发 + 消息处理器
+├── dashboard/                # FastAPI Dashboard + 多端实时监控 HTML
+├── llm/                      # LLM 客户端（MiniMax / 豆包 / MiMo 多 Provider）
+├── mobile_desktop/           # Flutter 4-in-1 工程 (macOS/Android/iOS/Windows)
 ├── tests/competition/        # ★ 5 条裁判级别用例
 ├── scripts/                  # judge_demo.py / verify_*.py / deploy
+├── agent/                    # [遗留] v1-v8 旧实现，不在活跃路径
 └── docs/                     # JUDGE_GUIDE / v13_BLUEPRINT / DEMO_SCRIPT
 ```
 

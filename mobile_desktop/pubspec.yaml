@@ -1,7 +1,7 @@
 name: agent_pilot
-description: Agent-Pilot v12 · 从 IM 对话到演示稿的一键智能闭环 (iOS / Android / macOS / Windows)
+description: Agent-Pilot v13 · 从 IM 对话到演示稿的一键智能闭环 (iOS / Android / macOS / Windows)
 publish_to: none
-version: 12.0.0+1
+version: 13.0.0+1
 
 environment:
   sdk: ">=3.0.0 <4.0.0"

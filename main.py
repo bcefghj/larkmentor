@@ -162,13 +162,13 @@ def main():
     sync_port = int(os.getenv("SYNC_HUB_PORT", "8002") or "8002")
     print(r"""
     ╔══════════════════════════════════════════════════════════╗
-    ║  Agent-Pilot v12 · 三线产品 · 飞书 AI 校园挑战赛          ║
-    ║  从 IM 对话到演示稿的一键智能闭环                          ║
+    ║  Agent-Pilot v13 · 从 IM 对话到演示稿的一键智能闭环       ║
+    ║  飞书 AI 校园挑战赛 · AI Agent 驱动的多端协同办公助手      ║
     ║                                                          ║
-    ║  [✓] @pilot   主驾驶 · IntentDetector + ContextPack +     ║
-    ║              5 推理模式 + 多 Agent + 学习闭环             ║
-    ║  [✓] @shield  消息守护 · 6 维分类 + Recovery Card 双线点  ║
-    ║  [✓] @mentor  表达带教 · Write/Task/Review/Onboard 4 Skills ║
+    ║  [✓] 4-Agent 工坊  Researcher→Writer→Critic→Presenter    ║
+    ║  [✓] 真 PPTX 生成  .pptx + Slidev + 演讲稿               ║
+    ║  [✓] 多端 CRDT     WebSocket + Yjs + 离线合并             ║
+    ║  [✓] 三闸门识别    规则 + LLM + 最小信息主动澄清          ║
     ║                                                          ║
     ║  Bot       :  飞书 lark-oapi WebSocket 长连接             ║""")
     print(f"    ║  Dashboard :  http://0.0.0.0:{dashboard_port:<5}/tasks                  ║")

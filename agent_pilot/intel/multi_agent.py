@@ -244,66 +244,157 @@ def _run_critic(document_md: str) -> tuple[Dict[str, Any], AgentTrace]:
     return obj, trace
 
 
-# ── Agent 4: Presenter ────────────────────────────────────────────────────────
+# ── Agent 4a: Presenter – Slide Outline ──────────────────────────────────────
 
-
-_PRESENTER_SYSTEM = (
+_PRESENTER_SLIDES_SYSTEM = (
     "你是 Agent-Pilot 工坊里的演示设计师（Presenter）。"
-    "你的职责是把已通过 Critic 的文档转化为：(1) 8-12 页 PPT outline JSON、"
-    "(2) 5-10 节点的 Canvas 架构图 spec JSON。两者需保持与文档一致。"
+    "你的职责是把已通过 Critic 的文档转化为 8-12 页高质量 PPT 大纲。"
+    "你只输出 JSON 数组，不输出其他任何内容。"
 )
 
 
-def _run_presenter(intent: str, document_md: str) -> tuple[List[Dict[str, Any]], Dict[str, Any], AgentTrace]:
+def _run_presenter_slides(
+    intent: str, document_md: str, *, max_retries: int = 2
+) -> tuple[List[Dict[str, Any]], AgentTrace]:
+    """独立调用：只生成 slide_outline JSON 数组，最多重试 max_retries 次。"""
     t0 = time.time()
-    trace = AgentTrace(name="Presenter", started_ts=t0,
-                       input_summary=f"document {len(document_md)} chars")
-    preview = document_md[:14000]
-    prompt = f"""基于以下文档，输出两个 JSON 结构。
+    trace = AgentTrace(
+        name="Presenter-Slides",
+        started_ts=t0,
+        input_summary=f"document {len(document_md)} chars",
+    )
+    # 截取文档前 12000 字给 LLM，留出足够 output token
+    preview = document_md[:12000]
 
-## 用户意图
-{intent}
+    def _build_prompt(short: bool = False) -> str:
+        doc_text = document_md[:6000] if short else preview
+        return f"""基于以下文档，为主题「{intent[:60]}」设计一份 8-12 页的 PPT 大纲。
 
-## 文档全文
-{preview}
+## 文档内容（节选）
+{doc_text}
 
-请输出严格 JSON（一个对象，包含两个字段 slide_outline 与 canvas_spec）：
-{{
-  "slide_outline": [
-    {{"title": "封面", "bullets": ["副标题", "团队"], "note": "开场白"}},
-    {{"title": "目录", "bullets": ["..."], "note": "..."}},
-    ...8-12 页
-  ],
-  "canvas_spec": {{
-    "title": "图标题",
-    "layout": "tb",
-    "nodes": [
-      {{"id": "n1", "label": "节点", "type": "input|process|store|output", "tier": 1}},
-      ...5-10 个节点
-    ],
-    "edges": [
-      {{"from": "n1", "to": "n2", "label": "可选"}},
-      ...4-12 条边
-    ]
-  }}
-}}
+请输出 JSON 数组，每个元素包含 title、bullets（3-5 条完整句子）、note（演讲稿 80-120 字）：
+[
+  {{"title": "封面", "bullets": ["副标题（一句话价值主张）", "演讲者"], "note": "开场介绍"}},
+  {{"title": "目录", "bullets": ["章节1", "章节2", "章节3"], "note": "今天要讲的内容"}},
+  ...
+]
 
-要求：内容必须基于文档关键论点，与文档保持一致。直接输出 JSON。"""
-    raw = _llm_chat(prompt, system=_PRESENTER_SYSTEM, temperature=0.4, max_tokens=8192)
-    obj = safe_json_parse(raw, expected_type=dict, debug_label="presenter")
-    trace.raw_output = raw[:2000]
+要求：8-12 页；内容与文档保持一致；包含封面、目录、3-5页核心内容、案例、结论、Thank You。
+直接输出 JSON 数组，不要 markdown 代码块，不要任何前缀。"""
+
+    slide_outline: List[Dict[str, Any]] = []
+    for attempt in range(max_retries + 1):
+        temperature = 0.4 + attempt * 0.15  # 重试时略微升温
+        short_prompt = attempt >= 1          # 第二次起用更短的文档
+        raw = _llm_chat(
+            _build_prompt(short=short_prompt),
+            system=_PRESENTER_SLIDES_SYSTEM,
+            temperature=temperature,
+            max_tokens=6000,
+        )
+        obj = safe_json_parse(raw, expected_type=list, debug_label=f"presenter-slides-attempt{attempt}")
+        if obj and len(obj) >= 4:
+            slide_outline = [
+                {
+                    "title": str(p.get("title") or f"Slide {i}").strip(),
+                    "bullets": [str(b).strip() for b in (p.get("bullets") or []) if str(b).strip()],
+                    "note": str(p.get("note") or "").strip(),
+                }
+                for i, p in enumerate(obj, 1)
+                if isinstance(p, dict)
+            ]
+            trace.notes = f"ok (attempt {attempt})"
+            logger.info("presenter-slides: got %d pages on attempt %d", len(slide_outline), attempt)
+            break
+        logger.warning(
+            "presenter-slides attempt %d/%d: parsed %d pages, retrying…",
+            attempt, max_retries, len(obj) if obj else 0,
+        )
+
     trace.finished_ts = time.time()
     trace.duration_sec = trace.finished_ts - t0
+    trace.output_summary = f"slides={len(slide_outline)}"
+    if not slide_outline:
+        trace.notes = f"failed after {max_retries + 1} attempts"
+    return slide_outline, trace
 
-    slide_outline = obj.get("slide_outline") if isinstance(obj, dict) else None
-    canvas_spec = obj.get("canvas_spec") if isinstance(obj, dict) else None
-    if not isinstance(slide_outline, list):
-        slide_outline = []
-    if not isinstance(canvas_spec, dict):
-        canvas_spec = {}
-    trace.output_summary = f"slides={len(slide_outline)}, canvas_nodes={len(canvas_spec.get('nodes', []))}"
-    trace.notes = "ok" if (slide_outline and canvas_spec.get("nodes")) else "partial"
-    return slide_outline, canvas_spec, trace
+
+# ── Agent 4b: Presenter – Canvas Spec ────────────────────────────────────────
+
+_PRESENTER_CANVAS_SYSTEM = (
+    "你是 Agent-Pilot 工坊里的架构图设计师（Presenter-Canvas）。"
+    "你的职责是把文档转化为 5-10 节点的架构/流程图 spec JSON。"
+    "你只输出 JSON 对象，不输出其他任何内容。"
+)
+
+
+def _run_presenter_canvas(
+    intent: str, document_md: str, *, max_retries: int = 2
+) -> tuple[Dict[str, Any], AgentTrace]:
+    """独立调用：只生成 canvas_spec JSON 对象，最多重试 max_retries 次。"""
+    t0 = time.time()
+    trace = AgentTrace(
+        name="Presenter-Canvas",
+        started_ts=t0,
+        input_summary=f"document {len(document_md)} chars",
+    )
+    preview = document_md[:8000]
+
+    def _build_prompt(short: bool = False) -> str:
+        doc_text = document_md[:4000] if short else preview
+        return f"""基于以下文档，为主题「{intent[:60]}」设计一张架构/流程图。
+
+## 文档内容（节选）
+{doc_text}
+
+请输出 JSON 对象：
+{{
+  "title": "图的标题",
+  "layout": "tb",
+  "nodes": [
+    {{"id": "n1", "label": "节点名称", "type": "input", "tier": 1}},
+    {{"id": "n2", "label": "节点名称", "type": "process", "tier": 2}},
+    ...共 5-10 个节点
+  ],
+  "edges": [
+    {{"from": "n1", "to": "n2", "label": "关系描述"}},
+    ...共 4-12 条边
+  ]
+}}
+
+节点 type 可选：input / process / store / output / decision
+直接输出 JSON 对象，不要 markdown 代码块，不要任何前缀。"""
+
+    canvas_spec: Dict[str, Any] = {}
+    for attempt in range(max_retries + 1):
+        temperature = 0.3 + attempt * 0.1
+        short_prompt = attempt >= 1
+        raw = _llm_chat(
+            _build_prompt(short=short_prompt),
+            system=_PRESENTER_CANVAS_SYSTEM,
+            temperature=temperature,
+            max_tokens=3000,
+        )
+        obj = safe_json_parse(raw, expected_type=dict, debug_label=f"presenter-canvas-attempt{attempt}")
+        if obj and obj.get("nodes") and len(obj["nodes"]) >= 3:
+            canvas_spec = obj
+            trace.notes = f"ok (attempt {attempt})"
+            logger.info("presenter-canvas: got %d nodes on attempt %d",
+                        len(obj["nodes"]), attempt)
+            break
+        logger.warning(
+            "presenter-canvas attempt %d/%d: nodes=%d, retrying…",
+            attempt, max_retries,
+            len(obj.get("nodes", [])) if isinstance(obj, dict) else 0,
+        )
+
+    trace.finished_ts = time.time()
+    trace.duration_sec = trace.finished_ts - t0
+    trace.output_summary = f"canvas_nodes={len(canvas_spec.get('nodes', []))}"
+    if not canvas_spec:
+        trace.notes = f"failed after {max_retries + 1} attempts"
+    return canvas_spec, trace
 
 
 # ── Public entry point ────────────────────────────────────────────────────────
@@ -348,11 +439,23 @@ def run_workforce(
     result.document_md = document_md
     result.critique = critique
 
-    slide_outline, canvas_spec, t4 = _run_presenter(intent, document_md)
+    # 4a: Slide outline（独立调用，独立重试）
+    slide_outline, t4a = _run_presenter_slides(intent, document_md, max_retries=2)
     result.slide_outline = slide_outline
+    result.traces.append(t4a)
+    _persist_trace(plan_id, t4a)
+
+    # 4b: Canvas spec（独立调用，独立重试）
+    canvas_spec, t4b = _run_presenter_canvas(intent, document_md, max_retries=2)
     result.canvas_spec = canvas_spec
-    result.traces.append(t4)
-    _persist_trace(plan_id, t4)
+    result.traces.append(t4b)
+    _persist_trace(plan_id, t4b)
+
+    # 任一失败则记录警告（调用方可据此通知用户）
+    if not slide_outline:
+        logger.warning("run_workforce: slide_outline empty after retries for plan_id=%s", plan_id)
+    if not canvas_spec:
+        logger.warning("run_workforce: canvas_spec empty after retries for plan_id=%s", plan_id)
 
     return result
 
