@@ -142,8 +142,8 @@ COMMAND_WORDS: dict[str, CommandKind] = {
 EXPLICIT_PREFIXES = ("/pilot", "@pilot")
 
 TIMELY_RE = re.compile(
-    r"(最新|今年|当前|近期|趋势|进展|新出|最近|本周|本月|今日|"
-    r"2026|2025|2024|今天|昨天|前天|去年|刚才)"
+    r"(最新|当前|近期|最近|本周|本月|今日|今年|去年|"
+    r"2026|2025|2024|今天|昨天|前天|刚才)"
 )
 
 TASK_SEMANTIC_PATTERNS = (
