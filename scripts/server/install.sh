@@ -11,7 +11,8 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/agent-pilot}"
 APP_USER="${APP_USER:-root}"
-PY="${PY:-python3.11}"
+# Ubuntu 22.04 自带 python3.10；如需 3.11 设 PY=python3.11 并自行装 deadsnakes PPA
+PY="${PY:-python3}"
 REPO="${REPO:-https://github.com/bcefghj/Agent-Pilot.git}"
 BRANCH="${BRANCH:-v1.5-clean}"
 
@@ -24,7 +25,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y --no-install-recommends \
     curl ca-certificates git build-essential pkg-config \
-    python3.11 python3.11-venv python3.11-dev \
+    python3 python3-venv python3-dev python3-pip \
     redis-server nginx ufw \
     fonts-noto-cjk fonts-noto-color-emoji
 
