@@ -25,13 +25,20 @@ from typing import Any
 logger = logging.getLogger("pilot.surface.feishu.bot")
 
 
+_LOOP = asyncio.new_event_loop()
+_LOOP_THREAD = threading.Thread(target=_LOOP.run_forever, daemon=True)
+_LOOP_THREAD.start()
+
+
 def _run_async(coro):
-    """在新线程的独立 event loop 中运行协程，避免 lark-oapi ws 线程的 loop 冲突。"""
-    loop = asyncio.new_event_loop()
+    """把协程提交到专用持久 event loop（避免 httpx 连接池跨 loop 报错）。"""
+    import concurrent.futures
+    future = asyncio.run_coroutine_threadsafe(coro, _LOOP)
     try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+        return future.result(timeout=300)
+    except concurrent.futures.TimeoutError:
+        logger.error("_run_async timeout (300s)")
+        return None
 
 
 JUDGE_PROMPT = (
