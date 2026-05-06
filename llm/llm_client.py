@@ -27,7 +27,7 @@ _AUTO_INJECT = os.getenv("AGENT_PILOT_AUTO_INJECT_MEMORY", "1") != "0"
 
 _LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "120"))
 _LLM_MAX_RETRY = int(os.getenv("AGENT_PILOT_LLM_MAX_RETRY", "2"))
-_LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "16384"))
+_LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "100000"))
 _LLM_PROMPT_CHAR_CAP = int(os.getenv("AGENT_PILOT_LLM_PROMPT_CAP", "24000"))
 
 _INJECTION_GUARD = (
@@ -119,24 +119,28 @@ def invalidate_prompt_cache(user_open_id: str = ""):
 # ── Provider Selection ────────────────────────────────────────────────────────
 
 def _select_provider() -> tuple:
-    """Select the best available LLM provider. Priority: MiMo > ARK > MiniMax."""
+    """Select the best available LLM provider. Priority: MiniMax > MiMo > ARK.
+
+    MiniMax M2.7 excels at office document generation (GDPval-AA ELO 1495).
+    MiMo-V2.5-Pro is better for coding/agent tasks but weaker at Chinese content.
+    """
+    if getattr(Config, "MINIMAX_API_KEY", ""):
+        return Config.MINIMAX_API_KEY, getattr(Config, "MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
     if getattr(Config, "MIMO_API_KEY", ""):
         return Config.MIMO_API_KEY, getattr(Config, "MIMO_BASE_URL", "https://token-plan-cn.xiaomimimo.com/v1")
     if Config.ARK_API_KEY:
         return Config.ARK_API_KEY, Config.ARK_BASE_URL
-    if getattr(Config, "MINIMAX_API_KEY", ""):
-        return Config.MINIMAX_API_KEY, getattr(Config, "MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
     return "", ""
 
 
 def get_active_model() -> str:
     """Return the model name for the active provider."""
+    if getattr(Config, "MINIMAX_API_KEY", ""):
+        return getattr(Config, "MINIMAX_MODEL", "MiniMax-M2.7")
     if getattr(Config, "MIMO_API_KEY", ""):
         return getattr(Config, "MIMO_MODEL", "mimo-v2.5-pro")
     if Config.ARK_API_KEY:
         return Config.ARK_MODEL
-    if getattr(Config, "MINIMAX_API_KEY", ""):
-        return getattr(Config, "MINIMAX_MODEL", "MiniMax-M2.7")
     return "doubao-seed-2.0-pro"
 
 
@@ -313,6 +317,7 @@ def chat(
     prompt: str,
     temperature: float = 0.3,
     *,
+    max_tokens: Optional[int] = None,
     system: str = "",
     user_open_id: str = "",
     enterprise_id: str = "default",
@@ -321,7 +326,14 @@ def chat(
     group_id: Optional[str] = None,
     session_id: Optional[str] = None,
 ) -> str:
-    """Synchronous chat completion with 3-tier prompt cache + 6-tier memory."""
+    """Synchronous chat completion with 3-tier prompt cache + 6-tier memory.
+
+    :param max_tokens: Per-call override. Pass None to use env default (_LLM_MAX_TOKENS).
+        For content generation (docs, slides) callers should pass None to let
+        the model output as much as it wants. For structured output (planning JSON)
+        callers can pass a smaller value like 4096.
+    """
+    effective_max = max_tokens if max_tokens is not None else _LLM_MAX_TOKENS
     try:
         client = _get_client()
         messages = _build_chat_messages(
@@ -331,20 +343,21 @@ def chat(
         def _call():
             resp = client.chat.completions.create(
                 model=get_active_model(), messages=messages,
-                temperature=temperature, max_tokens=_LLM_MAX_TOKENS, timeout=_LLM_TIMEOUT,
+                temperature=temperature, max_tokens=effective_max, timeout=_LLM_TIMEOUT,
             )
             return resp.choices[0].message.content.strip()
 
         return _sync_retry(_call, "chat")
     except Exception as e:
         logger.error("chat failed: %s", e)
-        return ""
+        return LLM_FALLBACK_MSG
 
 
 async def async_chat(
     prompt: str,
     temperature: float = 0.3,
     *,
+    max_tokens: Optional[int] = None,
     system: str = "",
     user_open_id: str = "",
     enterprise_id: str = "default",
@@ -354,6 +367,7 @@ async def async_chat(
     session_id: Optional[str] = None,
 ) -> str:
     """Async chat completion with 3-tier prompt cache + 6-tier memory."""
+    effective_max = max_tokens if max_tokens is not None else _LLM_MAX_TOKENS
     try:
         client = _get_async_client()
         messages = _build_chat_messages(
@@ -363,14 +377,14 @@ async def async_chat(
         async def _call():
             resp = await client.chat.completions.create(
                 model=get_active_model(), messages=messages,
-                temperature=temperature, max_tokens=_LLM_MAX_TOKENS, timeout=_LLM_TIMEOUT,
+                temperature=temperature, max_tokens=effective_max, timeout=_LLM_TIMEOUT,
             )
             return resp.choices[0].message.content.strip()
 
         return await _async_retry(_call, "chat")
     except Exception as e:
         logger.error("async chat failed: %s", e)
-        return ""
+        return LLM_FALLBACK_MSG
 
 
 # ── Public API: chat_stream (NEW in v12) ──────────────────────────────────────

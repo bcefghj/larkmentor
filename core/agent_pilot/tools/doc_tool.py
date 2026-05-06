@@ -63,14 +63,18 @@ def doc_append(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     doc_token = args.get("doc_token") or ""
     markdown = args.get("markdown") or ""
     if not markdown or (isinstance(markdown, str) and "{{" in markdown):
-        markdown = _default_markdown_from_intent(ctx)
+        markdown = _two_stage_generate(ctx)
 
     if doc_token and not doc_token.startswith("local_doc_"):
         added = _try_append_feishu_blocks(doc_token, markdown)
         if added:
-            return {"doc_token": doc_token, "blocks_added": added, "source": "feishu"}
+            return {
+                "doc_token": doc_token,
+                "blocks_added": added,
+                "markdown_content": markdown,
+                "source": "feishu",
+            }
 
-    # Fallback: append to local markdown file
     _ensure_dir()
     path = os.path.join(DATA_DIR, f"{doc_token}.md")
     if not os.path.exists(path):
@@ -80,6 +84,7 @@ def doc_append(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "doc_token": doc_token,
         "blocks_added": markdown.count("\n") + 1,
+        "markdown_content": markdown,
         "source": "local_markdown",
         "path": path,
     }
@@ -207,7 +212,8 @@ def _markdown_to_blocks(md: str) -> List[Any]:
     return blocks
 
 
-def _default_markdown_from_intent(ctx: Dict[str, Any]) -> str:
+def _two_stage_generate(ctx: Dict[str, Any]) -> str:
+    """Two-stage document generation: outline first, then expand each section."""
     plan_id = ctx.get("plan_id", "")
     intent = (
         ctx.get("original_intent", "")
@@ -217,74 +223,180 @@ def _default_markdown_from_intent(ctx: Dict[str, Any]) -> str:
     )
     step_results: Dict[str, Dict[str, Any]] = ctx.get("step_results") or {}
 
-    thread_msgs = []
+    thread_context = ""
     for sid, result in step_results.items():
         if "messages" in result:
-            thread_msgs = result["messages"]
+            thread_context = "\n".join(
+                f"- {m.get('sender', '?')}: {m.get('text', '')[:100]}"
+                for m in result["messages"][-8:]
+            )
             break
 
-    context_block = ""
-    if thread_msgs:
-        context_block = "\n".join(
-            f"- {m.get('sender', '?')}: {m.get('text', '')[:100]}"
-            for m in thread_msgs[-8:]
-        )
+    outline = _generate_outline(intent, thread_context)
+    if not outline:
+        logger.warning("doc outline generation failed, falling back to single-shot")
+        return _single_shot_generate(intent, thread_context, plan_id)
 
-    llm_md = _generate_doc_via_llm(intent, context_block, plan_id)
-    if llm_md:
-        return llm_md
+    logger.info("doc outline: %d sections for intent=%s", len(outline), intent[:60])
 
-    lines = ["## 背景与目标", "", f"Agent-Pilot 计划 `{plan_id}` 自动生成的需求文档。", "", "## 上下文摘要"]
-    if thread_msgs:
-        for m in thread_msgs[-6:]:
-            lines.append(f"- **{m.get('sender', '?')}**：{m.get('text', '')[:80]}")
-    else:
-        lines.append("- 暂无群聊历史（离线 demo）")
-    lines += ["", "## 下一步行动", "- [ ] 明确验收标准", "- [ ] 指派负责人", "- [ ] 5 月 7 日前交付初版"]
-    return "\n".join(lines)
+    all_sections: List[str] = []
+    for i, section in enumerate(outline):
+        section_md = _expand_section(section, outline, intent, i, all_sections)
+        if section_md:
+            all_sections.append(section_md)
+
+    if not all_sections:
+        return _single_shot_generate(intent, thread_context, plan_id)
+
+    return "\n\n".join(all_sections)
 
 
-def _generate_doc_via_llm(intent: str, context: str, plan_id: str) -> str:
+def _generate_outline(intent: str, context: str) -> List[Dict[str, Any]]:
+    """Stage 1: Generate a structured outline with 6-8 sections."""
+    try:
+        from llm.llm_client import chat
+    except ImportError:
+        return []
+
+    prompt = f"""你是一位资深的文档架构师。请为以下主题设计一份详细的文档大纲。
+
+## 文档主题
+{intent}
+
+{"## 参考上下文" + chr(10) + context if context else ""}
+
+请输出 JSON 数组格式的大纲，包含 6-8 个章节，每个章节有 title 和 key_points 字段：
+[
+  {{"title": "概述与摘要", "key_points": ["文档目标与核心价值", "主题背景简介", "核心结论预览"]}},
+  {{"title": "背景分析与行业现状", "key_points": ["行业发展脉络", "当前痛点与挑战", "市场数据与趋势"]}},
+  ...更多章节...
+]
+
+要求：
+1. 6-8 个章节，覆盖：概述、背景、核心内容（3-4章深度展开）、实践案例、风险挑战、结论展望
+2. 每个章节 3-5 个 key_points，每个 key_point 是一句完整描述
+3. 章节设计要有深度，核心内容部分要拆分为多个独立章节
+4. 只输出 JSON 数组，不要其他内容"""
+
+    try:
+        import json as _json
+        import re as _re
+        result = chat(prompt, temperature=0.3, max_tokens=4096)
+        if not result or len(result.strip()) < 20:
+            return []
+        txt = result.strip()
+        if txt.startswith("```"):
+            m = _re.search(r"```(?:json)?\s*([\s\S]+?)```", txt)
+            if m:
+                txt = m.group(1).strip()
+        arr = _json.loads(txt)
+        if isinstance(arr, list) and len(arr) >= 3:
+            return [
+                {
+                    "title": str(s.get("title", f"Section {i}")),
+                    "key_points": [str(kp) for kp in (s.get("key_points") or [])],
+                }
+                for i, s in enumerate(arr, 1)
+            ]
+    except Exception as e:
+        logger.warning("outline generation failed: %s", e)
+    return []
+
+
+def _expand_section(
+    section: Dict[str, Any],
+    full_outline: List[Dict[str, Any]],
+    intent: str,
+    section_idx: int,
+    previous_sections: List[str],
+) -> str:
+    """Stage 2: Expand a single section into detailed markdown content."""
     try:
         from llm.llm_client import chat
     except ImportError:
         return ""
 
-    prompt = f"""你是一位资深的专业文档撰写专家。请根据以下信息生成一份**详尽、深入、高质量**的 Markdown 文档。
+    title = section.get("title", "")
+    key_points = section.get("key_points", [])
+    kp_text = "\n".join(f"- {kp}" for kp in key_points) if key_points else "（请自行展开）"
+
+    outline_summary = "\n".join(
+        f"{i+1}. {s['title']}" for i, s in enumerate(full_outline)
+    )
+
+    prev_summary = ""
+    if previous_sections:
+        combined = "\n".join(previous_sections)
+        if len(combined) > 2000:
+            combined = combined[:2000] + "...(已截断)"
+        prev_summary = f"\n## 前面章节已写内容（保持连贯）\n{combined}"
+
+    prompt = f"""你是一位资深的专业文档撰写专家。请撰写文档中「{title}」这一章节的完整内容。
+
+## 文档主题
+{intent}
+
+## 完整大纲
+{outline_summary}
+
+## 当前要撰写的章节
+标题：{title}
+要点提示：
+{kp_text}
+{prev_summary}
+
+## 撰写要求
+- 用 ## 作为本章节标题，### 作为子小节标题
+- 内容详实、专业、有深度，充分展现专业素养
+- 每个要点展开为 2-4 段详细论述，包含具体分析、数据支撑、案例说明
+- 不要限制篇幅，请尽可能详尽地撰写，发挥你的全部能力
+- 语言流畅自然，逻辑清晰，论述有理有据
+- 直接输出 Markdown 内容，不要用代码块包裹
+- 不要重复其他章节的内容"""
+
+    try:
+        result = chat(prompt, temperature=0.5)
+        if result and len(result.strip()) > 50:
+            from llm.llm_client import LLM_FALLBACK_MSG
+            if result.strip() == LLM_FALLBACK_MSG:
+                return ""
+            return result.strip()
+    except Exception as e:
+        logger.warning("section expansion failed for '%s': %s", title, e)
+    return ""
+
+
+def _single_shot_generate(intent: str, context: str, plan_id: str) -> str:
+    """Fallback: single LLM call for the entire document."""
+    try:
+        from llm.llm_client import chat, LLM_FALLBACK_MSG
+    except ImportError:
+        return _static_fallback(plan_id)
+
+    prompt = f"""你是一位资深的专业文档撰写专家。请根据以下需求生成一份详尽、深入、高质量的 Markdown 文档。
 
 ## 用户需求
 {intent}
 
-## 计划编号
-{plan_id}
+{"## 参考上下文" + chr(10) + context if context else ""}
 
-## 参考上下文
-{"以下是相关对话记录，请结合这些信息丰富文档内容：" + chr(10) + context if context else "（无额外上下文，请基于你的专业知识充分展开）"}
-
-## 文档撰写要求
-
-请按照以下结构撰写，每个章节都要有充实的内容：
-
-1. **概述与摘要** — 简要介绍文档主题、目标和核心价值
-2. **背景分析** — 详细阐述问题背景、行业现状、痛点分析
-3. **核心内容**（至少包含 3-5 个深度章节）— 这是文档的主体部分，请根据用户需求深入展开，每个章节至少 3-5 段详细论述，包含具体的分析、数据支撑、案例说明
-4. **技术/方案分析** — 如涉及技术方案，请详细说明架构、原理、优劣势对比
-5. **实践案例与应用场景** — 提供具体的案例分析或应用场景描述
-6. **风险与挑战** — 分析可能面临的风险和挑战，提出应对策略
-7. **结论与展望** — 总结核心观点，展望未来发展方向
-8. **附录/参考** — 如有必要，补充相关参考信息
-
-## 格式规范
-- 使用 Markdown 格式：## 用于大标题，### 用于子标题，- 用于列表
-- 直接输出 Markdown 内容，不要用代码块包裹
-- 内容要专业、详实、有深度，充分展现专业素养
-- 不要限制篇幅，请尽可能详尽地撰写每个章节
-- 语言流畅自然，逻辑清晰，论述有理有据"""
+请撰写一份完整的专业文档，包含：概述、背景分析、核心内容（多个深度章节）、实践案例、风险与挑战、结论与展望。
+每个章节都要有充实的内容，不要限制篇幅，请尽可能详尽。
+使用 ## 作为大标题，### 作为子标题，- 用于列表。
+直接输出 Markdown 内容。"""
 
     try:
         result = chat(prompt, temperature=0.5)
-        if result and len(result.strip()) > 100:
+        if result and len(result.strip()) > 100 and result.strip() != LLM_FALLBACK_MSG:
             return result.strip()
     except Exception as e:
-        logger.warning("doc LLM generation failed: %s", e)
-    return ""
+        logger.warning("single-shot doc generation failed: %s", e)
+    return _static_fallback(plan_id)
+
+
+def _static_fallback(plan_id: str) -> str:
+    return (
+        f"## 背景与目标\n\nAgent-Pilot 计划 `{plan_id}` 自动生成的需求文档。\n\n"
+        "## 上下文摘要\n\n- 暂无群聊历史（离线 demo）\n\n"
+        "## 下一步行动\n\n- [ ] 明确验收标准\n- [ ] 指派负责人"
+    )

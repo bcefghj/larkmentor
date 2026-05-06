@@ -232,7 +232,7 @@ def _schedule_completion_notify(open_id: str, plan):
             from core.agent_pilot.service import get_plan as _gp
 
             start = _t2.time()
-            while _t2.time() - start < 180:
+            while _t2.time() - start < 300:
                 _t2.sleep(3)
                 p2 = _gp(plan.plan_id)
                 if not p2:
@@ -243,26 +243,45 @@ def _schedule_completion_notify(open_id: str, plan):
                     failed = [s for s in p2.steps if s.status == "failed"]
                     urls = []
                     seen_urls = set()
+                    content_preview = ""
                     for s in p2.steps:
-                        for key in ("url", "feishu_url", "pptx_url", "pdf_url", "share_url"):
-                            u = (s.result or {}).get(key)
+                        result = s.result or {}
+                        if not content_preview and result.get("markdown_content"):
+                            raw = result["markdown_content"]
+                            content_preview = raw[:300].replace("\n", " ").strip()
+                            if len(raw) > 300:
+                                content_preview += "..."
+
+                        for key in ("feishu_url", "url", "pptx_url", "pdf_url", "share_url"):
+                            u = result.get(key)
                             if not u or u in seen_urls:
                                 continue
                             if u.startswith("/artifacts/") or u.startswith("file://"):
                                 continue
+                            if "localhost" in u:
+                                continue
                             seen_urls.add(u)
-                            label = s.result.get("title") or s.tool
-                            urls.append(f"{label}: {u}")
+                            label_map = {
+                                "feishu_url": "📄 飞书文档",
+                                "pptx_url": "📊 演示稿PPT",
+                                "pdf_url": "📑 PDF",
+                                "share_url": "🔗 分享链接",
+                                "url": result.get("title") or s.tool,
+                            }
+                            label = label_map.get(key, s.tool)
+                            urls.append(f"  • {label}：{u}")
                             break
+
                     summary = [
-                        "🛬 **Agent-Pilot 完成**",
-                        f"`{plan.plan_id}` · {len(done)}/{len(p2.steps)} 完成"
-                        + (f"，{len(failed)} 失败" if failed else ""),
-                        "",
-                        "📦 产物：",
+                        "🛬 **Agent-Pilot 任务完成**",
+                        f"`{plan.plan_id}` · {len(done)}/{len(p2.steps)} 步完成"
+                        + (f"，{len(failed)} 步失败" if failed else ""),
                     ]
-                    summary += urls[:8] or ["（本次运行产物已保存到服务器 data/pilot_artifacts/）"]
-                    summary.append(f"\n汇总链接：{_dashboard_url()}/pilot/{plan.plan_id}")
+                    if content_preview:
+                        summary += ["", "📝 内容摘要：", content_preview]
+                    summary += ["", "📦 产物链接："]
+                    summary += urls[:8] or ["  （产物已保存到飞书云文档）"]
+                    summary.append(f"\n📊 进度面板：{_dashboard_url(f'/dashboard/pilot?plan_id={plan.plan_id}')}")
                     try:
                         send_text(open_id, "\n".join(summary))
                     except Exception as e:

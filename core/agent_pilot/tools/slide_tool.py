@@ -195,26 +195,49 @@ def _outline_to_docx_blocks(outline: List[Dict[str, Any]]) -> list:
 
 def _generate_outline_via_llm(title: str, ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
     try:
-        from llm.llm_client import chat
+        from llm.llm_client import chat, LLM_FALLBACK_MSG
     except ImportError:
         return []
     if not title:
         return []
 
     step_results = ctx.get("step_results") or {}
-    doc_content = ""
+    doc_markdown = ""
     for r in step_results.values():
-        if r.get("doc_token") and r.get("source"):
-            doc_content = f"已生成文档 {r.get('doc_token', '')}"
+        if r.get("markdown_content"):
+            doc_markdown = r["markdown_content"]
             break
 
     intent = ctx.get("original_intent", "") or ctx.get("intent", "") or title
 
-    prompt = f"""你是一位专业的演示稿设计专家。请为以下主题设计一份 8-10 页的高质量 PPT 大纲。
+    if doc_markdown:
+        content_preview = doc_markdown[:16000]
+        prompt = f"""你是一位专业的演示稿设计专家。请基于以下已有文档内容，提炼出一份 8-12 页的高质量 PPT 大纲。
+
+## 用户需求
+{intent}
+
+## 已有文档内容（请基于此提炼 PPT）
+{content_preview}
+
+请以 JSON 数组格式输出，每个元素包含 title 和 bullets 字段：
+[
+  {{"title": "封面标题", "bullets": ["副标题信息", "演讲者/团队"]}},
+  {{"title": "目录", "bullets": ["章节1", "章节2", "章节3"]}},
+  ...
+]
+
+要求：
+1. 8-12 页，结构完整，逻辑清晰
+2. 每页 3-5 个要点，每个要点是一句完整的、有信息量的话，从文档内容中提取关键论点
+3. 包含：封面、目录/概述、背景分析、核心内容（4-6页深度展开）、案例/数据、总结展望、致谢
+4. PPT 内容必须与文档保持一致，是文档的精华提炼
+5. 只输出 JSON 数组，不要其他内容"""
+    else:
+        prompt = f"""你是一位专业的演示稿设计专家。请为以下主题设计一份 8-10 页的高质量 PPT 大纲。
 
 主题：{title}
 用户原始需求：{intent}
-{"关联文档：" + doc_content if doc_content else ""}
 
 请以 JSON 数组格式输出，每个元素包含 title 和 bullets 字段：
 [
@@ -232,8 +255,8 @@ def _generate_outline_via_llm(title: str, ctx: Dict[str, Any]) -> List[Dict[str,
 5. 只输出 JSON 数组，不要其他内容"""
 
     try:
-        result = chat(prompt, temperature=0.5)
-        if result:
+        result = chat(prompt, temperature=0.5, max_tokens=8192)
+        if result and result.strip() != LLM_FALLBACK_MSG:
             import json as _json
             import re as _re
             txt = result.strip()

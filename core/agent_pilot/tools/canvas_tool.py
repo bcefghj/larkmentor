@@ -205,15 +205,47 @@ def _create_feishu_canvas_doc(title: str, ctx: Dict[str, Any]) -> Dict[str, Any]
 
 
 def _generate_canvas_content(title: str, ctx: Dict[str, Any]) -> str:
-    """Use LLM to generate structured canvas content (flowchart/architecture as text)."""
+    """Use LLM to generate structured canvas content based on document content if available."""
     try:
-        from llm.llm_client import chat
+        from llm.llm_client import chat, LLM_FALLBACK_MSG
     except ImportError:
         return ""
 
     intent = ctx.get("original_intent", "") or ctx.get("intent", "") or title
 
-    prompt = f"""你是一位专业的架构设计师和流程图专家。请为以下主题生成一份结构化的画布/白板内容。
+    step_results = ctx.get("step_results") or {}
+    doc_markdown = ""
+    for r in step_results.values():
+        if r.get("markdown_content"):
+            doc_markdown = r["markdown_content"]
+            break
+
+    if doc_markdown:
+        content_preview = doc_markdown[:12000]
+        prompt = f"""你是一位专业的架构设计师和流程图专家。请基于以下已有文档内容，生成一份结构化的画布/白板内容，展示文档中的核心架构、流程和关系。
+
+## 用户需求
+{intent}
+
+## 已有文档内容（请基于此内容设计架构图/流程图）
+{content_preview}
+
+请用 Markdown 格式输出一份可视化架构图/流程图的文字版本，包含：
+
+1. **架构总览** — 基于文档内容提炼整体架构或流程
+2. **核心模块** — 从文档中提取关键模块的名称、职责和接口
+3. **数据流向** — 用箭头符号(→)描述模块间的数据流转关系
+4. **关键节点说明** — 对文档中重要概念和节点的详细解释
+5. **技术选型** — 文档中涉及的技术栈和工具
+
+格式要求：
+- 使用 ## 作为大标题，### 作为子标题
+- 使用 - 列表描述要点
+- 用 → 符号表示流程方向
+- 内容必须与文档一致，是文档核心内容的可视化呈现
+- 直接输出 Markdown，不要代码块包裹"""
+    else:
+        prompt = f"""你是一位专业的架构设计师和流程图专家。请为以下主题生成一份结构化的画布/白板内容。
 
 主题：{title}
 用户需求：{intent}
@@ -235,7 +267,7 @@ def _generate_canvas_content(title: str, ctx: Dict[str, Any]) -> str:
 
     try:
         result = chat(prompt, temperature=0.5)
-        if result and len(result.strip()) > 100:
+        if result and len(result.strip()) > 100 and result.strip() != LLM_FALLBACK_MSG:
             return result.strip()
     except Exception as e:
         logger.warning("canvas LLM generation failed: %s", e)

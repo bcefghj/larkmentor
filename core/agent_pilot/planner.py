@@ -119,10 +119,10 @@ _PLANNER_SYSTEM_PROMPT = """
 可用工具（务必从以下集合中选择）：
 - im.fetch_thread      : 拉取当前或指定群聊的最近上下文（参数 chat_id, limit）
 - doc.create           : 创建飞书 Docx 文档（参数 title）
-- doc.append           : 往已创建文档追加 markdown 块（参数 doc_token, markdown）
-- canvas.create        : 创建白板（tldraw + 飞书画板双写）（参数 title）
+- doc.append           : 往已创建文档追加内容。markdown 参数留空即可，工具内部会用 AI 自动生成高质量内容（参数 doc_token, markdown）
+- canvas.create        : 创建画布/白板（参数 title）
 - canvas.add_shape     : 在画布上添加形状（参数 canvas_id, shape_type, text, x, y）
-- slide.generate       : Slidev markdown → pptx（参数 outline: [{title, bullets}]）
+- slide.generate       : 生成演示稿 PPT（参数 outline: [{title, bullets}]）
 - slide.rehearse       : 为每页生成演讲稿（参数 slide_id）
 - voice.transcribe     : 语音转文字（参数 audio_url 或 file_key）
 - archive.bundle       : 汇总文档+画布+PPT，生成分享链接（参数 artifacts: [id...]）
@@ -138,6 +138,9 @@ _PLANNER_SYSTEM_PROMPT = """
 4. parallel_group 相同的步骤可以并行执行。
 5. 若意图模糊，首个 step 必须是 mentor.clarify。
 6. 最后一步必须是 archive.bundle。
+7. 如果任务同时需要文档和PPT，slide.generate 必须 depends_on 最后一个 doc.append，
+   这样 PPT 能基于文档内容生成，保持一致性。canvas.create 同理。
+8. doc.append 的 markdown 参数留空，工具会自动用 AI 生成详尽内容。
 """
 
 
@@ -250,18 +253,18 @@ class PilotPlanner:
     # ── Heuristic fallback (also used in offline tests) ──
 
     def _plan_heuristic(self, intent: str) -> List[PlanStep]:
-        want_doc = bool(re.search(r"(文档|文稿|方案|需求|纪要|总结)", intent))
+        want_doc = bool(re.search(r"(文档|文稿|方案|需求|纪要|总结|报告|介绍|写)", intent))
         want_canvas = bool(re.search(r"(画布|白板|流程图|架构图|画图|思维导图)", intent))
         want_slide = bool(re.search(r"(PPT|演示|演讲|slide|汇报)", intent, re.I))
         want_fetch = bool(re.search(r"(群聊|讨论|对话|本周|昨天|最近)", intent))
 
         if not any([want_doc, want_canvas, want_slide]):
-            # Default rich flow if user just says "处理一下" / "做个方案"
             want_doc = True
             want_slide = True
 
         steps: List[PlanStep] = []
         last_id = None
+        doc_append_id = None
 
         if want_fetch:
             sid = f"s{len(steps) + 1}"
@@ -275,7 +278,6 @@ class PilotPlanner:
             )
             last_id = sid
 
-        parallel_ids: List[str] = []
         if want_doc:
             sid = f"s{len(steps) + 1}"
             steps.append(
@@ -285,76 +287,70 @@ class PilotPlanner:
                     description="创建飞书 Docx 文档",
                     args={"title": _title_from_intent(intent, "方案")},
                     depends_on=[last_id] if last_id else [],
-                    parallel_group="artifact_build",
                 )
             )
-            parallel_ids.append(sid)
+            doc_create_id = sid
             sid2 = f"s{len(steps) + 1}"
             steps.append(
                 PlanStep(
                     step_id=sid2,
                     tool="doc.append",
-                    description="根据意图生成 markdown 大纲并写入文档",
-                    args={"doc_token": f"${{{sid}.doc_token}}"},
-                    depends_on=[sid],
-                    parallel_group="artifact_build",
+                    description="AI 自动生成详尽文档内容（大纲→逐章节展开）并写入飞书",
+                    args={"doc_token": f"${{{doc_create_id}.doc_token}}"},
+                    depends_on=[doc_create_id],
                 )
             )
-            parallel_ids.append(sid2)
+            doc_append_id = sid2
 
         if want_canvas:
             sid = f"s{len(steps) + 1}"
+            deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
             steps.append(
                 PlanStep(
                     step_id=sid,
                     tool="canvas.create",
-                    description="创建画布（tldraw + 飞书画板）",
+                    description="基于文档内容创建结构化画布/架构图",
                     args={"title": _title_from_intent(intent, "画布")},
-                    depends_on=[last_id] if last_id else [],
-                    parallel_group="artifact_build",
+                    depends_on=deps,
                 )
             )
-            parallel_ids.append(sid)
+            canvas_create_id = sid
             sid2 = f"s{len(steps) + 1}"
             steps.append(
                 PlanStep(
                     step_id=sid2,
                     tool="canvas.add_shape",
-                    description="在画布上绘制初始框架（节点+箭头）",
-                    args={"canvas_id": f"${{{sid}.canvas_id}}", "shape_type": "frame"},
-                    depends_on=[sid],
-                    parallel_group="artifact_build",
+                    description="在画布上绘制架构框架（节点+箭头）",
+                    args={"canvas_id": f"${{{canvas_create_id}.canvas_id}}", "shape_type": "frame"},
+                    depends_on=[canvas_create_id],
                 )
             )
-            parallel_ids.append(sid2)
 
         if want_slide:
             sid = f"s{len(steps) + 1}"
+            deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
             steps.append(
                 PlanStep(
                     step_id=sid,
                     tool="slide.generate",
-                    description="生成 Slidev PPT（导出 pptx + pdf）",
+                    description="基于文档内容生成演示稿 PPT",
                     args={"title": _title_from_intent(intent, "演示稿")},
-                    depends_on=[last_id] if last_id else [],
-                    parallel_group="artifact_build",
+                    depends_on=deps,
                 )
             )
-            parallel_ids.append(sid)
+            slide_id = sid
             sid2 = f"s{len(steps) + 1}"
             steps.append(
                 PlanStep(
                     step_id=sid2,
                     tool="slide.rehearse",
                     description="为 PPT 生成演讲稿",
-                    args={"slide_id": f"${{{sid}.slide_id}}"},
-                    depends_on=[sid],
-                    parallel_group="artifact_build",
+                    args={"slide_id": f"${{{slide_id}.slide_id}}"},
+                    depends_on=[slide_id],
                 )
             )
-            parallel_ids.append(sid2)
 
-        # Final bundle
+        all_ids = [s.step_id for s in steps]
         sid = f"s{len(steps) + 1}"
         steps.append(
             PlanStep(
@@ -362,7 +358,7 @@ class PilotPlanner:
                 tool="archive.bundle",
                 description="汇总产物，生成飞书分享链接",
                 args={},
-                depends_on=parallel_ids or ([last_id] if last_id else []),
+                depends_on=all_ids[-2:] if len(all_ids) >= 2 else all_ids,
             )
         )
         return steps
