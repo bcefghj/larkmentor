@@ -112,7 +112,7 @@ async def main() -> int:
     passed = sum(1 for r in results if r.pass_)
     print(f"\n通过：{passed}/{len(results)}")
 
-    out = Path("data/T20_RESULT.json")
+    out = Path("data/test_reports/T20_RESULT.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         json.dumps(

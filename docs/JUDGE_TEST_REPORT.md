@@ -54,7 +54,7 @@ LLM_MOCK=1 .venv/bin/python scripts/run_t20_smoke.py
 | T19 | 富媒体 | (语音转文本) 做一份周报 | READY | 默认链 | READY | ✓ |
 | T20 | 富媒体 | 把这张图分析一下 | NEEDS_CLARIFY | clarify 卡 | NEEDS_CLARIFY (form 缺) | ✓ |
 
-完整 JSON：[`data/T20_RESULT.json`](../data/T20_RESULT.json)
+完整 JSON：`data/test_reports/T20_RESULT.json`（gitignore，本地跑后生成）
 
 ## 3. 真机验收清单（评委可在飞书直接发）
 
