@@ -68,6 +68,26 @@ async def doc_pipeline(state: AgentState) -> AgentState:
     event_log = _get_event_log(state)
 
     logger.info("[doc_pipeline] start: intent=%s", state.get("intent", "")[:60])
+
+    # 聚合上下文记忆
+    try:
+        from pilot.context.context_pack import ContextPackBuilder  # noqa: F401
+        from pilot.context.event_log import EventLog
+
+        recent_sessions = EventLog.list_sessions(limit=5)
+        history_context = []
+        for sid in recent_sessions[:3]:
+            log = EventLog(session_id=sid)
+            events = await log.read_recent(limit=5)
+            if events:
+                summary = f"历史任务 {sid[:16]}: " + str(events[0].get("payload", {}).get("intent", ""))[:60]
+                history_context.append(summary)
+
+        if history_context:
+            state["intent"] = state.get("intent", "") + "\n\n[上下文参考]\n" + "\n".join(history_context)
+    except Exception as e:
+        logger.debug("ContextPack aggregation skipped: %s", e)
+
     await _emit(event_log, "agent.start", {"agent": "PlannerAgent", "role": "任务规划", "step": "生成结构化大纲"})
 
     state = await planner.execute(state)
