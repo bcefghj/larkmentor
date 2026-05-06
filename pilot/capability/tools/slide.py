@@ -39,6 +39,9 @@ def register_to(reg) -> None:
                 "outline": {"type": "array", "description": "可选大纲；留空时从上游 doc 自动提炼"},
                 "intent": {"type": "string", "description": "用户原始意图"},
                 "pages": {"type": "integer", "description": "目标页数，默认 8"},
+                "search_results": {
+                    "description": "上游 web.search 注入的结果 [{title,url,snippet}]，用于 LLM 大纲引用真实数据",
+                },
             },
             "required": ["title"],
         },
@@ -70,6 +73,7 @@ async def slide_generate(
     outline: list | None = None,
     intent: str = "",
     pages: int = 8,
+    search_results: Any = None,
     _ctx: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     sid = f"slide_{int(time.time())}_{uuid.uuid4().hex[:6]}"
@@ -77,8 +81,15 @@ async def slide_generate(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     upstream_md = _extract_upstream_doc(_ctx)
+    citations = _normalize_search_results(search_results)
     if not outline:
-        outline = await _llm_outline(title=title, intent=intent, pages=pages, upstream_md=upstream_md)
+        outline = await _llm_outline(
+            title=title,
+            intent=intent,
+            pages=pages,
+            upstream_md=upstream_md,
+            search_results=citations,
+        )
     outline = _normalise_outline(outline, target_pages=pages)
 
     pptx_path = out_dir / f"{sid}.pptx"
@@ -90,17 +101,48 @@ async def slide_generate(
     notes_md_path = out_dir / f"{sid}.speaker_notes.md"
     notes_md_path.write_text(_outline_to_speaker_notes(title, outline), encoding="utf-8")
 
-    base_url = f"/artifacts/slides/{sid}"
+    base = (os.getenv("DASHBOARD_PUBLIC_BASE") or "").rstrip("/")
+    rel = f"/artifacts/slides/{sid}"
+    pptx_rel = f"{rel}/{pptx_path.name}"
     return {
         "slide_id": sid,
         "title": title,
         "pages": page_count,
         "outline": outline,
         "pptx_path": str(pptx_path),
-        "pptx_url": f"{base_url}/{pptx_path.name}",
-        "slidev_md_url": f"{base_url}/{slidev_md_path.name}",
-        "speaker_notes_md_url": f"{base_url}/{notes_md_path.name}",
+        "pptx_url": pptx_rel,
+        "pptx_url_absolute": f"{base}{pptx_rel}" if base else pptx_rel,
+        "slidev_md_url": f"{rel}/{slidev_md_path.name}",
+        "speaker_notes_md_url": f"{rel}/{notes_md_path.name}",
+        "citations": citations,
     }
+
+
+def _normalize_search_results(raw: Any) -> list[dict[str, str]]:
+    """与 doc 工具保持一致的归一化逻辑."""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.startswith("$") or not s:
+            return []
+        try:
+            raw = json.loads(s)
+        except Exception:
+            return []
+    if isinstance(raw, dict):
+        raw = raw.get("results") or raw.get("items") or []
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if isinstance(item, dict):
+            t = str(item.get("title", ""))[:200]
+            u = str(item.get("url", ""))[:500]
+            sn = str(item.get("snippet", "") or item.get("desc", ""))[:400]
+            if t or u:
+                out.append({"title": t, "url": u, "snippet": sn})
+    return out[:10]
 
 
 # ── slide.rehearse ──
@@ -132,16 +174,31 @@ async def slide_rehearse(*, slide_id: str, _ctx: dict[str, Any] | None = None) -
 # ── 实现细节 ──
 
 
-async def _llm_outline(*, title: str, intent: str, pages: int, upstream_md: str) -> list[dict[str, Any]]:
+async def _llm_outline(
+    *,
+    title: str,
+    intent: str,
+    pages: int,
+    upstream_md: str,
+    search_results: list[dict[str, str]] | None = None,
+) -> list[dict[str, Any]]:
     try:
         from pilot.llm.client import default_client
         from pilot.llm.safe_json import safe_json_parse
+
+        cite_block = ""
+        if search_results:
+            lines = ["\n参考资料（请基于真实数据，不要瞎编）："]
+            for i, r in enumerate(search_results[:5], 1):
+                lines.append(f"[{i}] {r.get('title','')} — {r.get('url','')}\n    {r.get('snippet','')}")
+            cite_block = "\n".join(lines)
 
         prompt = f"""请为「{title}」生成 {pages} 页 PPT 大纲（封面 + 主体 + 结尾）。
 
 用户意图：{intent or '（无）'}
 上游文档：
 {upstream_md[:2000] or '（无）'}
+{cite_block}
 
 输出严格 JSON 数组，每项：
 {{
@@ -158,7 +215,9 @@ async def _llm_outline(*, title: str, intent: str, pages: int, upstream_md: str)
 - List: 数字列表
 - Quote: 名人 / 用户引言
 
-要求：第 1 页 Hero（封面）；最后一页 Hero（致谢/Q&A）；中间 6 页混用其他模板。直接输出 JSON 数组。"""
+要求：第 1 页 Hero（封面）；最后一页 Hero（致谢/Q&A）；中间 6 页混用其他模板。
+若有参考资料，请在合适页面 bullets 中以 "[1]"/"[2]" 形式引用，并在 notes 中说明数据出处。
+直接输出 JSON 数组。"""
 
         client = default_client()
         result = await client.chat(
