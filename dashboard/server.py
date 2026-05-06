@@ -461,6 +461,38 @@ async def pilot_dashboard_page():
     return f"<h1>Agent-Pilot v12 Dashboard</h1><p>Static UI not built yet.</p>"
 
 
+@app.get("/v13/multi-end", response_class=HTMLResponse)
+@app.get("/v13/dashboard", response_class=HTMLResponse)
+@app.get("/v13", response_class=HTMLResponse)
+async def v13_multi_end_page():
+    """v13 多端协同实时监控页面，订阅 WebSocket /sync/ws 房间。"""
+    page = STATIC_DIR / "v13_multi_end.html"
+    if page.exists():
+        return page.read_text(encoding="utf-8")
+    return "<h1>Agent-Pilot v13 多端协同</h1><p>Page not yet built.</p>"
+
+
+@app.get("/api/pilot/agent_traces/{plan_id}")
+async def agent_traces(plan_id: str):
+    """Return Agent-Pilot v13 4-Agent workforce traces for the given plan."""
+    trace_file = ROOT / "data" / "agent_traces" / f"{plan_id}.jsonl"
+    if not trace_file.exists():
+        return {"plan_id": plan_id, "traces": []}
+    traces = []
+    try:
+        for line in trace_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                traces.append(json.loads(line))
+            except Exception:
+                continue
+    except Exception as e:
+        return JSONResponse({"plan_id": plan_id, "error": str(e), "traces": []}, status_code=200)
+    return {"plan_id": plan_id, "traces": traces}
+
+
 @app.get("/pilot/{plan_id}", response_class=HTMLResponse)
 async def pilot_share_view(plan_id: str):
     page = STATIC_DIR / "pilot_share.html"
@@ -488,11 +520,15 @@ try:
 except Exception:
     pass
 
-# ── Artifacts ──
-ARTIFACT_DIR = ROOT / "data" / "pilot_artifacts"
+# ── Artifacts (v13: serve everything under data/artifacts/ AND
+#     the legacy data/pilot_artifacts/ for backwards compat) ──
+ARTIFACT_DIR = ROOT / "data" / "artifacts"
+LEGACY_ARTIFACT_DIR = ROOT / "data" / "pilot_artifacts"
 try:
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    LEGACY_ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
     app.mount("/artifacts", StaticFiles(directory=str(ARTIFACT_DIR)), name="artifacts")
+    app.mount("/pilot_artifacts", StaticFiles(directory=str(LEGACY_ARTIFACT_DIR)), name="pilot_artifacts")
 except Exception:
     pass
 

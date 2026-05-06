@@ -114,8 +114,40 @@ def _do_handle(data):
         return
 
     text = extract_text(message)
+
+    # v13: if no text but the message is audio, try ASR transcription
     if not text:
-        logger.info("_do_handle: empty text extracted, skipping")
+        msg_type = getattr(message, "message_type", "") or ""
+        if msg_type == "audio":
+            try:
+                import json as _json
+                content_raw = getattr(message, "content", "") or "{}"
+                content = _json.loads(content_raw) if isinstance(content_raw, str) else content_raw
+                file_key = content.get("file_key", "")
+                if file_key:
+                    from agent_pilot.io.feishu.voice import transcribe_feishu_audio
+
+                    logger.info("_do_handle: audio message detected, file_key=%s", file_key[:20])
+                    text = transcribe_feishu_audio(message_id, file_key, message_type="audio")
+                    if text:
+                        logger.info("_do_handle: ASR success: %r", text[:50])
+                    else:
+                        logger.warning("_do_handle: ASR returned empty, prompting user")
+                        try:
+                            from bot.message_sender import reply_text
+                            reply_text(message_id, "🎤 抱歉，我没听清你的语音。请再发一次或直接发文字。")
+                        except Exception:
+                            pass
+                        return
+            except Exception as e:
+                logger.warning("_do_handle: voice handling failed: %s", e)
+                return
+        else:
+            logger.info("_do_handle: empty text extracted, skipping")
+            return
+
+    if not text:
+        logger.info("_do_handle: still no text after voice attempt, skipping")
         return
 
     logger.info("_do_handle: text=%r open_id=%s chat_type=%s", text[:50], sender_open_id[-6:], chat_type)

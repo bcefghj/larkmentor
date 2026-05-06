@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Agent-Pilot v13 · 多端协同实时监控</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #58a6ff;
+    --success: #3fb950;
+    --warning: #d29922;
+    --danger: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text); margin: 0; padding: 24px; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; min-height: 200px; }
+  .panel h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px;
+    color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; background: rgba(88,166,255,0.15); color: var(--accent);
+    margin-left: 6px; }
+  .ok { background: rgba(63,185,80,0.15); color: var(--success); }
+  .warn { background: rgba(210,153,34,0.15); color: var(--warning); }
+  .err { background: rgba(248,81,73,0.15); color: var(--danger); }
+  pre { background: #010409; border: 1px solid var(--border); border-radius: 4px;
+    padding: 8px; font-size: 11px; overflow-x: auto; max-height: 300px;
+    color: #c9d1d9; line-height: 1.5; }
+  .row { display: flex; align-items: center; padding: 6px 0;
+    border-bottom: 1px solid var(--border); font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .key { color: var(--muted); margin-right: 8px; min-width: 80px; }
+  .step { padding: 4px 0; font-size: 12px; }
+  .step.done { color: var(--success); }
+  .step.running { color: var(--warning); }
+  .step.pending { color: var(--muted); }
+  .step.failed { color: var(--danger); }
+  .controls { margin: 16px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=text] { background: #010409; border: 1px solid var(--border);
+    color: var(--text); padding: 6px 12px; border-radius: 4px; font-size: 13px;
+    flex: 1; min-width: 200px; }
+  button { background: var(--accent); border: 0; color: #fff; padding: 6px 14px;
+    border-radius: 4px; font-size: 13px; cursor: pointer; }
+  button:hover { opacity: 0.9; }
+  button.ghost { background: transparent; border: 1px solid var(--border);
+    color: var(--text); }
+  .log { max-height: 220px; overflow-y: auto; font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 11px; }
+  .log-line { padding: 2px 4px; border-bottom: 1px solid rgba(48,54,61,0.5); white-space: pre-wrap; word-break: break-all; }
+  .footer { margin-top: 32px; color: var(--muted); font-size: 11px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>🛰️ Agent-Pilot v13 · 多端协同实时监控</h1>
+<div class="sub">飞书 IM · Web Dashboard · Flutter 客户端 · 三端通过 WebSocket 与 Yjs CRDT 双向实时同步</div>
+
+<div class="controls">
+  <input type="text" id="planInput" placeholder="输入 plan_id 订阅其房间（如 plan_1234567_abcdef）">
+  <button onclick="join()">Join Room</button>
+  <button class="ghost" onclick="disconnect()">Disconnect</button>
+  <span id="connStatus" class="badge">未连接</span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>📋 任务状态</h2>
+    <div id="planStatus">
+      <div class="sub">订阅一个 plan_id 后将显示其实时进度</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>🤖 4-Agent 工坊 trace</h2>
+    <div id="agentTraces">
+      <div class="sub">每个 plan 的 Researcher / Writer / Critic / Presenter 调用记录</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>📦 产物清单</h2>
+    <div id="artifacts">
+      <div class="sub">PPTX / 飞书 Docx / 画布 / 演讲稿 链接</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>📡 WebSocket 事件流</h2>
+    <div id="wsLog" class="log"></div>
+  </div>
+</div>
+
+<div class="footer">
+  Agent-Pilot v13 · <a href="https://github.com/bcefghj/Agent-Pilot" style="color: var(--accent)">GitHub</a> ·
+  当前端：<span id="currentEnd"></span>
+</div>
+
+<script>
+let ws = null;
+let currentRoom = null;
+const planStatus = document.getElementById('planStatus');
+const agentTraces = document.getElementById('agentTraces');
+const artifacts = document.getElementById('artifacts');
+const log = document.getElementById('wsLog');
+const status = document.getElementById('connStatus');
+
+document.getElementById('currentEnd').textContent = (() => {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad/.test(ua)) return 'iOS Safari';
+  if (/Android/.test(ua)) return 'Android';
+  if (/Macintosh/.test(ua)) return 'macOS';
+  if (/Windows/.test(ua)) return 'Windows';
+  return 'Web';
+})();
+
+function appendLog(text, kind = '') {
+  const div = document.createElement('div');
+  div.className = 'log-line ' + kind;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+  log.prepend(div);
+  while (log.children.length > 100) log.removeChild(log.lastChild);
+}
+
+function setStatus(text, kind) {
+  status.textContent = text;
+  status.className = 'badge ' + (kind || '');
+}
+
+function join() {
+  const planId = document.getElementById('planInput').value.trim();
+  if (!planId) { alert('请输入 plan_id'); return; }
+  if (!ws || ws.readyState !== 1) connect();
+  setTimeout(() => {
+    if (ws && ws.readyState === 1) {
+      currentRoom = planId;
+      ws.send(JSON.stringify({op: 'join', room: planId}));
+      appendLog('JOIN ' + planId);
+      // also trigger initial fetch via REST
+      fetchPlanState(planId);
+    }
+  }, 200);
+}
+
+function connect() {
+  if (ws && ws.readyState === 1) return;
+  setStatus('连接中…', 'warn');
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/sync/ws?token=demo`);
+  ws.onopen = () => { setStatus('已连接', 'ok'); appendLog('WS connected'); };
+  ws.onclose = () => { setStatus('已断开', 'err'); appendLog('WS closed'); };
+  ws.onerror = () => { setStatus('错误', 'err'); appendLog('WS error', 'err'); };
+  ws.onmessage = (e) => {
+    try {
+      const m = JSON.parse(e.data);
+      handleMessage(m);
+    } catch (err) { appendLog('Bad msg: ' + e.data, 'err'); }
+  };
+}
+
+function disconnect() {
+  if (ws) ws.close();
+  ws = null;
+  currentRoom = null;
+  setStatus('未连接');
+}
+
+function handleMessage(m) {
+  appendLog(JSON.stringify(m).slice(0, 200));
+  if (m.kind === 'event' && m.event) {
+    handleEvent(m.event);
+  } else if (m.kind === 'state' && m.state) {
+    renderPlanState(m.state);
+  }
+}
+
+function handleEvent(ev) {
+  if (ev.type === 'step.done' || ev.type === 'step.failed' || ev.type === 'step.running') {
+    fetchPlanState(currentRoom);
+  } else if (ev.type === 'canvas.created' || ev.type === 'canvas.shape_added') {
+    appendLog('CANVAS: ' + (ev.type) + ' canvas_id=' + (ev.canvas_id || ''));
+  }
+}
+
+async function fetchPlanState(planId) {
+  if (!planId) return;
+  try {
+    const r = await fetch(`/api/pilot/status/${planId}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    renderPlanState(data);
+  } catch (e) { appendLog('fetchPlanState failed: ' + e.message, 'err'); }
+}
+
+function renderPlanState(data) {
+  if (!data) return;
+  const steps = data.steps || [];
+  const intent = data.intent || data.plan_id || '(unknown)';
+  let html = `<div class="row"><span class="key">意图</span> ${escape(intent.slice(0, 80))}</div>`;
+  html += `<div class="row"><span class="key">Plan ID</span> <code>${escape(data.plan_id || '')}</code></div>`;
+  html += `<div class="row"><span class="key">步骤</span> ${steps.length} 步</div>`;
+  for (const s of steps.slice(0, 10)) {
+    html += `<div class="step ${s.status}">  ${escape(s.step_id || '')}. [${escape(s.tool || '')}] ${escape((s.description || '').slice(0, 50))} <span class="badge">${escape(s.status || '')}</span></div>`;
+  }
+  planStatus.innerHTML = html;
+
+  // collect artifacts
+  const arts = [];
+  for (const s of steps) {
+    const r = s.result || {};
+    for (const key of ['feishu_url', 'pptx_url', 'tldraw_url', 'slidev_url', 'tts_url', 'url', 'share_url']) {
+      const u = r[key];
+      if (u && !arts.find(a => a.url === u)) arts.push({label: key, url: u});
+    }
+  }
+  if (arts.length) {
+    artifacts.innerHTML = arts.map(a => `<div class="row"><span class="key">${a.label}</span><a href="${a.url}" target="_blank" style="color:var(--accent)">${a.url.slice(0, 60)}</a></div>`).join('');
+  }
+
+  // try fetching agent traces
+  fetch(`/api/pilot/agent_traces/${data.plan_id}`).then(r => r.ok ? r.json() : null).then(j => {
+    if (!j || !j.traces) return;
+    agentTraces.innerHTML = j.traces.slice(0, 8).map(t => `<div class="row"><span class="key">${t.name}</span> ${escape(t.output_summary || '')} <span class="badge">${(t.duration_sec || 0).toFixed(1)}s</span></div>`).join('');
+  }).catch(() => {});
+}
+
+function escape(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+connect();
+</script>
+</body>
+</html>
