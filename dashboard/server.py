@@ -1,4 +1,4 @@
-"""Agent-Pilot Dashboard – FastAPI realtime monitoring server (v12 refactored).
+"""Agent-Pilot Dashboard – FastAPI realtime monitoring server (v13).
 
 Routes are split into ``dashboard/routes/`` submodules; middleware lives in
 ``dashboard/middleware.py``.  This file is the composition root that wires
