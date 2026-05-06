@@ -77,6 +77,7 @@ def set_scheduler(sched):
 
 def on_message_receive(data: lark.im.v1.P2ImMessageReceiveV1) -> None:
     """Main entry point for all received messages. Spawns a handler thread."""
+    logger.info("on_message_receive called, spawning handler thread")
     t = threading.Thread(target=_handle_in_thread, args=(data,), daemon=True)
     t.start()
 
@@ -86,7 +87,9 @@ def on_message_receive(data: lark.im.v1.P2ImMessageReceiveV1) -> None:
 
 def _handle_in_thread(data):
     try:
+        logger.info("_handle_in_thread started")
         _do_handle(data)
+        logger.info("_handle_in_thread completed successfully")
     except AgentPilotError as e:
         logger.error("AgentPilotError: %s", e.to_log_dict())
     except Exception as e:
@@ -94,6 +97,7 @@ def _handle_in_thread(data):
 
 
 def _do_handle(data):
+    logger.info("_do_handle: parsing event data")
     event = data.event
     message = event.message
     sender = event.sender
@@ -106,12 +110,15 @@ def _do_handle(data):
     sender_type = sender.sender_type
 
     if sender_type != "user":
+        logger.info("_do_handle: skipping non-user sender_type=%s", sender_type)
         return
 
     text = extract_text(message)
     if not text:
+        logger.info("_do_handle: empty text extracted, skipping")
         return
 
+    logger.info("_do_handle: text=%r open_id=%s chat_type=%s", text[:50], sender_open_id[-6:], chat_type)
     sender_name = resolve_name(sender_open_id)
 
     # ── Group messages ──
