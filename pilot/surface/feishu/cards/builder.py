@@ -188,6 +188,43 @@ def help_card() -> dict[str, Any]:
     }
 
 
+def outline_confirm_card(
+    *,
+    task_id: str,
+    title: str,
+    outline: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Human-in-the-Loop 大纲确认卡片（Approve / Revise / Cancel）."""
+    elements: list[dict[str, Any]] = [
+        {"tag": "div", "text": {"tag": "lark_md",
+                                "content": "**Agent-Pilot 已为您规划了以下结构：**"}},
+        {"tag": "hr"},
+    ]
+    for idx, section in enumerate(outline, 1):
+        heading = section.get("heading", "")
+        key_points = section.get("key_points") or []
+        points_md = "\n".join(f"  - {pt}" for pt in key_points)
+        section_md = f"**{idx}. {heading}**"
+        if points_md:
+            section_md += f"\n{points_md}"
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": section_md}})
+
+    elements.append({"tag": "hr"})
+    elements.append({"tag": "div", "text": {"tag": "lark_md",
+                                            "content": "_确认后 Agent 将开始联网搜索 + 撰写内容_"}})
+    elements.append({"tag": "action", "actions": [
+        _btn("✅ 确认生成", "pilot.outline.confirm", task_id, primary=True),
+        _btn("✏️ 修改大纲", "pilot.outline.revise", task_id),
+        _btn("❌ 取消任务", "pilot.outline.cancel", task_id, danger=True),
+    ]})
+
+    return {
+        "header": {"title": {"tag": "plain_text", "content": f"📋 大纲确认 · {title}"},
+                   "template": "blue"},
+        "elements": elements,
+    }
+
+
 def first_time_welcome_card() -> dict[str, Any]:
     return {
         "header": {"title": {"tag": "plain_text", "content": "👋 欢迎使用 Agent-Pilot V1"}, "template": "blue"},

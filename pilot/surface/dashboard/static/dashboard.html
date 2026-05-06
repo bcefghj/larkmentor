@@ -82,6 +82,14 @@ document.getElementById("plan-id-display").textContent = planId || "(未指定)"
 
 // ── i18n: 事件 kind 与 工具名 ──
 const KIND_LABELS = {
+  // Multi-Agent Pipeline 事件
+  "pipeline_start":          "🛫 Multi-Agent Pipeline 启动",
+  "pipeline_done":           "🎉 Pipeline 完成",
+  "pipeline_error":          "❌ Pipeline 失败",
+  "agent.start":             "🤖 Agent 开始工作",
+  "agent.done":              "✅ Agent 完成",
+  "agent.revise":            "🔄 Agent 要求修改",
+  // 旧事件（兼容）
   "plan_start":              "🛫 任务启动",
   "plan.start":              "🛫 任务启动",
   "plan_done":               "🎉 任务交付",

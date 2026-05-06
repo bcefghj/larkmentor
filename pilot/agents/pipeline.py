@@ -29,10 +29,31 @@ logger = logging.getLogger("pilot.agents.pipeline")
 MAX_REVIEW_ITERATIONS = 3
 
 
+def _get_event_log(state: AgentState):
+    """获取 EventLog 实例（用于 Dashboard 实时展示 Agent 协作过程）."""
+    try:
+        from pilot.context.event_log import EventLog
+        plan_id = state.get("plan_id", "")
+        return EventLog(session_id=plan_id) if plan_id else None
+    except Exception:
+        return None
+
+
+async def _emit(event_log, kind: str, payload: dict) -> None:
+    """向 EventLog 写入事件（Dashboard SSE 实时推送）."""
+    if event_log is None:
+        return
+    try:
+        await event_log.append(kind, payload)
+    except Exception as e:
+        logger.debug("EventLog emit failed: %s", e)
+
+
 async def doc_pipeline(state: AgentState) -> AgentState:
     """文档 pipeline: Planner → Research → Writer → Review(循环) → Builder.
 
     state 必须预填 intent / chat_id / sender_open_id。
+    每步都 emit EventLog 事件，Dashboard SSE 可实时展示 Agent 协作过程。
     """
     state["task_type"] = state.get("task_type") or "doc"
     state["plan_id"] = state.get("plan_id") or f"plan_{int(time.time())}_{uuid.uuid4().hex[:6]}"
@@ -44,38 +65,43 @@ async def doc_pipeline(state: AgentState) -> AgentState:
     reviewer = ReviewAgent()
     builder = BuilderAgent()
 
+    event_log = _get_event_log(state)
+
     logger.info("[doc_pipeline] start: intent=%s", state.get("intent", "")[:60])
+    await _emit(event_log, "agent.start", {"agent": "PlannerAgent", "role": "任务规划", "step": "生成结构化大纲"})
 
     state = await planner.execute(state)
+    await _emit(event_log, "agent.done", {"agent": "PlannerAgent", "sections": len(state.get("outline", []))})
     logger.info("[doc_pipeline] planner done: %d sections", len(state.get("outline", [])))
 
+    await _emit(event_log, "agent.start", {"agent": "ResearchAgent", "role": "联网搜索", "step": "为每章搜索支撑数据"})
     state = await researcher.execute(state)
+    await _emit(event_log, "agent.done", {"agent": "ResearchAgent", "findings": sum(len(r.get("findings", [])) for r in state.get("research_results", []))})
     logger.info("[doc_pipeline] researcher done: %d results", len(state.get("research_results", [])))
 
     for iteration in range(MAX_REVIEW_ITERATIONS):
         state["iteration_count"] = iteration + 1
 
+        await _emit(event_log, "agent.start", {"agent": "WriterAgent", "role": "内容撰写", "step": f"第 {iteration+1} 轮撰写", "iteration": iteration + 1})
         state = await writer.execute(state)
-        logger.info(
-            "[doc_pipeline] writer iteration %d: %d sections",
-            iteration + 1,
-            len(state.get("draft_sections", [])),
-        )
+        await _emit(event_log, "agent.done", {"agent": "WriterAgent", "sections_written": len(state.get("draft_sections", []))})
+        logger.info("[doc_pipeline] writer iteration %d: %d sections", iteration + 1, len(state.get("draft_sections", [])))
 
+        await _emit(event_log, "agent.start", {"agent": "ReviewAgent", "role": "质量审核", "step": f"第 {iteration+1} 轮自评"})
         state = await reviewer.execute(state)
-        logger.info(
-            "[doc_pipeline] reviewer iteration %d: pass=%s",
-            iteration + 1,
-            state.get("review_pass"),
-        )
+        await _emit(event_log, "agent.done", {"agent": "ReviewAgent", "pass": state.get("review_pass"), "feedback": state.get("review_feedback", "")[:100]})
+        logger.info("[doc_pipeline] reviewer iteration %d: pass=%s", iteration + 1, state.get("review_pass"))
 
         if state.get("review_pass"):
             break
 
         if iteration < MAX_REVIEW_ITERATIONS - 1:
+            await _emit(event_log, "agent.revise", {"agent": "ReviewAgent", "reason": state.get("review_feedback", "")[:200]})
             _inject_feedback(state)
 
+    await _emit(event_log, "agent.start", {"agent": "BuilderAgent", "role": "组装交付", "step": "写入飞书文档"})
     state = await builder.execute(state)
+    await _emit(event_log, "agent.done", {"agent": "BuilderAgent", "artifacts": len(state.get("artifacts", []))})
     logger.info("[doc_pipeline] builder done: %d artifacts", len(state.get("artifacts", [])))
 
     return state

@@ -150,24 +150,22 @@ def test_plan_with_llm_fn():
     assert p.steps[1].tool == "archive.bundle"
 
 
-def test_plan_timely_keyword_triggers_web_search():
-    """V1.5：意图含"今年/最新"等时效词，启发式自动插 web.search 第 0 步."""
+def test_plan_timely_keyword_no_longer_injects_web_search():
+    """联网搜索现在由 ResearchAgent 处理，planner 不再注入 web.search."""
     p = plan_from_intent("今年最新 AI Agent 趋势汇报 PPT")
-    tools = [s.tool for s in p.steps]
-    assert tools[0] == "web.search"
-    # slide.generate 接收 ${s1.results} 参数
-    slide_step = next(s for s in p.steps if s.tool == "slide.generate")
-    assert slide_step.args.get("search_results") == "${s1.results}"
+    assert not any(s.tool == "web.search" for s in p.steps)
+    assert p.meta["needs_web_search"] is True
 
 
-def test_plan_meta_forces_web_search_even_without_timely():
-    """meta.needs_web_search=True 强制注入 web.search."""
+def test_plan_meta_web_search_flag_preserved_but_no_injection():
+    """meta.needs_web_search=True 仍记录到 plan.meta，但不注入 web.search 步骤."""
     p = plan_from_intent("产品方案", meta={"needs_web_search": True})
-    assert any(s.tool == "web.search" for s in p.steps)
+    assert not any(s.tool == "web.search" for s in p.steps)
+    assert p.meta["needs_web_search"] is True
 
 
 def test_plan_no_web_search_when_no_timely():
-    """普通意图不应自动插 web.search，避免无谓联网."""
+    """普通意图不应有 web.search."""
     p = plan_from_intent("帮我写一份产品方案")
     assert not any(s.tool == "web.search" for s in p.steps)
 

@@ -221,8 +221,8 @@ def plan_from_intent(
 ) -> Plan:
     """主入口：意图 → Plan.
 
-    - meta["needs_web_search"]==True 或 intent 中含时效词 → 启发式自动插 web.search 第 0 步
-    - 注入 web.search 后，所有 doc.append / slide.generate 自动 depends_on=s_web 且接 search_results
+    联网搜索现在由 ResearchAgent 在 Multi-Agent Pipeline 中自动处理，
+    planner 不再注入 web.search 步骤。
     """
     intent = (intent or "").strip()
     if not intent:
@@ -235,9 +235,7 @@ def plan_from_intent(
 
     steps = _plan_with_llm(intent, llm_fn) if llm_fn else []
     if not steps:
-        steps = _plan_heuristic(intent, needs_web_search=needs_web)
-    elif needs_web and not any(s.tool == "web.search" for s in steps):
-        steps = _inject_web_search(steps, intent)
+        steps = _plan_heuristic(intent)
 
     if not any(s.tool == "archive.bundle" for s in steps):
         last_ids = [s.step_id for s in steps]
@@ -262,21 +260,8 @@ def plan_from_intent(
 
 
 def _inject_web_search(steps: list[PlanStep], intent: str) -> list[PlanStep]:
-    """LLM 漏掉 web.search 时由调用方启发式补一步."""
-    web_step = PlanStep(
-        step_id="s0",
-        tool="web.search",
-        description="联网搜索最新资料（自动注入，因检测到时效词或上游 needs_web_search）",
-        args={"query": intent[:120], "k": 5},
-    )
-    out = [web_step]
-    for s in steps:
-        if not s.depends_on:
-            s.depends_on = ["s0"]
-        if s.tool in ("doc.append", "slide.generate"):
-            s.args = {**s.args, "search_results": "${s0.results}"}
-        out.append(s)
-    return out
+    """No-op: 联网搜索现在由 ResearchAgent 在 pipeline 中自动处理."""
+    return steps
 
 
 # ── LLM 路径 ────────────────────────────────────────────────────────────────
@@ -336,16 +321,7 @@ def _plan_heuristic(intent: str, *, needs_web_search: bool = False) -> list[Plan
     last_id: Optional[str] = None
     doc_append_id: Optional[str] = None
 
-    if needs_web_search:
-        sid = "s1"
-        steps.append(PlanStep(
-            step_id=sid,
-            tool="web.search",
-            description="联网搜索最新资料（自动注入，因检测到时效词）",
-            args={"query": intent[:120], "k": 5},
-        ))
-        web_id = sid
-        last_id = sid
+    # web.search 不再由 planner 注入，联网搜索由 ResearchAgent 在 pipeline 中处理
 
     if want_fetch:
         sid = f"s{len(steps) + 1}"
