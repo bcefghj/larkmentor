@@ -262,7 +262,7 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
         sid2 = f"s{len(steps) + 1}"
         steps.append(PlanStep(step_id=sid2, tool="doc.append",
                               description="向文档追加 AI 自动生成的详细内容",
-                              args={"doc_token": f"${{{doc_create_id}.doc_token}}"},
+                              args={"doc_token": f"${{{doc_create_id}.doc_token}}", "intent": intent},
                               depends_on=[doc_create_id]))
         doc_append_id = sid2
 
@@ -272,7 +272,7 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
         deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
         steps.append(PlanStep(step_id=sid, tool="canvas.create",
                               description="基于文档内容创建结构化画布/架构图",
-                              args={"title": _title_from_intent(intent, "画布")},
+                              args={"title": _title_from_intent(intent, "画布"), "intent": intent},
                               depends_on=deps,
                               parallel_group="g1"))
         parallel.append(sid)
@@ -282,7 +282,7 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
         deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
         steps.append(PlanStep(step_id=sid, tool="slide.generate",
                               description="基于文档内容生成演示稿（真 PPTX + HTML + 演讲稿）",
-                              args={"title": _title_from_intent(intent, "演示稿")},
+                              args={"title": _title_from_intent(intent, "演示稿"), "intent": intent},
                               depends_on=deps,
                               parallel_group="g1"))
         parallel.append(sid)

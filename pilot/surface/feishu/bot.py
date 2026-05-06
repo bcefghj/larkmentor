@@ -63,8 +63,20 @@ def run() -> None:
         return {"plan_id": plan.plan_id, "ack_text": ack}
 
     async def _run_plan_in_bg(plan, chat_id: str):
+        from pilot.context.event_log import EventLog
+
+        event_log = EventLog(session_id=plan.plan_id)
+        event_log.append("plan_start", {
+            "plan_id": plan.plan_id,
+            "intent": plan.intent,
+            "steps": [{"step_id": s.step_id, "tool": s.tool, "description": s.description} for s in plan.steps],
+        })
+
+        async def _on_event(ev):
+            event_log.append(ev.kind, {"step_id": ev.step_id, "tool": ev.tool, **ev.payload})
+
         registry = default_registry()
-        orch = Orchestrator(registry)
+        orch = Orchestrator(registry, on_event=_on_event)
         try:
             summary = await orch.run(plan)
             # 完成回写
@@ -81,11 +93,19 @@ def run() -> None:
                 if "slide_id" in r and r.get("pptx_url"):
                     artifacts.append({"kind": "slide", "title": r.get("title", ""), "url": r["pptx_url"]})
 
+            event_log.append("plan_done", {
+                "plan_id": plan.plan_id,
+                "completed": summary.get("completed", []),
+                "failed": summary.get("failed", []),
+                "artifacts": artifacts,
+            })
+
             card = task_delivered_card(task_id=plan.plan_id, title=plan.intent[:40], artifacts=artifacts)
             await feishu.send_card(receive_id=chat_id, card=card,
                                    receive_id_type="chat_id" if chat_id.startswith("oc_") else "open_id")
         except Exception as e:
             logger.exception("background plan failed: %s", e)
+            event_log.append("plan_error", {"error": str(e)[:500]})
             await feishu.send_text(receive_id=chat_id, text=f"❌ 任务失败：{e}",
                                    receive_id_type="chat_id" if chat_id.startswith("oc_") else "open_id")
 

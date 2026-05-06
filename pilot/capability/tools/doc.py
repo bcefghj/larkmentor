@@ -260,6 +260,10 @@ def _fallback_markdown(intent: str) -> str:
 
 
 def _markdown_to_feishu_blocks(md: str) -> list[dict[str, Any]]:
+    """将 markdown 转为飞书 Docx block children 格式.
+
+    飞书 block_type: 2=text, 3=heading1, 4=heading2, ..., 12=bullet, 13=ordered
+    """
     blocks = []
     for raw in md.splitlines():
         line = raw.rstrip()
@@ -270,18 +274,47 @@ def _markdown_to_feishu_blocks(md: str) -> list[dict[str, Any]]:
             level = len(m.group(1))
             text = m.group(2)
             blocks.append({
-                "block_type": min(3 + level, 9),  # 飞书 heading1=3 / heading2=4 / ...
-                f"heading{min(level, 9)}": {"elements": [{"text_run": {"content": text}}]},
+                "block_type": 2 + level,
+                f"heading{level}": {
+                    "elements": [{"text_run": {"content": text, "text_element_style": {}}}],
+                    "style": {},
+                },
             })
             continue
         if line.startswith("- ") or line.startswith("* "):
             blocks.append({
-                "block_type": 12,  # bullet
-                "bullet": {"elements": [{"text_run": {"content": line[2:].strip()}}]},
+                "block_type": 12,
+                "bullet": {
+                    "elements": [{"text_run": {"content": line[2:].strip(), "text_element_style": {}}}],
+                    "style": {},
+                },
+            })
+            continue
+        if line.startswith("|") and "|" in line[1:]:
+            cells = [c.strip() for c in line.strip("|").split("|") if c.strip() and c.strip() != "---"]
+            if cells:
+                blocks.append({
+                    "block_type": 2,
+                    "text": {
+                        "elements": [{"text_run": {"content": " | ".join(cells), "text_element_style": {}}}],
+                        "style": {},
+                    },
+                })
+            continue
+        if line.startswith("> "):
+            blocks.append({
+                "block_type": 2,
+                "text": {
+                    "elements": [{"text_run": {"content": line[2:].strip(), "text_element_style": {}}}],
+                    "style": {},
+                },
             })
             continue
         blocks.append({
-            "block_type": 2,  # text
-            "text": {"elements": [{"text_run": {"content": line}}]},
+            "block_type": 2,
+            "text": {
+                "elements": [{"text_run": {"content": line, "text_element_style": {}}}],
+                "style": {},
+            },
         })
     return blocks

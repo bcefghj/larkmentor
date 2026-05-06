@@ -195,8 +195,18 @@ function highlightStep(kind) {
   }
 }
 
+// ── 初始加载 plan 信息 ──
+async function loadPlanInfo() {
+  if (!planId) {
+    const dom = document.getElementById("thinking-stream");
+    dom.innerHTML = '<div class="text-slate-500 text-center py-8">请从飞书发送消息触发任务，dashboard 将实时展示 Agent 思维流。<br><br>示例：<code>/pilot 关于 AI Agent 发展的汇报 PPT</code></div>';
+    return;
+  }
+}
+
 loadSessions();
 loadTools();
+loadPlanInfo();
 subscribeEvents();
 setInterval(loadSessions, 10000);
 </script>

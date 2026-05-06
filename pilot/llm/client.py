@@ -59,12 +59,28 @@ class LLMClient:
         model: str = "",
         timeout: float = 120.0,
     ) -> None:
-        self.provider = provider or os.getenv("LLM_DEFAULT_PROVIDER", "anthropic").lower()
+        self.provider = provider or self._detect_provider()
         self.api_key = api_key or self._guess_api_key()
         self.base_url = base_url or self._guess_base_url()
         self.model = model or self._guess_model()
         self.timeout = timeout
         self._http: httpx.AsyncClient | None = None
+
+    @staticmethod
+    def _detect_provider() -> str:
+        """Auto-detect available LLM provider from env vars."""
+        explicit = os.getenv("LLM_DEFAULT_PROVIDER", "").strip().lower()
+        if explicit:
+            return explicit
+        if os.getenv("MINIMAX_API_KEY"):
+            return "minimax"
+        if os.getenv("ANTHROPIC_API_KEY"):
+            return "anthropic"
+        if os.getenv("DOUBAO_API_KEY"):
+            return "doubao"
+        if os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY"):
+            return "openai"
+        return "minimax"
 
     def _guess_api_key(self) -> str:
         if self.provider == "anthropic":

@@ -183,22 +183,20 @@ class FeishuClient:
     async def docx_append_blocks(self, *, doc_token: str, blocks: list[dict[str, Any]]) -> int:
         token = await self._ensure_token()
         client = await self._client()
-        # 飞书 docx block 批量新增 API
-        # 简化：只调一次 batch_update
         wrote = 0
         for batch_start in range(0, len(blocks), 50):
             batch = blocks[batch_start:batch_start + 50]
-            r = await client.patch(
+            r = await client.post(
                 f"{self.BASE_URL}/docx/v1/documents/{doc_token}/blocks/{doc_token}/children",
                 headers=self._headers(token),
                 json={"children": batch, "index": -1},
             )
             try:
                 r.raise_for_status()
+                wrote += len(batch)
             except Exception as e:
-                logger.warning("docx_append_blocks batch failed: %s", e)
-                continue
-            wrote += len(batch)
+                resp_text = r.text[:300] if hasattr(r, 'text') else ""
+                logger.warning("docx_append_blocks batch failed: %s | resp: %s", e, resp_text)
         return wrote
 
     # ── Drive ──
