@@ -1,0 +1,20 @@
+[Unit]
+Description=Agent-Pilot · Reverse MCP Server (V1.5, port 8003)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agent-pilot
+EnvironmentFile=/opt/agent-pilot/.env
+ExecStart=/opt/agent-pilot/.venv/bin/python -c "from pilot.surface.lark_mcp_runner import run; run(host='0.0.0.0', port=8003)"
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/agent-pilot/logs/mcp.log
+StandardError=append:/opt/agent-pilot/logs/mcp.log
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

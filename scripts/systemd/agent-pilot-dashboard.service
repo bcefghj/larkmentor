@@ -1,0 +1,20 @@
+[Unit]
+Description=Agent-Pilot · Dashboard (V1.5, port 8001)
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agent-pilot
+EnvironmentFile=/opt/agent-pilot/.env
+ExecStart=/opt/agent-pilot/.venv/bin/python -c "from pilot.surface.dashboard.server import run; run(host='0.0.0.0', port=8001)"
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/agent-pilot/logs/dashboard.log
+StandardError=append:/opt/agent-pilot/logs/dashboard.log
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
