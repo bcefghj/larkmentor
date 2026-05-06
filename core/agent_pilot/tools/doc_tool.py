@@ -61,6 +61,15 @@ def doc_create(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
 def doc_append(step, ctx: Dict[str, Any]) -> Dict[str, Any]:
     args = ctx.get("resolved_args") or {}
     doc_token = args.get("doc_token") or ""
+
+    if not doc_token or doc_token.startswith("$") or doc_token.startswith("{"):
+        step_results = ctx.get("step_results") or {}
+        for r in step_results.values():
+            if isinstance(r, dict) and r.get("doc_token") and r.get("source") == "feishu":
+                doc_token = r["doc_token"]
+                logger.info("doc.append: resolved doc_token from step_results: %s", doc_token)
+                break
+
     markdown = args.get("markdown") or ""
     if not markdown or (isinstance(markdown, str) and "{{" in markdown):
         markdown = _two_stage_generate(ctx)
