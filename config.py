@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     DASHBOARD_DEMO_MODE: bool = False
     DASHBOARD_PUBLIC_URL: str = Field(default="", description="公网 Dashboard 地址（留空则使用 localhost）")
 
+    # ── Feishu tenant domain ──
+    FEISHU_TENANT_DOMAIN: str = Field(default="rcnqvnspd31b.feishu.cn", description="飞书租户域名，用于拼接文档 URL")
+
     # ── Smart Shield 6-dimension classifier weights ──
     DIM_WEIGHT_IDENTITY: float = 0.25
     DIM_WEIGHT_RELATION: float = 0.10

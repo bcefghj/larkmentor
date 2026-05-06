@@ -25,9 +25,9 @@ _client: Optional[OpenAI] = None
 _async_client: Optional[AsyncOpenAI] = None
 _AUTO_INJECT = os.getenv("AGENT_PILOT_AUTO_INJECT_MEMORY", "1") != "0"
 
-_LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "30"))
+_LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "120"))
 _LLM_MAX_RETRY = int(os.getenv("AGENT_PILOT_LLM_MAX_RETRY", "2"))
-_LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "2048"))
+_LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "16384"))
 _LLM_PROMPT_CHAR_CAP = int(os.getenv("AGENT_PILOT_LLM_PROMPT_CAP", "24000"))
 
 _INJECTION_GUARD = (

@@ -242,12 +242,18 @@ def _schedule_completion_notify(open_id: str, plan):
                     done = [s for s in p2.steps if s.status == "done"]
                     failed = [s for s in p2.steps if s.status == "failed"]
                     urls = []
+                    seen_urls = set()
                     for s in p2.steps:
-                        for key in ("url", "pptx_url", "pdf_url", "share_url"):
+                        for key in ("url", "feishu_url", "pptx_url", "pdf_url", "share_url"):
                             u = (s.result or {}).get(key)
-                            if u:
-                                urls.append(f"{s.tool}: {u}")
-                                break
+                            if not u or u in seen_urls:
+                                continue
+                            if u.startswith("/artifacts/") or u.startswith("file://"):
+                                continue
+                            seen_urls.add(u)
+                            label = s.result.get("title") or s.tool
+                            urls.append(f"{label}: {u}")
+                            break
                     summary = [
                         "🛬 **Agent-Pilot 完成**",
                         f"`{plan.plan_id}` · {len(done)}/{len(p2.steps)} 完成"

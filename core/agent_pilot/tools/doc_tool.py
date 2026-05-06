@@ -111,9 +111,10 @@ def _try_create_feishu_doc(title: str) -> Dict[str, Any]:
             )
             return {}
         doc_token = resp.data.document.document_id
+        domain = getattr(Config, "FEISHU_TENANT_DOMAIN", "") or "rcnqvnspd31b.feishu.cn"
         return {
             "doc_token": doc_token,
-            "url": f"https://bytedance.feishu.cn/docx/{doc_token}",
+            "url": f"https://{domain}/docx/{doc_token}",
             "title": title,
             "source": "feishu",
         }
@@ -249,23 +250,40 @@ def _generate_doc_via_llm(intent: str, context: str, plan_id: str) -> str:
     except ImportError:
         return ""
 
-    prompt = f"""你是一个专业文档撰写助手。请根据以下信息生成一份结构化的 Markdown 文档。
+    prompt = f"""你是一位资深的专业文档撰写专家。请根据以下信息生成一份**详尽、深入、高质量**的 Markdown 文档。
 
-用户意图：{intent}
-计划编号：{plan_id}
+## 用户需求
+{intent}
 
-{"对话上下文：" + chr(10) + context if context else "（无额外上下文）"}
+## 计划编号
+{plan_id}
 
-要求：
-1. 包含「背景与目标」「核心需求」「关键决策」「下一步行动」等章节
-2. 使用 Markdown 格式（## 标题、- 列表）
-3. 内容具体、可操作，300-800 字
-4. 直接输出 Markdown，不要包裹代码块
-5. 根据用户意图适配内容深度和方向"""
+## 参考上下文
+{"以下是相关对话记录，请结合这些信息丰富文档内容：" + chr(10) + context if context else "（无额外上下文，请基于你的专业知识充分展开）"}
+
+## 文档撰写要求
+
+请按照以下结构撰写，每个章节都要有充实的内容：
+
+1. **概述与摘要** — 简要介绍文档主题、目标和核心价值
+2. **背景分析** — 详细阐述问题背景、行业现状、痛点分析
+3. **核心内容**（至少包含 3-5 个深度章节）— 这是文档的主体部分，请根据用户需求深入展开，每个章节至少 3-5 段详细论述，包含具体的分析、数据支撑、案例说明
+4. **技术/方案分析** — 如涉及技术方案，请详细说明架构、原理、优劣势对比
+5. **实践案例与应用场景** — 提供具体的案例分析或应用场景描述
+6. **风险与挑战** — 分析可能面临的风险和挑战，提出应对策略
+7. **结论与展望** — 总结核心观点，展望未来发展方向
+8. **附录/参考** — 如有必要，补充相关参考信息
+
+## 格式规范
+- 使用 Markdown 格式：## 用于大标题，### 用于子标题，- 用于列表
+- 直接输出 Markdown 内容，不要用代码块包裹
+- 内容要专业、详实、有深度，充分展现专业素养
+- 不要限制篇幅，请尽可能详尽地撰写每个章节
+- 语言流畅自然，逻辑清晰，论述有理有据"""
 
     try:
-        result = chat(prompt, temperature=0.4)
-        if result and len(result.strip()) > 50:
+        result = chat(prompt, temperature=0.5)
+        if result and len(result.strip()) > 100:
             return result.strip()
     except Exception as e:
         logger.warning("doc LLM generation failed: %s", e)
