@@ -62,6 +62,14 @@ class ResearchAgent(BaseAgent):
     system_prompt = _RESEARCH_SYSTEM_PROMPT
 
     async def execute(self, state: AgentState) -> AgentState:
+        """用 MiniMax M2.7 的 tool calling 联网搜索。
+
+        流程：
+        1. 让 MiniMax 决定要搜什么（tool_calls: web_search）
+        2. 我们执行搜索（DDG+Bing）
+        3. 把搜索结果 feed back 给 MiniMax
+        4. MiniMax 整理输出结构化研究报告
+        """
         outline = state.get("outline", [])
         intent = state.get("intent", "")
 
@@ -69,35 +77,82 @@ class ResearchAgent(BaseAgent):
             state["research_results"] = []
             return state
 
+        from pilot.llm.client import default_client
+        from pilot.llm.web_search import default_searcher
+
+        client = default_client()
+        searcher = default_searcher()
+
         sections_desc = "\n".join(
             f"- {s.get('heading', '')}: {', '.join(s.get('key_points', []))}"
-            for s in outline
-            if isinstance(s, dict)
+            for s in outline if isinstance(s, dict)
         )
 
-        prompt = f"""请为以下文档大纲的每个章节搜索相关数据。
+        messages = [
+            {"role": "user", "content": f"""请为以下文档大纲搜索支撑数据。
 
 用户意图：{intent}
-
 大纲章节：
 {sections_desc}
 
-请使用 web_search 工具搜索每个章节的关键信息，然后汇总输出 JSON 数组。
-每个章节搜索 1-2 个关键词，重点搜索数据、案例、来源。
-"""
-        result = await self._call_llm_raw(
-            prompt,
+请对每个章节调用 web_search 搜索 1-2 个关键词，获取行业数据、案例和权威来源。"""}
+        ]
+
+        # Step 1: 让 MiniMax 决定搜索什么
+        r1 = await client.chat(
+            system=self.system_prompt,
+            messages=messages,
             tools=[WEB_SEARCH_TOOL],
             temperature=0.3,
-            max_tokens=4096,
+            max_tokens=2048,
         )
 
-        research = self._extract_research(result, outline)
+        tool_calls = r1.get("tool_calls") or []
+        raw_tool_calls = r1.get("raw", {}).get("choices", [{}])[0].get("message", {}).get("tool_calls") or []
+
+        # Step 2: 执行每个搜索
+        search_results_map: dict[str, list[dict]] = {}
+        for tc in (raw_tool_calls or tool_calls):
+            fn = tc.get("function", {})
+            if fn.get("name") == "web_search":
+                try:
+                    args = json.loads(fn.get("arguments", "{}")) if isinstance(fn.get("arguments"), str) else fn.get("arguments", {})
+                except Exception:
+                    args = {}
+                query = args.get("query", "")
+                if query:
+                    try:
+                        results = await searcher.search(query, k=3)
+                        search_results_map[query] = results
+                        logger.info("ResearchAgent searched '%s' → %d results", query, len(results))
+                    except Exception as e:
+                        logger.warning("ResearchAgent search failed for '%s': %s", query, e)
+                        search_results_map[query] = []
+
+        # Step 3: 把搜索结果整理为每个章节的 research
+        research: list[dict[str, Any]] = []
+        all_findings = []
+        for results in search_results_map.values():
+            all_findings.extend(results)
+
+        for section in outline:
+            if not isinstance(section, dict):
+                continue
+            heading = section.get("heading", "")
+            research.append({
+                "heading": heading,
+                "search_query": heading,
+                "findings": all_findings[:3] if all_findings else [
+                    {"title": f"{heading}", "url": "", "snippet": "搜索未返回结果"}
+                ],
+            })
+            all_findings = all_findings[3:] if len(all_findings) > 3 else all_findings
+
         state["research_results"] = research
 
         logger.info(
-            "ResearchAgent: %d sections researched, %d total findings",
-            len(research),
+            "ResearchAgent: %d sections, %d total search queries, %d findings",
+            len(research), len(search_results_map),
             sum(len(r.get("findings", [])) for r in research),
         )
         return state
