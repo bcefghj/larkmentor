@@ -172,7 +172,14 @@ def _title_from_ctx(ctx: Dict[str, Any]) -> str:
 
 
 def _build_outline_from_doc_or_intent(ctx: Dict[str, Any], title: str) -> List[Dict[str, Any]]:
-    """Try LLM with doc context first; degrade to LLM with title only; degrade to template."""
+    """Try workforce-cached outline → LLM with doc → LLM with title → template."""
+    # 0. fast path: 4-Agent workforce already produced an outline?
+    workforce = ctx.get("__workforce__") or {}
+    cached = workforce.get("slide_outline") or []
+    if isinstance(cached, list) and len(cached) >= 4:
+        logger.info("slide.outline: using 4-Agent workforce cached outline (%d pages)", len(cached))
+        return _normalise_outline(cached)
+
     doc_md = ""
     step_results = ctx.get("step_results") or {}
     for r in step_results.values():

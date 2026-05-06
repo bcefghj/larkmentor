@@ -267,6 +267,33 @@ def _generate_document(ctx: Dict[str, Any]) -> str:
             )
             break
 
+    # v13: try the 4-Agent workforce first (Researcher → Writer → Critic → Presenter)
+    # The workforce produces a higher-quality document with critic-driven iteration.
+    # Fall back to single-shot when AGENT_PILOT_DISABLE_MULTI_AGENT=1 or it fails.
+    if os.getenv("AGENT_PILOT_DISABLE_MULTI_AGENT", "0") not in ("1", "true", "yes"):
+        try:
+            from agent_pilot.intel.multi_agent import run_workforce
+            wf = run_workforce(
+                intent,
+                thread_context=thread_context,
+                enable_critic=True,
+                plan_id=ctx.get("plan_id", ""),
+            )
+            if wf.document_md and len(wf.document_md.strip()) >= 600:
+                # Stash slide outline + canvas spec for downstream tools
+                # so they don't have to re-call LLMs.
+                ctx.setdefault("__workforce__", {})
+                ctx["__workforce__"]["slide_outline"] = wf.slide_outline
+                ctx["__workforce__"]["canvas_spec"] = wf.canvas_spec
+                logger.info(
+                    "doc generation via 4-Agent workforce: %d chars, iterations=%d",
+                    len(wf.document_md), wf.iterations,
+                )
+                return _strip_wrapping(wf.document_md)
+            logger.warning("4-Agent workforce returned short doc, falling back to single-shot")
+        except Exception as e:
+            logger.warning("4-Agent workforce failed (%s), falling back to single-shot", e)
+
     try:
         from llm.llm_client import chat, LLM_FALLBACK_MSG
     except ImportError:

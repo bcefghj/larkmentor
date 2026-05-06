@@ -142,6 +142,15 @@ def daily_report_card(
 
 
 def help_card() -> dict:
+    """v13: delegate to the new welcome.help_card for consistency."""
+    try:
+        from agent_pilot.io.feishu.cards.welcome import help_card as _v13_help
+        from config import Config
+        base = (Config.DASHBOARD_PUBLIC_URL or "").rstrip("/")
+        return _v13_help(f"{base}/dashboard/pilot" if base else "")
+    except Exception:
+        # If the new card fails for any reason, fall back to legacy below
+        pass
     card = _header("Agent-Pilot 使用指南", "indigo")
     card["elements"] = [
         _md(
@@ -271,7 +280,14 @@ def workspace_welcome_card(bitable_url: str, onboarding_url: str, recovery_url: 
 
 
 def first_time_welcome_card() -> dict:
-    """Lightweight first-touch welcome before workspace provisioning."""
+    """v13: delegate to the new welcome card; fallback to legacy if it fails."""
+    try:
+        from agent_pilot.io.feishu.cards.welcome import first_time_welcome_card as _v13_welcome
+        from config import Config
+        base = (Config.DASHBOARD_PUBLIC_URL or "").rstrip("/")
+        return _v13_welcome(f"{base}/dashboard/pilot" if base else "")
+    except Exception:
+        pass
     card = _header("Agent-Pilot — AI 驱动的办公协同助手", "blue")
     card["elements"] = [
         _md(
