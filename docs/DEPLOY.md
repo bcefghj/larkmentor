@@ -20,13 +20,13 @@
 ssh root@8.136.98.175    # 密码：AgentPilot666
 
 # 拉取并执行
-curl -fsSL https://raw.githubusercontent.com/bcefghj/Agent-Pilot/v1.5-clean/scripts/server/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bcefghj/Agent-Pilot/main/scripts/server/install.sh | bash
 ```
 
 或先 clone 再执行：
 
 ```bash
-git clone -b v1.5-clean https://github.com/bcefghj/Agent-Pilot.git /opt/agent-pilot
+git clone -b main https://github.com/bcefghj/Agent-Pilot.git /opt/agent-pilot
 bash /opt/agent-pilot/scripts/server/install.sh
 ```
 

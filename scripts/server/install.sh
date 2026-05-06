@@ -14,7 +14,7 @@ APP_USER="${APP_USER:-root}"
 # Ubuntu 22.04 自带 python3.10；如需 3.11 设 PY=python3.11 并自行装 deadsnakes PPA
 PY="${PY:-python3}"
 REPO="${REPO:-https://github.com/bcefghj/Agent-Pilot.git}"
-BRANCH="${BRANCH:-v1.5-clean}"
+BRANCH="${BRANCH:-main}"
 
 log() { echo -e "\033[1;32m[install]\033[0m $*"; }
 warn() { echo -e "\033[1;33m[warn]\033[0m $*"; }
