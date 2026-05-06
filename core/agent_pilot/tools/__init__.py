@@ -16,11 +16,14 @@ from typing import Callable, Dict
 logger = logging.getLogger("pilot.tools")
 
 from .archive_tool import archive_bundle
-from .canvas_tool import canvas_add_shape, canvas_create
-from .doc_tool import doc_append, doc_create
+# v13: real canvas with Mermaid + tldraw
+from agent_pilot.tools.canvas import canvas_add_shape, canvas_create
+# v13: doc tool with content propagation
+from agent_pilot.tools.doc import doc_append, doc_create
 from .im_tool import im_fetch_thread, im_send_message
 from .mentor_tool import mentor_clarify, mentor_summarize
-from .slide_tool import slide_generate, slide_rehearse
+# v13: real PPTX trio replaces the old "slides as Feishu Docx" pretender.
+from agent_pilot.tools.slide import slide_generate, slide_rehearse
 from .voice_tool import voice_transcribe
 
 

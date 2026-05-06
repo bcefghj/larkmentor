@@ -33,3 +33,7 @@ prometheus-client>=0.20.0
 opentelemetry-api>=1.25.0
 opentelemetry-sdk>=1.25.0
 opentelemetry-instrumentation-fastapi>=0.46b0
+
+# ── v13 Real PPTX trio ──
+python-pptx>=0.6.23
+gtts>=2.5.0  # optional TTS for演讲稿 mp3 (gated by AGENT_PILOT_ENABLE_TTS)

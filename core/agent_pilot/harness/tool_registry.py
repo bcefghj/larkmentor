@@ -219,6 +219,14 @@ def _populate_default(reg: ToolRegistry) -> None:
         "mentor.summarize": dict(readonly=True, category="mentor", desc="对一段对话/上下文做结构化总结。"),
     }
 
+    _tool_timeouts = {
+        "doc.append": 600,
+        "slide.generate": 300,
+        "canvas.create": 300,
+        "canvas.add_shape": 120,
+        "archive.bundle": 120,
+    }
+
     for name, fn in legacy.items():
         meta = _annotations.get(name, {})
         reg.register(
@@ -231,7 +239,7 @@ def _populate_default(reg: ToolRegistry) -> None:
                 destructive=False,
                 needs_permission="default",
                 category=meta.get("category", "generic"),
-                timeout_sec=60,
+                timeout_sec=_tool_timeouts.get(name, 60),
             )
         )
     logger.info("default ToolRegistry populated with %d legacy tools", len(reg.names()))

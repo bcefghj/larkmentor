@@ -19,6 +19,7 @@ venv/
 
 # Data & logs
 data/
+!data/v13_progress.json
 *.log
 logs/
 

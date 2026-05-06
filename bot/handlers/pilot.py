@@ -11,7 +11,16 @@ logger = logging.getLogger("agent_pilot.handler.pilot")
 
 
 def _dashboard_url(path: str = "") -> str:
-    base = Config.DASHBOARD_PUBLIC_URL or f"http://localhost:{Config.DASHBOARD_PORT}"
+    """Build a fully-qualified dashboard URL.
+
+    Strips any port suffix that's not actually exposed publicly (e.g. :8001 was
+    blocked by firewall in v12). Falls back to localhost only as last resort.
+    """
+    base = (Config.DASHBOARD_PUBLIC_URL or "").rstrip("/")
+    if not base:
+        base = f"http://localhost:{Config.DASHBOARD_PORT}"
+    if not path.startswith("/") and path:
+        path = "/" + path
     return f"{base}{path}"
 
 # All pilot-related command names

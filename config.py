@@ -20,6 +20,8 @@ VERSION = "12.0.0"
 class Settings(BaseSettings):
     """Validated application settings. Missing required fields cause startup failure."""
 
+    VERSION: str = VERSION
+
     # ── Feishu credentials (required) ──
     FEISHU_APP_ID: str = Field(default="", description="飞书应用 App ID")
     FEISHU_APP_SECRET: str = Field(default="", description="飞书应用 App Secret")

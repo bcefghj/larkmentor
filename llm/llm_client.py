@@ -25,8 +25,8 @@ _client: Optional[OpenAI] = None
 _async_client: Optional[AsyncOpenAI] = None
 _AUTO_INJECT = os.getenv("AGENT_PILOT_AUTO_INJECT_MEMORY", "1") != "0"
 
-_LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "120"))
-_LLM_MAX_RETRY = int(os.getenv("AGENT_PILOT_LLM_MAX_RETRY", "2"))
+_LLM_TIMEOUT = int(os.getenv("AGENT_PILOT_LLM_TIMEOUT", "300"))
+_LLM_MAX_RETRY = int(os.getenv("AGENT_PILOT_LLM_MAX_RETRY", "3"))
 _LLM_MAX_TOKENS = int(os.getenv("AGENT_PILOT_LLM_MAX_TOKENS", "32768"))
 _LLM_PROMPT_CHAR_CAP = int(os.getenv("AGENT_PILOT_LLM_PROMPT_CAP", "24000"))
 
@@ -269,17 +269,41 @@ def _parse_tool_calls(msg) -> Optional[list]:
 
 # ── Core Retry Logic (shared) ────────────────────────────────────────────────
 
+_RATE_LIMIT_PATTERNS = ("rate limit", "rate_limit", "429", "quota", "too many requests", "throttl")
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(p in msg for p in _RATE_LIMIT_PATTERNS)
+
+
+def _sleep_backoff(attempt: int, is_rate_limit: bool) -> float:
+    """Compute backoff seconds. Rate limits get longer pauses."""
+    if is_rate_limit:
+        # 5, 10, 20, 40 seconds for rate limit
+        return float(min(60, 5 * (2 ** attempt)))
+    # 1, 2, 4, 8 seconds for transient errors
+    return float(min(8, 2 ** attempt))
+
+
 def _sync_retry(fn: Callable, label: str) -> object:
-    """Retry ``fn()`` with exponential backoff. Returns the result or raises LLMError."""
+    """Retry ``fn()`` with exponential backoff. Returns the result or raises LLMError.
+
+    Rate-limit errors get longer backoffs (5/10/20/40s) than transient errors (1/2/4/8s).
+    """
     last_err: Exception = RuntimeError("never attempted")
     for attempt in range(_LLM_MAX_RETRY + 1):
         try:
             return fn()
         except Exception as exc:
             last_err = exc
-            sleep_s = min(8, 2 ** attempt)
-            logger.warning("%s attempt %d/%d failed: %s; sleeping %ss",
-                           label, attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep_s)
+            is_rl = _is_rate_limit_error(exc)
+            sleep_s = _sleep_backoff(attempt, is_rl)
+            logger.warning(
+                "%s attempt %d/%d failed (%s): %s; sleeping %.1fs",
+                label, attempt + 1, _LLM_MAX_RETRY + 1,
+                "rate_limit" if is_rl else "transient", exc, sleep_s,
+            )
             if attempt >= _LLM_MAX_RETRY:
                 break
             time.sleep(sleep_s)
@@ -289,7 +313,7 @@ def _sync_retry(fn: Callable, label: str) -> object:
         provider=get_active_model(),
         model=get_active_model(),
         retries_attempted=_LLM_MAX_RETRY + 1,
-        is_retryable=False,
+        is_retryable=_is_rate_limit_error(last_err),
     )
 
 
@@ -301,9 +325,13 @@ async def _async_retry(fn: Callable, label: str) -> object:
             return await fn()
         except Exception as exc:
             last_err = exc
-            sleep_s = min(8, 2 ** attempt)
-            logger.warning("async %s attempt %d/%d failed: %s; sleeping %ss",
-                           label, attempt + 1, _LLM_MAX_RETRY + 1, exc, sleep_s)
+            is_rl = _is_rate_limit_error(exc)
+            sleep_s = _sleep_backoff(attempt, is_rl)
+            logger.warning(
+                "async %s attempt %d/%d failed (%s): %s; sleeping %.1fs",
+                label, attempt + 1, _LLM_MAX_RETRY + 1,
+                "rate_limit" if is_rl else "transient", exc, sleep_s,
+            )
             if attempt >= _LLM_MAX_RETRY:
                 break
             await asyncio.sleep(sleep_s)
@@ -313,7 +341,7 @@ async def _async_retry(fn: Callable, label: str) -> object:
         provider=get_active_model(),
         model=get_active_model(),
         retries_attempted=_LLM_MAX_RETRY + 1,
-        is_retryable=False,
+        is_retryable=_is_rate_limit_error(last_err),
     )
 
 
