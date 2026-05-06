@@ -79,7 +79,7 @@ class Session:
 
 
 class TaskState(str, Enum):
-    """PRD §10 任务状态机的 10 个状态."""
+    """PRD §10 任务状态机."""
 
     SUGGESTED = "suggested"
     ASSIGNED = "assigned"
@@ -92,6 +92,56 @@ class TaskState(str, Enum):
     PAUSED = "paused"
     FAILED = "failed"
     IGNORED = "ignored"
+
+
+STAGES = ("context", "doc", "ppt", "rehearse")
+
+
+# 合法转移图（PRD §10）：
+#   suggested → assigned/ignored
+#   assigned → context_pending/planning（信息已足时直接 planning）/ignored
+#   context_pending → planning/ignored
+#   planning → doc_generating/ppt_generating/failed
+#   doc_generating → ppt_generating/reviewing/failed
+#   ppt_generating → reviewing/failed
+#   reviewing → delivered/failed/paused
+#   delivered → reviewing（重做）/ignored
+#   paused → planning/doc_generating/ppt_generating/reviewing/ignored
+#   failed → planning（重试）/ignored
+#   ignored → suggested（重新激活）
+LEGAL_TRANSITIONS: dict["TaskState", set["TaskState"]] = {
+    TaskState.SUGGESTED: {TaskState.ASSIGNED, TaskState.IGNORED},
+    TaskState.ASSIGNED: {TaskState.CONTEXT_PENDING, TaskState.PLANNING, TaskState.IGNORED, TaskState.PAUSED},
+    TaskState.CONTEXT_PENDING: {TaskState.PLANNING, TaskState.IGNORED, TaskState.PAUSED},
+    TaskState.PLANNING: {
+        TaskState.DOC_GENERATING,
+        TaskState.PPT_GENERATING,
+        TaskState.FAILED,
+        TaskState.PAUSED,
+    },
+    TaskState.DOC_GENERATING: {
+        TaskState.PPT_GENERATING,
+        TaskState.REVIEWING,
+        TaskState.FAILED,
+        TaskState.PAUSED,
+    },
+    TaskState.PPT_GENERATING: {TaskState.REVIEWING, TaskState.FAILED, TaskState.PAUSED},
+    TaskState.REVIEWING: {TaskState.DELIVERED, TaskState.FAILED, TaskState.PAUSED},
+    TaskState.DELIVERED: {TaskState.REVIEWING, TaskState.IGNORED},
+    TaskState.PAUSED: {
+        TaskState.PLANNING,
+        TaskState.DOC_GENERATING,
+        TaskState.PPT_GENERATING,
+        TaskState.REVIEWING,
+        TaskState.IGNORED,
+    },
+    TaskState.FAILED: {TaskState.PLANNING, TaskState.IGNORED},
+    TaskState.IGNORED: {TaskState.SUGGESTED},
+}
+
+
+class IllegalTransitionError(ValueError):
+    """非法状态转移；调用方需根据业务决定降级 / 报错."""
 
 
 @dataclass
@@ -125,8 +175,31 @@ class Task:
 
     meta: dict[str, Any] = field(default_factory=dict)
 
-    def transition(self, new_state: TaskState) -> None:
+    def transition(self, new_state: TaskState, *, force: bool = False) -> None:
+        """状态迁移；非法转移默认抛 IllegalTransitionError，可用 force=True 跳过校验."""
+        if not force:
+            allowed = LEGAL_TRANSITIONS.get(self.state, set())
+            if new_state == self.state:
+                self.updated_at = _ts()
+                return
+            if new_state not in allowed:
+                raise IllegalTransitionError(
+                    f"非法转移 {self.state.value} → {new_state.value}；合法目标={[s.value for s in allowed]}"
+                )
         self.state = new_state
+        self.updated_at = _ts()
+
+    def transition_to(self, new_state: TaskState) -> None:
+        """transition() 的别名，匹配 PRD §10 命名."""
+        self.transition(new_state)
+
+    def can_transition_to(self, new_state: TaskState) -> bool:
+        return new_state in LEGAL_TRANSITIONS.get(self.state, set())
+
+    def set_stage_owner(self, stage: str, owner_open_id: str) -> None:
+        if stage not in STAGES:
+            raise ValueError(f"未知 stage={stage}；合法值={STAGES}")
+        self.stage_owners[stage] = owner_open_id
         self.updated_at = _ts()
 
     def lock_owner(self, owner_open_id: str) -> None:

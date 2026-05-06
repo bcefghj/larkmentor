@@ -31,7 +31,19 @@ KNOWN_TOOLS = {
     "mentor.clarify",
     "mentor.summarize",
     "bitable.search",
+    # V1.5 新增
+    "web.search",
+    "media.tts",
+    "lark.im.fetch_thread",
+    "lark.doc.search",
+    "lark.bitable.search",
 }
+
+
+_TIMELY_RE = re.compile(
+    r"(最新|当前|近期|最近|本周|本月|今日|今年|去年|"
+    r"2026|2025|2024|今天|昨天|前天|刚才)"
+)
 
 
 @dataclass
@@ -92,9 +104,10 @@ PLANNER_SYSTEM_PROMPT = """你是 Agent-Pilot 的规划器。
 用户在飞书 IM 里用自然语言下达指令；你的任务是把它拆成一个 DAG（有向无环图），每个节点是一次工具调用。
 
 可用工具:
-- im.fetch_thread      : 拉取当前或指定群聊的最近上下文（参数 chat_id, limit）
+[内置]
+- web.search           : 联网搜索最新资料（DDG/Bing 兜底）。命中"最新/今年/趋势/进展"等时务必用作首步。
 - doc.create           : 创建飞书 Docx 文档（参数 title）
-- doc.append           : 往已创建文档追加内容（参数 doc_token；markdown 留空由工具自动生成）
+- doc.append           : 往文档追加内容（参数 doc_token；markdown 留空由工具自动生成）
 - canvas.create        : 创建画布/白板（参数 title）；工具会基于上游 doc.append 自动设计架构图
 - canvas.add_shape     : 在画布上添加形状
 - slide.generate       : 生成演示稿（真 .pptx + Slidev HTML + 演讲稿）
@@ -104,41 +117,91 @@ PLANNER_SYSTEM_PROMPT = """你是 Agent-Pilot 的规划器。
 - sync.broadcast       : 把状态广播到所有客户端
 - mentor.clarify       : 意图模糊时主动澄清
 - mentor.summarize     : 对一段对话做结构化总结
-- bitable.search       : 多维表格 AI 节点检索（PRD §7.1 关联文档）
+- media.tts            : 文本转语音（默认禁用，AGENT_PILOT_ENABLE_TTS=1 才启）
+[飞书 OpenAPI 真集成]
+- lark.im.fetch_thread : 拉取当前/指定群聊最近 N 条消息
+- lark.doc.search      : 检索用户云文档
+- lark.bitable.search  : 多维表格记录检索
 
 要求:
 1. 输出严格 JSON: {"steps":[{"step_id":"...","tool":"...","description":"...","args":{...},"depends_on":["..."],"parallel_group":"..."}]}
 2. step_id 用 s1/s2/... 简短格式
 3. depends_on 只能指向前面的 step_id
 4. parallel_group 相同的步骤可并行
-5. 若意图模糊，首步必须是 mentor.clarify
-6. 最后一步必须是 archive.bundle
-7. slide.generate / canvas.create 必须 depends_on 最后一个 doc.append（保证内容一致）
-8. doc.append / slide.generate / canvas.create 的内容参数务必留空，工具会自动用 LLM 生成
+5. 含"最新/今年/趋势/进展"等时效词 → 第 0 步必须 web.search，并把 ${s0.results} 透传给下游 doc.append/slide.generate 的 search_results 参数
+6. 含"群聊/讨论/对话/上周" → 第 0 步用 lark.im.fetch_thread
+7. 含"现有文档/已有方案" → 第 0 步用 lark.doc.search
+8. 含"多维表格/数据/记录" → 用 lark.bitable.search
+9. 若意图模糊，首步必须是 mentor.clarify；最后一步必须是 archive.bundle
+10. slide.generate / canvas.create 必须 depends_on 最后一个 doc.append（保证内容一致）
+11. doc.append / slide.generate / canvas.create 的 markdown/outline 参数务必留空，工具会自动用 LLM 生成
 
-## Few-Shot
+## Few-Shot 8 例
 
-意图: 「帮我写一份关于 AI Agent 发展趋势的报告」
+[1] 「帮我写一份关于 AI Agent 发展趋势的报告」
 {"steps":[
-  {"step_id":"s1","tool":"doc.create","description":"创建飞书 Docx","args":{"title":"AI Agent 发展趋势报告"},"depends_on":[]},
-  {"step_id":"s2","tool":"doc.append","description":"AI 自动生成详细报告内容","args":{"doc_token":"${s1.doc_token}"},"depends_on":["s1"]},
-  {"step_id":"s3","tool":"archive.bundle","description":"汇总产物并生成分享链接","args":{},"depends_on":["s2"]}
+  {"step_id":"s1","tool":"doc.create","args":{"title":"AI Agent 发展趋势报告"},"depends_on":[]},
+  {"step_id":"s2","tool":"doc.append","args":{"doc_token":"${s1.doc_token}"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"archive.bundle","args":{},"depends_on":["s2"]}
 ]}
 
-意图: 「产品方案 + 架构图 + 汇报 PPT 三件套」
+[2] 「OpenClaw 三件套」
 {"steps":[
-  {"step_id":"s1","tool":"doc.create","description":"创建产品方案文档","args":{"title":"产品方案"},"depends_on":[]},
-  {"step_id":"s2","tool":"doc.append","description":"生成方案正文","args":{"doc_token":"${s1.doc_token}"},"depends_on":["s1"]},
-  {"step_id":"s3","tool":"canvas.create","description":"基于方案生成架构图","args":{"title":"产品架构图"},"depends_on":["s2"],"parallel_group":"g1"},
-  {"step_id":"s4","tool":"slide.generate","description":"基于方案生成 PPT","args":{"title":"产品方案"},"depends_on":["s2"],"parallel_group":"g1"},
-  {"step_id":"s5","tool":"slide.rehearse","description":"为 PPT 生成演讲稿","args":{"slide_id":"${s4.slide_id}"},"depends_on":["s4"]},
-  {"step_id":"s6","tool":"archive.bundle","description":"汇总","args":{},"depends_on":["s3","s5"]}
+  {"step_id":"s1","tool":"web.search","args":{"query":"OpenClaw 飞书 开源"},"depends_on":[]},
+  {"step_id":"s2","tool":"doc.create","args":{"title":"OpenClaw 介绍"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"doc.append","args":{"doc_token":"${s2.doc_token}","search_results":"${s1.results}"},"depends_on":["s2"]},
+  {"step_id":"s4","tool":"canvas.create","args":{"title":"OpenClaw 架构图"},"depends_on":["s3"],"parallel_group":"g1"},
+  {"step_id":"s5","tool":"slide.generate","args":{"title":"OpenClaw 介绍","search_results":"${s1.results}"},"depends_on":["s3"],"parallel_group":"g1"},
+  {"step_id":"s6","tool":"slide.rehearse","args":{"slide_id":"${s5.slide_id}"},"depends_on":["s5"]},
+  {"step_id":"s7","tool":"archive.bundle","args":{},"depends_on":["s4","s6"]}
 ]}
 
-意图: 「帮我做个汇报」（信息严重不足）
+[3] 「今年最新 AI Agent 趋势汇报 PPT」
 {"steps":[
-  {"step_id":"s0","tool":"mentor.clarify","description":"主动澄清","args":{"questions":["要汇报什么主题？","汇报对象是谁？","希望几页 PPT？"]},"depends_on":[]},
-  {"step_id":"s1","tool":"archive.bundle","description":"占位，澄清后用户重新触发","args":{},"depends_on":["s0"]}
+  {"step_id":"s1","tool":"web.search","args":{"query":"2026 AI Agent 最新趋势"},"depends_on":[]},
+  {"step_id":"s2","tool":"slide.generate","args":{"title":"AI Agent 趋势汇报","search_results":"${s1.results}"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"slide.rehearse","args":{"slide_id":"${s2.slide_id}"},"depends_on":["s2"]},
+  {"step_id":"s4","tool":"archive.bundle","args":{},"depends_on":["s3"]}
+]}
+
+[4] 「把上周群里讨论的活动方案整理出来」
+{"steps":[
+  {"step_id":"s1","tool":"lark.im.fetch_thread","args":{"limit":80},"depends_on":[]},
+  {"step_id":"s2","tool":"doc.create","args":{"title":"活动方案"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"doc.append","args":{"doc_token":"${s2.doc_token}","context":"${s1.messages}"},"depends_on":["s2"]},
+  {"step_id":"s4","tool":"archive.bundle","args":{},"depends_on":["s3"]}
+]}
+
+[5] 「把已有的 PRD 转成 8 页 PPT」
+{"steps":[
+  {"step_id":"s1","tool":"lark.doc.search","args":{"query":"PRD"},"depends_on":[]},
+  {"step_id":"s2","tool":"slide.generate","args":{"title":"PRD 演示稿","pages":8},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"slide.rehearse","args":{"slide_id":"${s2.slide_id}"},"depends_on":["s2"]},
+  {"step_id":"s4","tool":"archive.bundle","args":{},"depends_on":["s3"]}
+]}
+
+[6] 「用多维表格里的销售数据做月报」
+{"steps":[
+  {"step_id":"s1","tool":"lark.bitable.search","args":{"query":"销售"},"depends_on":[]},
+  {"step_id":"s2","tool":"doc.create","args":{"title":"销售月报"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"doc.append","args":{"doc_token":"${s2.doc_token}","data":"${s1.records}"},"depends_on":["s2"]},
+  {"step_id":"s4","tool":"archive.bundle","args":{},"depends_on":["s3"]}
+]}
+
+[7] 「帮我做个汇报」（信息严重不足）
+{"steps":[
+  {"step_id":"s0","tool":"mentor.clarify","args":{"questions":["要汇报什么主题？","汇报对象是谁？","希望几页 PPT？"]},"depends_on":[]},
+  {"step_id":"s1","tool":"archive.bundle","args":{},"depends_on":["s0"]}
+]}
+
+[8] 「产品方案 + 架构图 + 评审 PPT」
+{"steps":[
+  {"step_id":"s1","tool":"doc.create","args":{"title":"产品方案"},"depends_on":[]},
+  {"step_id":"s2","tool":"doc.append","args":{"doc_token":"${s1.doc_token}"},"depends_on":["s1"]},
+  {"step_id":"s3","tool":"canvas.create","args":{"title":"产品架构图"},"depends_on":["s2"],"parallel_group":"g1"},
+  {"step_id":"s4","tool":"slide.generate","args":{"title":"产品方案"},"depends_on":["s2"],"parallel_group":"g1"},
+  {"step_id":"s5","tool":"slide.rehearse","args":{"slide_id":"${s4.slide_id}"},"depends_on":["s4"]},
+  {"step_id":"s6","tool":"archive.bundle","args":{},"depends_on":["s3","s5"]}
 ]}
 """
 
@@ -156,18 +219,26 @@ def plan_from_intent(
     meta: dict[str, Any] | None = None,
     llm_fn: PlannerLLMFn | None = None,
 ) -> Plan:
-    """主入口：意图 → Plan."""
+    """主入口：意图 → Plan.
+
+    - meta["needs_web_search"]==True 或 intent 中含时效词 → 启发式自动插 web.search 第 0 步
+    - 注入 web.search 后，所有 doc.append / slide.generate 自动 depends_on=s_web 且接 search_results
+    """
     intent = (intent or "").strip()
     if not intent:
         raise ValueError("intent must not be empty")
 
+    meta_dict = dict(meta or {})
     plan_id = f"plan_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+
+    needs_web = bool(meta_dict.get("needs_web_search")) or bool(_TIMELY_RE.search(intent))
 
     steps = _plan_with_llm(intent, llm_fn) if llm_fn else []
     if not steps:
-        steps = _plan_heuristic(intent)
+        steps = _plan_heuristic(intent, needs_web_search=needs_web)
+    elif needs_web and not any(s.tool == "web.search" for s in steps):
+        steps = _inject_web_search(steps, intent)
 
-    # 保证 archive.bundle 是最后一步
     if not any(s.tool == "archive.bundle" for s in steps):
         last_ids = [s.step_id for s in steps]
         steps.append(
@@ -179,14 +250,33 @@ def plan_from_intent(
             )
         )
 
+    meta_dict["needs_web_search"] = needs_web
     return Plan(
         plan_id=plan_id,
         user_open_id=user_open_id,
         intent=intent,
         steps=steps,
         created_ts=int(time.time()),
-        meta=meta or {},
+        meta=meta_dict,
     )
+
+
+def _inject_web_search(steps: list[PlanStep], intent: str) -> list[PlanStep]:
+    """LLM 漏掉 web.search 时由调用方启发式补一步."""
+    web_step = PlanStep(
+        step_id="s0",
+        tool="web.search",
+        description="联网搜索最新资料（自动注入，因检测到时效词或上游 needs_web_search）",
+        args={"query": intent[:120], "k": 5},
+    )
+    out = [web_step]
+    for s in steps:
+        if not s.depends_on:
+            s.depends_on = ["s0"]
+        if s.tool in ("doc.append", "slide.generate"):
+            s.args = {**s.args, "search_results": "${s0.results}"}
+        out.append(s)
+    return out
 
 
 # ── LLM 路径 ────────────────────────────────────────────────────────────────
@@ -231,7 +321,7 @@ def _title_from_intent(intent: str, suffix: str) -> str:
     return f"[Agent-Pilot] {trimmed} · {suffix}"
 
 
-def _plan_heuristic(intent: str) -> list[PlanStep]:
+def _plan_heuristic(intent: str, *, needs_web_search: bool = False) -> list[PlanStep]:
     want_doc = bool(re.search(r"(文档|文稿|方案|需求|纪要|总结|报告|介绍|写)", intent))
     want_canvas = bool(re.search(r"(画布|白板|流程图|架构图|画图|思维导图)", intent))
     want_slide = bool(re.search(r"(PPT|演示|演讲|slide|汇报|幻灯)", intent, re.I))
@@ -242,14 +332,27 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
         want_slide = True
 
     steps: list[PlanStep] = []
+    web_id: Optional[str] = None
     last_id: Optional[str] = None
     doc_append_id: Optional[str] = None
+
+    if needs_web_search:
+        sid = "s1"
+        steps.append(PlanStep(
+            step_id=sid,
+            tool="web.search",
+            description="联网搜索最新资料（自动注入，因检测到时效词）",
+            args={"query": intent[:120], "k": 5},
+        ))
+        web_id = sid
+        last_id = sid
 
     if want_fetch:
         sid = f"s{len(steps) + 1}"
         steps.append(PlanStep(step_id=sid, tool="im.fetch_thread",
                               description="拉取最近群聊/对话作为上下文",
-                              args={"limit": 50}))
+                              args={"limit": 50},
+                              depends_on=[last_id] if last_id else []))
         last_id = sid
 
     if want_doc:
@@ -260,13 +363,18 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
                               depends_on=[last_id] if last_id else []))
         doc_create_id = sid
         sid2 = f"s{len(steps) + 1}"
+        append_args: dict[str, Any] = {
+            "doc_token": f"${{{doc_create_id}.doc_token}}",
+            "intent": intent,
+        }
+        if web_id:
+            append_args["search_results"] = f"${{{web_id}.results}}"
         steps.append(PlanStep(step_id=sid2, tool="doc.append",
-                              description="向文档追加 AI 自动生成的详细内容",
-                              args={"doc_token": f"${{{doc_create_id}.doc_token}}", "intent": intent},
+                              description="向文档追加 AI 自动生成的详细内容" + ("（含联网资料）" if web_id else ""),
+                              args=append_args,
                               depends_on=[doc_create_id]))
         doc_append_id = sid2
 
-    parallel = []
     if want_canvas:
         sid = f"s{len(steps) + 1}"
         deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
@@ -275,17 +383,21 @@ def _plan_heuristic(intent: str) -> list[PlanStep]:
                               args={"title": _title_from_intent(intent, "画布"), "intent": intent},
                               depends_on=deps,
                               parallel_group="g1"))
-        parallel.append(sid)
 
     if want_slide:
         sid = f"s{len(steps) + 1}"
         deps = [doc_append_id] if doc_append_id else ([last_id] if last_id else [])
+        slide_args: dict[str, Any] = {
+            "title": _title_from_intent(intent, "演示稿"),
+            "intent": intent,
+        }
+        if web_id:
+            slide_args["search_results"] = f"${{{web_id}.results}}"
         steps.append(PlanStep(step_id=sid, tool="slide.generate",
-                              description="基于文档内容生成演示稿（真 PPTX + HTML + 演讲稿）",
-                              args={"title": _title_from_intent(intent, "演示稿"), "intent": intent},
+                              description="基于文档内容生成演示稿（真 PPTX + HTML + 演讲稿）" + ("（含联网资料）" if web_id else ""),
+                              args=slide_args,
                               depends_on=deps,
                               parallel_group="g1"))
-        parallel.append(sid)
         slide_id_ref = sid
         sid2 = f"s{len(steps) + 1}"
         steps.append(PlanStep(step_id=sid2, tool="slide.rehearse",

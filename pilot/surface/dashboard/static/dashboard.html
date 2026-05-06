@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>仪表盘 · Agent-Pilot V1</title>
+<title>仪表盘 · Agent-Pilot V1.5</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <style>
   body { font-family: -apple-system, "PingFang SC", Inter, sans-serif; background: #0a0e27; color: #e2e8f0; }
   .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); }
@@ -15,10 +14,12 @@
   @keyframes slide-in { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .slide-in { animation: slide-in 0.3s ease-out; }
   pre { white-space: pre-wrap; word-break: break-all; }
-  .step-running { background: linear-gradient(90deg, rgba(96,165,250,0.1), transparent); border-left: 3px solid #60a5fa; }
+  .step-running { background: linear-gradient(90deg, rgba(96,165,250,0.18), transparent); border-left: 3px solid #60a5fa; }
   .step-done { border-left: 3px solid #34d399; }
   .step-failed { border-left: 3px solid #f87171; }
-  .step-pending { border-left: 3px solid #475569; opacity: 0.6; }
+  .step-pending { border-left: 3px solid #475569; opacity: 0.55; }
+  .progress-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .progress-bar > div { height: 100%; background: linear-gradient(90deg, #60a5fa, #c084fc); transition: width 0.4s ease-out; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -28,11 +29,12 @@
     <div class="flex items-center gap-3">
       <a href="/" class="text-2xl">🛫</a>
       <div>
-        <div class="font-bold gradient-text">Agent-Pilot V1 仪表盘</div>
+        <div class="font-bold gradient-text">Agent-Pilot V1.5 仪表盘</div>
         <div class="text-xs text-slate-400">plan_id: <span id="plan-id-display">{{PLAN_ID}}</span></div>
       </div>
     </div>
-    <div class="flex items-center gap-2 text-sm">
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-slate-400">已用时 <span id="elapsed" class="text-blue-300 font-mono">0s</span></span>
       <span class="w-2 h-2 rounded-full bg-green-400 pulse-dot"></span>
       <span id="ws-status" class="text-slate-400">连接中</span>
     </div>
@@ -40,37 +42,33 @@
 </header>
 
 <main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
-  <!-- 左：Sessions 列表 -->
   <aside class="lg:col-span-3 glass rounded-2xl p-4">
     <h2 class="font-bold mb-3 gradient-text">最近 Sessions</h2>
     <div id="session-list" class="space-y-2 max-h-[600px] overflow-y-auto"></div>
   </aside>
 
-  <!-- 中：Agent thinking 流 -->
   <section class="lg:col-span-6 glass rounded-2xl p-4">
-    <h2 class="font-bold mb-3 gradient-text">Agent thinking 流</h2>
-    <div id="thinking-stream" class="space-y-2 max-h-[600px] overflow-y-auto font-mono text-xs"></div>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-bold gradient-text">执行进度</h2>
+      <span class="text-xs text-slate-400"><span id="step-completed">0</span> / <span id="step-total">0</span> 步完成</span>
+    </div>
+    <div class="progress-bar mb-4"><div id="progress-fill" style="width: 0%"></div></div>
+
+    <h3 class="font-bold mb-2 text-sm text-slate-400">事件流</h3>
+    <div id="thinking-stream" class="space-y-2 max-h-[480px] overflow-y-auto font-mono text-xs"></div>
   </section>
 
-  <!-- 右：8 步 Harness Loop 可视化 + 工具调用 -->
   <aside class="lg:col-span-3 space-y-4">
     <div class="glass rounded-2xl p-4">
-      <h2 class="font-bold mb-3 gradient-text">8 步 Harness Loop</h2>
-      <ol id="harness-steps" class="space-y-2 text-xs">
-        <li class="step-pending pl-3 py-2">1. Assemble Context</li>
-        <li class="step-pending pl-3 py-2">2. Call LLM API</li>
-        <li class="step-pending pl-3 py-2">3. Parse Response</li>
-        <li class="step-pending pl-3 py-2">4. Check Permission</li>
-        <li class="step-pending pl-3 py-2">5. Execute Tools</li>
-        <li class="step-pending pl-3 py-2">6. Feed Results Back</li>
-        <li class="step-pending pl-3 py-2">7. Context Check</li>
-        <li class="step-pending pl-3 py-2">8. Termination</li>
-      </ol>
+      <h2 class="font-bold mb-3 gradient-text">本次产出</h2>
+      <div id="artifact-list" class="space-y-2 text-xs max-h-[260px] overflow-y-auto">
+        <div class="text-slate-500">_等待第一个产出..._</div>
+      </div>
     </div>
 
     <div class="glass rounded-2xl p-4">
       <h2 class="font-bold mb-3 gradient-text">工具调用</h2>
-      <div id="tool-list" class="space-y-2 text-xs max-h-[300px] overflow-y-auto"></div>
+      <div id="tool-list" class="space-y-1 text-xs max-h-[220px] overflow-y-auto"></div>
     </div>
   </aside>
 </main>
@@ -81,6 +79,90 @@ const planId = (new URLSearchParams(location.search).get("plan_id")) ||
                "";
 
 document.getElementById("plan-id-display").textContent = planId || "(未指定)";
+
+// ── i18n: 事件 kind 与 工具名 ──
+const KIND_LABELS = {
+  "plan_start":              "🛫 任务启动",
+  "plan.start":              "🛫 任务启动",
+  "plan_done":               "🎉 任务交付",
+  "plan.done":               "🎉 任务交付",
+  "plan_error":              "❌ 任务失败",
+  "step.start":              "🚀 步骤开始",
+  "step.done":               "✅ 步骤完成",
+  "step.failed":             "❌ 步骤失败",
+  "step.skipped":            "⏭️ 步骤跳过",
+  "user_message":            "🗣️ 用户消息",
+  "assistant_text":          "💬 AI 回复",
+  "tool_result":             "🛠️ 工具返回",
+  "harness.assemble":        "🔧 组装上下文",
+  "harness.llm_call.start":  "🤖 调用 LLM",
+  "harness.llm_call.done":   "✅ LLM 完成",
+  "harness.parse":           "📝 解析响应",
+  "harness.permit":          "🔒 权限检查",
+  "harness.tools.read.start":"🔍 读工具",
+  "harness.tools.write.start":"✍️ 写工具",
+  "harness.feedback":        "🔁 反馈结果",
+  "harness.context_reset":   "🧹 上下文重置",
+  "harness.end":             "🏁 终止判定",
+};
+
+const TOOL_LABELS = {
+  "doc.create":     "📄 创建飞书文档",
+  "doc.append":     "📝 AI 生成文档内容",
+  "canvas.create":  "🎨 创建画布/架构图",
+  "canvas.add_shape": "✏️ 画布添加形状",
+  "slide.generate": "📊 生成 PPT 大纲与文件",
+  "slide.rehearse": "🎤 生成演讲稿",
+  "voice.transcribe": "🎙️ 语音转文字",
+  "media.tts":      "🔊 文字转语音",
+  "web.search":     "🌐 联网搜索",
+  "archive.bundle": "📦 汇总归档",
+  "im.fetch_thread":"💬 拉取群聊",
+  "lark.im.fetch_thread": "💬 飞书群聊抓取",
+  "lark.doc.search":"🔎 飞书文档检索",
+  "lark.bitable.search": "📊 多维表格检索",
+  "mentor.clarify": "❓ 主动澄清",
+  "mentor.summarize": "📋 结构化总结",
+};
+
+function labelOf(kind, fallback="") { return KIND_LABELS[kind] || fallback || kind; }
+function toolLabelOf(name) { return TOOL_LABELS[name] || name; }
+
+// ── 状态 ──
+let planStartedAt = null;       // unix sec
+let stepTotal = 0;
+let stepCompleted = 0;
+let receivedKinds = [];
+
+setInterval(() => {
+  if (!planStartedAt) return;
+  const sec = Math.floor(Date.now() / 1000 - planStartedAt);
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  document.getElementById("elapsed").textContent = (m > 0 ? `${m}m ` : "") + `${s}s`;
+}, 1000);
+
+function updateProgress() {
+  document.getElementById("step-total").textContent = stepTotal;
+  document.getElementById("step-completed").textContent = stepCompleted;
+  const pct = stepTotal > 0 ? Math.min(100, Math.round(stepCompleted / stepTotal * 100)) : 0;
+  document.getElementById("progress-fill").style.width = pct + "%";
+}
+
+function pushArtifact(a) {
+  const dom = document.getElementById("artifact-list");
+  if (dom.querySelector(".text-slate-500")) dom.innerHTML = "";
+  const it = document.createElement("a");
+  it.className = "block p-2 rounded hover:bg-white/5 slide-in";
+  const url = a.url || a.uri || "#";
+  const kind = a.kind || a.type || "artifact";
+  const ttl = a.title || kind;
+  const emoji = {doc: "📄", canvas: "🎨", slide: "📊", tts: "🔊"}[kind] || "📦";
+  it.href = url;
+  it.target = "_blank";
+  it.innerHTML = `<div class="text-blue-200">${emoji} ${ttl}</div><div class="text-slate-500 text-[10px] truncate">${url}</div>`;
+  dom.appendChild(it);
+}
 
 // ── Sessions ──
 async function loadSessions() {
@@ -102,9 +184,7 @@ async function loadSessions() {
       `;
       dom.appendChild(card);
     }
-  } catch (e) {
-    console.warn(e);
-  }
+  } catch (e) { console.warn(e); }
 }
 
 // ── Tools ──
@@ -115,11 +195,12 @@ async function loadTools() {
     dom.innerHTML = "";
     for (const t of tools) {
       const it = document.createElement("div");
-      it.className = "flex items-center gap-2 p-2 rounded hover:bg-white/5";
+      it.className = "flex items-center gap-2 p-1 rounded hover:bg-white/5";
       const dot = t.read_only ? "bg-blue-400" : "bg-orange-400";
+      const cn = toolLabelOf(t.name);
       it.innerHTML = `
         <span class="w-2 h-2 rounded-full ${dot}"></span>
-        <span class="font-mono text-blue-200">${t.name}</span>
+        <span class="text-blue-200">${cn}</span>
         <span class="ml-auto text-slate-500 text-[10px]">${t.read_only ? "读" : "写"}</span>
       `;
       dom.appendChild(it);
@@ -127,7 +208,7 @@ async function loadTools() {
   } catch (e) { console.warn(e); }
 }
 
-// ── SSE 事件流（如果 plan_id 有效）──
+// ── SSE ──
 function subscribeEvents() {
   if (!planId) return;
   const dom = document.getElementById("thinking-stream");
@@ -138,9 +219,42 @@ function subscribeEvents() {
     es.onmessage = (e) => {
       try {
         const evt = JSON.parse(e.data);
+        receivedKinds.push(evt.kind);
+
+        if (evt.kind === "plan_start" || evt.kind === "plan.start") {
+          planStartedAt = evt.ts || Math.floor(Date.now() / 1000);
+          stepTotal = (evt.payload?.steps || []).length || stepTotal;
+          stepCompleted = 0;
+          updateProgress();
+        }
+        if (evt.kind === "step.done") {
+          stepCompleted += 1;
+          updateProgress();
+          // 工具产出 → artifacts
+          const tool = evt.payload?.tool || "";
+          const r = evt.payload?.result || evt.payload || {};
+          if (tool === "doc.create" || tool === "doc.append") {
+            if (r.url || r.doc_token) pushArtifact({kind: "doc", title: r.title || "飞书文档", url: r.url || ""});
+          } else if (tool === "canvas.create") {
+            if (r.tldraw_url || r.url) pushArtifact({kind: "canvas", title: r.title || "画布", url: r.tldraw_url || r.url});
+          } else if (tool === "slide.generate") {
+            const u = r.pptx_url_absolute || r.pptx_url || "";
+            if (u) pushArtifact({kind: "slide", title: r.title || "演示稿", url: u});
+          } else if (tool === "media.tts") {
+            const u = r.mp3_url_absolute || r.mp3_url || "";
+            if (u) pushArtifact({kind: "tts", title: "语音", url: u});
+          }
+        }
+        if (evt.kind === "plan_done" || evt.kind === "plan.done") {
+          for (const a of (evt.payload?.artifacts || [])) {
+            pushArtifact(a);
+          }
+          document.getElementById("ws-status").textContent = "完成";
+        }
+
         const item = document.createElement("div");
         item.className = "p-2 rounded slide-in flex gap-2";
-        const t = new Date(evt.ts * 1000);
+        const t = new Date((evt.ts || Math.floor(Date.now()/1000)) * 1000);
         const tStr = t.toTimeString().slice(0, 8);
         const kindColor = {
           "user_message": "text-cyan-300",
@@ -149,57 +263,36 @@ function subscribeEvents() {
           "step.start": "text-yellow-300",
           "step.done": "text-green-300",
           "step.failed": "text-red-300",
-          "harness.assemble": "text-blue-300",
-          "harness.llm_call.start": "text-blue-400",
-          "harness.llm_call.done": "text-green-400",
-          "harness.tools.read.start": "text-orange-300",
-          "harness.tools.write.start": "text-pink-300",
+          "plan_start": "text-blue-300",
+          "plan_done": "text-emerald-300",
+          "plan_error": "text-red-300",
         }[evt.kind] || "text-slate-400";
+
+        const tool = evt.payload?.tool ? `<span class="text-blue-200 ml-1">${toolLabelOf(evt.payload.tool)}</span>` : "";
+        const detail = JSON.stringify(evt.payload || {}).slice(0, 200);
 
         item.innerHTML = `
           <span class="text-slate-500">${tStr}</span>
-          <span class="${kindColor}">[${evt.kind}]</span>
-          <span class="text-slate-300 truncate">${JSON.stringify(evt.payload).slice(0, 200)}</span>
+          <span class="${kindColor}">${labelOf(evt.kind)}</span>
+          ${tool}
+          <span class="text-slate-300 truncate">${detail}</span>
         `;
         dom.insertBefore(item, dom.firstChild);
-        // 高亮对应 harness step
-        highlightStep(evt.kind);
-      } catch {}
+      } catch (err) { console.warn(err); }
     };
     es.onerror = () => {
-      document.getElementById("ws-status").textContent = "断开";
+      document.getElementById("ws-status").textContent = "断开重连";
     };
+    es.addEventListener("heartbeat", () => {
+      document.getElementById("ws-status").textContent = "实时（心跳）";
+    });
   } catch (e) { console.warn(e); }
 }
 
-function highlightStep(kind) {
-  const map = {
-    "harness.assemble": 0,
-    "harness.llm_call.start": 1,
-    "harness.llm_call.done": 1,
-    "harness.parse": 2,
-    "harness.permit": 3,
-    "harness.tools.read.start": 4,
-    "harness.tools.write.start": 4,
-    "harness.feedback": 5,
-    "harness.context_reset": 6,
-    "harness.end": 7,
-  };
-  const idx = map[kind];
-  if (idx === undefined) return;
-  const items = document.getElementById("harness-steps").children;
-  for (let i = 0; i < items.length; i++) {
-    items[i].className = i < idx ? "step-done pl-3 py-2"
-                       : i === idx ? "step-running pl-3 py-2"
-                       : "step-pending pl-3 py-2";
-  }
-}
-
-// ── 初始加载 plan 信息 ──
 async function loadPlanInfo() {
   if (!planId) {
-    const dom = document.getElementById("thinking-stream");
-    dom.innerHTML = '<div class="text-slate-500 text-center py-8">请从飞书发送消息触发任务，dashboard 将实时展示 Agent 思维流。<br><br>示例：<code>/pilot 关于 AI Agent 发展的汇报 PPT</code></div>';
+    document.getElementById("thinking-stream").innerHTML =
+      '<div class="text-slate-500 text-center py-8">请从飞书发送消息触发任务，dashboard 将实时展示 Agent 思维流。<br><br>示例：<code>OpenClaw 三件套</code></div>';
     return;
   }
 }

@@ -150,7 +150,16 @@ def default_registry() -> ToolRegistry:
 
 def _register_builtin_tools(reg: ToolRegistry) -> None:
     """注册所有内置工具（懒导入避免循环依赖）."""
-    from pilot.capability.tools import doc, canvas, slide, archive, voice, im_fetch, mentor
+    from pilot.capability.tools import (
+        archive,
+        canvas,
+        doc,
+        im_fetch,
+        mentor,
+        slide,
+        voice,
+        web_media,
+    )
 
     doc.register_to(reg)
     canvas.register_to(reg)
@@ -159,3 +168,13 @@ def _register_builtin_tools(reg: ToolRegistry) -> None:
     voice.register_to(reg)
     im_fetch.register_to(reg)
     mentor.register_to(reg)
+    web_media.register_to(reg)
+
+    try:
+        from pilot.capability.tools import lark_tools
+
+        lark_tools.register_to(reg)
+    except ImportError:
+        logger.debug("lark_tools 模块尚未实现，跳过注册")
+    except Exception as e:
+        logger.warning("lark_tools 注册失败: %s", e)

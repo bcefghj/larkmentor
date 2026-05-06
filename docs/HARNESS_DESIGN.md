@@ -262,7 +262,7 @@ metadata:
 ### 完整性 50%
 
 ✅ **端到端闭环**：IM → 三闸门 → Planner → 三 Agent → 工具 → 归档
-✅ **公网可访问**：http://118.178.242.26 上 V1 已上线
+✅ **公网可访问**：http://8.136.98.175 上 V1 已上线
 ✅ **75/75 测试全绿**（含 7 条裁判级 e2e）
 ✅ **5 分钟 JUDGE_GUIDE** + 短视频脚本 + DEMO_SCRIPT 答辩稿
 ✅ **PRD 100% 覆盖证明** ([docs/PRD_COVERAGE.md](PRD_COVERAGE.md))

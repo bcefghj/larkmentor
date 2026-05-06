@@ -9,7 +9,7 @@
 > 「各位评委好。我们做的是 Agent-Pilot V1——飞书 IM 中的 AI 主驾驶 Harness。
 > 一句话能力：把"群聊讨论 → 文档 → 画布 → PPT + 演讲稿"压成 90 秒一键交付。」
 
-[切到主页 http://118.178.242.26/，展示动画 + 5 层架构]
+[切到主页 http://8.136.98.175/，展示动画 + 5 层架构]
 
 > 「我们重写了整个项目，旧的 v3 / v4 / v12 / v13 全部废弃，因为我们意识到：
 > **2018 风格的工具 + DAG 架构已经过时了**。
@@ -52,7 +52,7 @@
 
 ## Demo 3 · 多端协同（45 秒）
 
-[左屏开飞书手机端，右屏开 http://118.178.242.26/multi-end]
+[左屏开飞书手机端，右屏开 http://8.136.98.175/multi-end]
 
 > 「多端用 pycrdt-websocket——一个 Yjs 兼容的 Python CRDT 实现。
 > 任何一端的状态变化，**全部三端**——飞书 / Web Dashboard / Flutter 客户端——实时同步。」
@@ -69,7 +69,7 @@
 > 「我们最特别的创新——V1 把自己暴露成 MCP server。
 > 也就是说：**Cursor / Claude / Trae 反过来调 V1 的工具**。」
 
-[在 Cursor 中配置 MCP server: http://118.178.242.26/mcp/]
+[在 Cursor 中配置 MCP server: http://8.136.98.175/mcp/]
 
 [Cursor 调用 doc.create]
 

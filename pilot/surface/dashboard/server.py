@@ -114,18 +114,26 @@ def create_app():
 
     @app.get("/api/events/{session_id}")
     async def event_stream(session_id: str):
-        """SSE 事件流（前端 EventSource 订阅）."""
+        """SSE 事件流（前端 EventSource 订阅）.
+
+        V1.5 加 30s heartbeat 保持代理 / nginx / 飞书 hubs 不掐线。
+        """
         from pilot.context.event_log import EventLog
 
         async def gen():
             log = EventLog(session_id)
             offset = 0
+            last_ping = time.monotonic()
             while True:
                 events = log.read_all()
                 new = events[offset:]
                 for evt in new:
                     yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
                 offset = len(events)
+                now = time.monotonic()
+                if now - last_ping >= 30.0:
+                    yield f"event: heartbeat\ndata: {json.dumps({'ts': int(time.time())})}\n\n"
+                    last_ping = now
                 await asyncio.sleep(1.0)
 
         return StreamingResponse(gen(), media_type="text/event-stream",

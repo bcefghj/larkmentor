@@ -52,6 +52,9 @@ def register_to(reg) -> None:
                 "doc_token": {"type": "string", "description": "doc.create 返回的 doc_token"},
                 "markdown": {"type": "string", "description": "要追加的 markdown（留空则 AI 生成）"},
                 "intent": {"type": "string", "description": "用户原始意图（用于 AI 生成）"},
+                "search_results": {
+                    "description": "上游 web.search 注入的结果 [{title,url,snippet}]，用于让 LLM 引用真实数据",
+                },
             },
             "required": ["doc_token"],
         },
@@ -120,11 +123,16 @@ async def doc_append(
     doc_token: str,
     markdown: str = "",
     intent: str = "",
+    search_results: Any = None,
     _ctx: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """向 doc 追加内容；markdown 留空则 LLM 自动生成."""
     if not markdown:
-        markdown = await _generate_markdown(intent=intent or "（请生成一段结构化方案）", _ctx=_ctx)
+        markdown = await _generate_markdown(
+            intent=intent or "（请生成一段结构化方案）",
+            search_results=_normalize_search_results(search_results),
+            _ctx=_ctx,
+        )
 
     feishu_app_id = os.getenv("FEISHU_APP_ID", "")
     if feishu_app_id and feishu_app_id != "cli_your_app_id_here":
@@ -172,13 +180,56 @@ async def doc_append(
 # ── LLM 生成 markdown ──
 
 
-async def _generate_markdown(*, intent: str, _ctx: dict[str, Any] | None) -> str:
+def _normalize_search_results(raw: Any) -> list[dict[str, str]]:
+    """允许传入 list / dict / json string / placeholder 残留 → 统一成 [{title,url,snippet}].
+
+    Orchestrator 已替换 ${sX.results} 占位符，但兜底时若仍为字符串就 json.loads。
+    """
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.startswith("$") or not s:
+            return []
+        try:
+            raw = json.loads(s)
+        except Exception:
+            return []
+    if isinstance(raw, dict):
+        raw = raw.get("results") or raw.get("items") or []
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        if isinstance(item, dict):
+            t = str(item.get("title", ""))[:200]
+            u = str(item.get("url", ""))[:500]
+            s = str(item.get("snippet", "") or item.get("desc", ""))[:400]
+            if t or u:
+                out.append({"title": t, "url": u, "snippet": s})
+    return out[:10]
+
+
+async def _generate_markdown(
+    *,
+    intent: str,
+    search_results: list[dict[str, str]] | None = None,
+    _ctx: dict[str, Any] | None = None,
+) -> str:
     try:
         from pilot.llm.client import default_client
+
+        cite_block = ""
+        if search_results:
+            lines = ["\n参考资料（请在正文中以脚注形式 [1] [2] 引用真实数据，不要瞎编）："]
+            for i, r in enumerate(search_results[:5], 1):
+                lines.append(f"[{i}] {r.get('title','')}\n    URL: {r.get('url','')}\n    摘要: {r.get('snippet','')}")
+            cite_block = "\n".join(lines)
 
         prompt = f"""请根据用户意图生成一份结构化的中文方案文档（Markdown 格式）。
 
 用户意图：{intent}
+{cite_block}
 
 要求：
 1. 字数 1500-3000 字
@@ -186,6 +237,7 @@ async def _generate_markdown(*, intent: str, _ctx: dict[str, Any] | None) -> str
 3. 包含数据/案例/风险三类信息
 4. 不要寒暄、不要"以下是为您生成的"之类元语言
 5. 直接输出 markdown 正文
+6. 如果上面有参考资料，必须在正文里以 [1] [2] 形式引用，并在文末列"## 参考资料"段落含真实 URL
 """
         client = default_client()
         result = await asyncio.wait_for(

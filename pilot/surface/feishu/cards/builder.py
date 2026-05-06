@@ -59,25 +59,31 @@ def context_confirm_card(
     task_id: str,
     summary: dict[str, Any],
 ) -> dict[str, Any]:
-    """PRD §7.2 上下文确认卡片."""
+    """PRD §7.2 上下文确认卡片（V1.5：3 按钮 + "调整目标"）."""
     used = summary.get("used", [])
     missing = summary.get("missing", [])
-    elements = [
+    task_goal = str(summary.get("task_goal", "") or "")[:120]
+    task_summary = str(summary.get("task_summary", "") or "")[:120]
+
+    elements: list[dict[str, Any]] = [
         {"tag": "div", "text": {"tag": "lark_md",
-                                "content": f"**📦 上下文确认**\n\n任务目标：{summary.get('task_goal', '')[:100]}"}},
+                                "content": f"**📦 上下文确认**\n\n**已理解任务**：{task_summary or task_goal or '（无）'}"}},
         {"tag": "hr"},
     ]
     if used:
         used_md = "\n".join(f"- {u}" for u in used)
         elements.append({"tag": "div", "text": {"tag": "lark_md", "content": f"**已用资料**\n{used_md}"}})
+    else:
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": "**已用资料**\n_（暂无）_"}})
+
     if missing:
         missing_md = "\n".join(f"- {m}" for m in missing)
-        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": f"**建议补充**\n{missing_md}"}})
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": f"**缺失资料 / 建议补充**\n{missing_md}"}})
 
     elements.append({"tag": "action", "actions": [
-        _btn("✅ 确认上下文", "pilot.ctx.confirm", task_id, primary=True),
-        _btn("📎 继续补充", "pilot.ctx.add_more", task_id),
-        _btn("⏸ 暂停", "pilot.task.pause", task_id),
+        _btn("📎 添加资料", "pilot.ctx.add", task_id),
+        _btn("✅ 确认生成", "pilot.ctx.confirm", task_id, primary=True),
+        _btn("📝 调整目标", "pilot.ctx.adjust", task_id),
     ]})
 
     return {
@@ -123,25 +129,39 @@ def task_delivered_card(
     artifacts: list[dict[str, Any]] | None = None,
     share_url: str = "",
 ) -> dict[str, Any]:
-    """任务交付卡（PRD §F-13）."""
-    elements = [
+    """任务交付卡（PRD §F-13；V1.5 修复：URL 为空跳过避免 [](　) 渲染异常）."""
+    elements: list[dict[str, Any]] = [
         {"tag": "div", "text": {"tag": "lark_md",
                                 "content": f"**🛬 任务完成**\n\n{title or '产物已生成'}"}},
         {"tag": "hr"},
     ]
+    valid_count = 0
     for a in (artifacts or [])[:6]:
         kind = a.get("kind", "")
-        url = a.get("url", "") or a.get("uri", "")
-        ttl = a.get("title", "")
-        emoji = {"doc": "📄", "canvas": "🎨", "slide": "📊"}.get(kind, "📦")
+        url = (a.get("url") or a.get("uri") or "").strip()
+        ttl = a.get("title", "") or kind
+        if not url:
+            continue  # 过滤空 URL，避免飞书卡片出现 [](　) 这种空链接
+        valid_count += 1
+        emoji = {"doc": "📄", "canvas": "🎨", "slide": "📊", "tts": "🔊"}.get(kind, "📦")
+        kind_cn = {"doc": "文档", "canvas": "画布", "slide": "演示稿", "tts": "语音"}.get(kind, kind)
         elements.append({"tag": "div", "text": {"tag": "lark_md",
-                                                "content": f"{emoji} **{kind}** {ttl}：[{url}]({url})"}})
+                                                "content": f"{emoji} **{kind_cn}** {ttl}：[打开]({url})"}})
+    if valid_count == 0:
+        elements.append({"tag": "div", "text": {"tag": "lark_md",
+                                                "content": "_（产物列表暂时为空，请稍候或查看 dashboard 进度）_"}})
+
+    actions: list[dict[str, Any]] = []
     if share_url:
-        elements.append({"tag": "action", "actions": [
-            {"tag": "button", "text": {"tag": "plain_text", "content": "🔗 打开分享链接"},
-             "type": "primary", "url": share_url},
-            _btn("📁 归档", "pilot.task.archive", task_id),
-        ]})
+        actions.append({
+            "tag": "button",
+            "text": {"tag": "plain_text", "content": "🔗 打开分享链接"},
+            "type": "primary",
+            "url": share_url,
+        })
+    actions.append(_btn("📁 归档", "pilot.task.archive", task_id))
+    elements.append({"tag": "action", "actions": actions})
+
     return {
         "header": {"title": {"tag": "plain_text", "content": "🛬 Agent-Pilot · 任务完成"}, "template": "green"},
         "elements": elements,

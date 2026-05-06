@@ -1,16 +1,13 @@
-"""LLM 客户端 — 多 Provider 抽象层.
+"""LLM 客户端 — V1.5 起锁定 MiniMax-M2.7-highspeed.
 
-支持:
-  - Anthropic (Claude)
-  - OpenAI / 兼容（豆包 / 自部署）
-  - MiniMax
-  - Mock（测试用）
+设计取舍（V1 → V1.5 的批判性收敛）:
+  - V1 时期挂了 anthropic / doubao / openai_compat 三套分支，实际只对 MiniMax 做过线上验证，
+    其他分支等同死代码 → 移除。
+  - 仅保留 MiniMax 的 OpenAI 兼容 endpoint（/v1/chat/completions），不再写多 provider 抽象层。
+  - 通过 `LLM_MOCK=1` 或缺失 `MINIMAX_API_KEY` 触发 mock，保证测试与离线环境可跑。
+  - 重试预算：429/5xx 指数退避，最多 3 次，整体 budget 30s。
 
-设计原则:
-  - chat_stream / chat 均为 async
-  - 工具调用统一为 OpenAI tool_use 格式
-  - 429 / quota 错误自动指数退避（tenacity）
-  - 单一接口 LLMClient，全局单例 default_client()
+公开 API 与 V1 保持兼容，外部调用点仅依赖 `default_client().chat(...)`。
 """
 
 from __future__ import annotations
@@ -22,21 +19,23 @@ import os
 import random
 import time
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator
 
 import httpx
 
 logger = logging.getLogger("pilot.llm.client")
 
-
-# ── 数据 ───────────────────────────────────────────────────────────────────
+DEFAULT_BASE_URL = "https://api.minimaxi.com/v1"
+DEFAULT_MODEL = "MiniMax-M2.7-highspeed"
+RETRY_BUDGET_SEC = 30.0
+RETRY_MAX_ATTEMPTS = 3
 
 
 @dataclass
 class LLMResponse:
-    """统一返回结构（含 Anthropic content list 与 OpenAI 格式兼容字段）."""
+    """统一返回结构（保留 OpenAI / Anthropic 风格的 content list 兼容字段）."""
 
-    content: list[dict[str, Any]]  # [{"type": "text", "text": "..."}, {"type": "tool_use", ...}]
+    content: list[dict[str, Any]]
     text: str = ""
     tool_calls: list[dict[str, Any]] | None = None
     raw: dict[str, Any] | None = None
@@ -44,77 +43,37 @@ class LLMResponse:
     tokens_out: int = 0
 
 
-# ── 客户端实现 ──────────────────────────────────────────────────────────────
-
-
 class LLMClient:
-    """统一 LLM 接口."""
+    """MiniMax-M2.7-highspeed 客户端（OpenAI 兼容协议）."""
 
     def __init__(
         self,
         *,
-        provider: str = "",
         api_key: str = "",
         base_url: str = "",
         model: str = "",
         timeout: float = 120.0,
     ) -> None:
-        self.provider = provider or self._detect_provider()
-        self.api_key = api_key or self._guess_api_key()
-        self.base_url = base_url or self._guess_base_url()
-        self.model = model or self._guess_model()
+        self.api_key = api_key or os.getenv("MINIMAX_API_KEY", "")
+        self.base_url = (base_url or os.getenv("MINIMAX_API_HOST", DEFAULT_BASE_URL)).rstrip("/")
+        if not self.base_url.endswith("/v1"):
+            self.base_url = f"{self.base_url}/v1"
+        self.model = model or os.getenv("MINIMAX_MODEL", DEFAULT_MODEL)
         self.timeout = timeout
+        self.provider = "minimax"  # 兼容历史代码读取 .provider
         self._http: httpx.AsyncClient | None = None
-
-    @staticmethod
-    def _detect_provider() -> str:
-        """Auto-detect available LLM provider from env vars."""
-        explicit = os.getenv("LLM_DEFAULT_PROVIDER", "").strip().lower()
-        if explicit:
-            return explicit
-        if os.getenv("MINIMAX_API_KEY"):
-            return "minimax"
-        if os.getenv("ANTHROPIC_API_KEY"):
-            return "anthropic"
-        if os.getenv("DOUBAO_API_KEY"):
-            return "doubao"
-        if os.getenv("OPENAI_API_KEY") or os.getenv("LLM_API_KEY"):
-            return "openai"
-        return "minimax"
-
-    def _guess_api_key(self) -> str:
-        if self.provider == "anthropic":
-            return os.getenv("ANTHROPIC_API_KEY", "")
-        if self.provider == "minimax":
-            return os.getenv("MINIMAX_API_KEY", "")
-        if self.provider == "doubao":
-            return os.getenv("DOUBAO_API_KEY", "")
-        return os.getenv("LLM_API_KEY", "")
-
-    def _guess_base_url(self) -> str:
-        if self.provider == "anthropic":
-            return os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
-        if self.provider == "doubao":
-            return os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
-        if self.provider == "minimax":
-            return "https://api.minimax.chat"
-        return ""
-
-    def _guess_model(self) -> str:
-        if self.provider == "anthropic":
-            return os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
-        if self.provider == "minimax":
-            return os.getenv("MINIMAX_MODEL", "MiniMax-Text-01")
-        if self.provider == "doubao":
-            return os.getenv("DOUBAO_MODEL", "doubao-1-5-pro-32k-250115")
-        return ""
 
     async def _http_client(self) -> httpx.AsyncClient:
         if self._http is None:
             self._http = httpx.AsyncClient(timeout=self.timeout)
         return self._http
 
-    # ── chat (non-stream) ──
+    @property
+    def is_mock(self) -> bool:
+        if os.getenv("LLM_MOCK", "").lower() in ("1", "true", "yes"):
+            return True
+        return not self.api_key
+
     async def chat(
         self,
         *,
@@ -123,59 +82,54 @@ class LLMClient:
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.5,
         max_tokens: int = 4096,
-        provider_override: str = "",
+        response_format: dict[str, Any] | None = None,
+        provider_override: str = "",  # 保留参数签名但忽略，V1.5 仅 MiniMax
     ) -> dict[str, Any]:
-        """统一 chat 接口，返回 dict（含 content list）."""
-        provider = (provider_override or self.provider).lower()
+        """统一 chat 接口，返回 dict（含 content list / text / tool_calls）."""
+        if provider_override and provider_override.lower() != "minimax":
+            logger.debug("provider_override=%s ignored (V1.5 MiniMax-only)", provider_override)
 
-        if not self.api_key:
+        if self.is_mock:
             return await self._mock_chat(system=system, messages=messages or [], tools=tools or [])
 
-        for attempt in range(3):
+        deadline = time.monotonic() + RETRY_BUDGET_SEC
+        last_exc: Exception | None = None
+        for attempt in range(RETRY_MAX_ATTEMPTS):
+            if time.monotonic() > deadline:
+                break
             try:
-                if provider == "anthropic":
-                    return await self._chat_anthropic(system, messages or [], tools, temperature, max_tokens)
-                if provider == "minimax":
-                    return await self._chat_minimax(system, messages or [], tools, temperature, max_tokens)
-                if provider == "doubao":
-                    return await self._chat_openai_compat(
-                        base_url=self.base_url,
-                        api_key=self.api_key,
-                        model=self.model,
-                        system=system,
-                        messages=messages or [],
-                        tools=tools,
-                        temperature=temperature,
-                        max_tokens=max_tokens,
-                    )
-                # 默认 OpenAI 兼容
-                return await self._chat_openai_compat(
-                    base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-                    api_key=self.api_key,
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+                return await self._chat_minimax(
                     system=system,
                     messages=messages or [],
                     tools=tools,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    response_format=response_format,
                 )
             except httpx.HTTPStatusError as e:
-                code = e.response.status_code if e.response else 0
+                code = e.response.status_code if e.response is not None else 0
+                last_exc = e
                 if code == 429 or 500 <= code < 600:
-                    sleep = (2 ** attempt) + random.random()
-                    logger.warning("LLM %s status=%d; retry in %.1fs", provider, code, sleep)
+                    sleep = min(2 ** attempt + random.random(), max(0.0, deadline - time.monotonic()))
+                    logger.warning("MiniMax %d retry %d/%d in %.1fs", code, attempt + 1, RETRY_MAX_ATTEMPTS, sleep)
+                    if sleep <= 0:
+                        break
                     await asyncio.sleep(sleep)
                     continue
-                logger.error("LLM %s status=%d body=%s", provider, code, e.response.text[:200])
+                body_preview = e.response.text[:200] if e.response is not None else ""
+                logger.error("MiniMax fatal status=%d body=%s", code, body_preview)
                 raise
-            except Exception as e:
-                logger.warning("LLM %s attempt %d failed: %s", provider, attempt + 1, e)
-                if attempt < 2:
-                    await asyncio.sleep((2 ** attempt) + random.random())
-                else:
-                    raise
+            except (httpx.TimeoutException, httpx.TransportError) as e:
+                last_exc = e
+                sleep = min(2 ** attempt + random.random(), max(0.0, deadline - time.monotonic()))
+                logger.warning("MiniMax network attempt %d failed: %s; retry in %.1fs", attempt + 1, e, sleep)
+                if sleep <= 0:
+                    break
+                await asyncio.sleep(sleep)
 
-        raise RuntimeError("LLM chat failed after 3 retries")
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("MiniMax chat exhausted retry budget")
 
     async def chat_stream(
         self,
@@ -185,10 +139,7 @@ class LLMClient:
         tools: list[dict[str, Any]] | None = None,
         temperature: float = 0.5,
     ) -> AsyncIterator[dict[str, Any]]:
-        """流式接口（占位实现：拆 chat 为单 chunk）.
-
-        生产中应直接调用 Anthropic / OpenAI 的 SSE，这里先用非流式包装。
-        """
+        """流式接口（占位实现：拆 chat 为单 chunk）."""
         result = await self.chat(
             system=system,
             messages=messages,
@@ -198,128 +149,43 @@ class LLMClient:
         for block in result.get("content", []):
             yield block
 
-    # ── Anthropic ──
-    async def _chat_anthropic(
-        self,
-        system: str,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None,
-        temperature: float,
-        max_tokens: int,
-    ) -> dict[str, Any]:
-        url = f"{self.base_url}/v1/messages"
-        headers = {
-            "x-api-key": self.api_key,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-        body: dict[str, Any] = {
-            "model": self.model,
-            "system": system,
-            "messages": _to_anthropic_messages(messages),
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        if tools:
-            body["tools"] = _to_anthropic_tools(tools)
-
-        client = await self._http_client()
-        r = await client.post(url, json=body, headers=headers)
-        r.raise_for_status()
-        data = r.json()
-        usage = data.get("usage", {}) or {}
-        return {
-            "content": data.get("content", []),
-            "tokens_in": usage.get("input_tokens", 0),
-            "tokens_out": usage.get("output_tokens", 0),
-            "raw": data,
-        }
-
-    # ── OpenAI 兼容 ──
-    async def _chat_openai_compat(
+    async def _chat_minimax(
         self,
         *,
-        base_url: str,
-        api_key: str,
-        model: str,
         system: str,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None,
         temperature: float,
         max_tokens: int,
+        response_format: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        url = f"{base_url}/chat/completions"
+        url = f"{self.base_url}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {api_key}",
+            "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        msgs = [{"role": "system", "content": system}] + _to_openai_messages(messages)
+        msgs: list[dict[str, Any]] = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.extend(_to_openai_messages(messages))
+
         body: dict[str, Any] = {
-            "model": model,
+            "model": self.model,
             "messages": msgs,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
         if tools:
             body["tools"] = _to_openai_tools(tools)
+        if response_format:
+            body["response_format"] = response_format
 
         client = await self._http_client()
         r = await client.post(url, json=body, headers=headers)
         r.raise_for_status()
         data = r.json()
-        choice = (data.get("choices") or [{}])[0]
-        message = choice.get("message", {}) or {}
-        text = message.get("content") or ""
-        tool_calls = message.get("tool_calls") or []
+        return _parse_openai_response(data)
 
-        content_blocks: list[dict[str, Any]] = []
-        if text:
-            content_blocks.append({"type": "text", "text": text})
-        for tc in tool_calls:
-            fn = tc.get("function", {})
-            try:
-                inp = json.loads(fn.get("arguments", "{}"))
-            except Exception:
-                inp = {"_raw": fn.get("arguments", "")}
-            content_blocks.append({
-                "type": "tool_use",
-                "id": tc.get("id", ""),
-                "name": fn.get("name", ""),
-                "input": inp,
-            })
-
-        usage = data.get("usage", {}) or {}
-        return {
-            "content": content_blocks,
-            "text": text,
-            "tool_calls": tool_calls,
-            "tokens_in": usage.get("prompt_tokens", 0),
-            "tokens_out": usage.get("completion_tokens", 0),
-            "raw": data,
-        }
-
-    # ── MiniMax ──
-    async def _chat_minimax(
-        self,
-        system: str,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None,
-        temperature: float,
-        max_tokens: int,
-    ) -> dict[str, Any]:
-        # MiniMax v2 兼容 OpenAI Chat 格式
-        return await self._chat_openai_compat(
-            base_url=f"{self.base_url}/v1",
-            api_key=self.api_key,
-            model=self.model,
-            system=system,
-            messages=messages,
-            tools=tools,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-
-    # ── Mock（无 key 时回退）──
     async def _mock_chat(
         self,
         *,
@@ -329,11 +195,11 @@ class LLMClient:
     ) -> dict[str, Any]:
         last_user = ""
         for m in reversed(messages):
-            if m.get("role") == "user" and isinstance(m.get("content"), str):
-                last_user = m["content"]
+            content = m.get("content", "")
+            if m.get("role") == "user" and isinstance(content, str):
+                last_user = content
                 break
 
-        # 如果工具集中有 doc.create 等，模拟一次工具调用
         if tools:
             tool_name = tools[0].get("name", "doc.create")
             return {
@@ -346,15 +212,18 @@ class LLMClient:
                         "input": {"title": last_user[:30] or "[Agent-Pilot] mock"},
                     },
                 ],
+                "text": f"[mock] {last_user[:60]}",
+                "tool_calls": [],
                 "tokens_in": 100,
                 "tokens_out": 50,
                 "raw": {"_mock": True},
             }
 
+        text = f"[mock] 你说: {last_user[:80]}（请配置 MINIMAX_API_KEY 走真实 LLM）"
         return {
-            "content": [
-                {"type": "text", "text": f"[mock] 你说: {last_user[:80]}（这是 LLM 兜底回复，请配置 API key）"},
-            ],
+            "content": [{"type": "text", "text": text}],
+            "text": text,
+            "tool_calls": [],
             "tokens_in": 50,
             "tokens_out": 20,
             "raw": {"_mock": True},
@@ -366,53 +235,45 @@ class LLMClient:
             self._http = None
 
 
-# ── 辅助：消息 / 工具格式转换 ───────────────────────────────────────────────
-
-
-def _to_anthropic_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """OpenAI/通用消息 → Anthropic content list."""
-    out = []
-    for m in messages:
-        role = m.get("role", "user")
-        content = m.get("content", "")
-        if role == "system":
-            continue  # Anthropic 用顶层 system
-        if isinstance(content, str):
-            out.append({"role": role, "content": [{"type": "text", "text": content}]})
-        else:
-            out.append({"role": role, "content": content})
-    return out
-
-
 def _to_openai_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    out = []
+    """通用消息 → OpenAI/MiniMax 兼容消息."""
+    out: list[dict[str, Any]] = []
     for m in messages:
         role = m.get("role", "user")
         if role == "tool":
+            content = m.get("content", "")
+            if not isinstance(content, str):
+                content = json.dumps(content, ensure_ascii=False)
             out.append({
                 "role": "tool",
-                "tool_call_id": m.get("tool_use_id", ""),
-                "content": json.dumps(m.get("content", "")) if not isinstance(m.get("content"), str) else m.get("content"),
+                "tool_call_id": m.get("tool_use_id", "") or m.get("tool_call_id", ""),
+                "content": content,
             })
-        else:
-            out.append({"role": role, "content": m.get("content", "")})
-    return out
+            continue
 
-
-def _to_anthropic_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    out = []
-    for t in tools:
-        out.append({
-            "name": t.get("name", ""),
-            "description": t.get("description", ""),
-            "input_schema": t.get("input_schema", {"type": "object", "properties": {}}),
-        })
+        content = m.get("content", "")
+        if isinstance(content, list):
+            joined: list[str] = []
+            for blk in content:
+                if isinstance(blk, dict):
+                    if blk.get("type") == "text":
+                        joined.append(blk.get("text", ""))
+                    elif blk.get("type") == "tool_use":
+                        joined.append(f"[tool_use {blk.get('name', '')} {json.dumps(blk.get('input', {}), ensure_ascii=False)}]")
+                else:
+                    joined.append(str(blk))
+            content = "\n".join(t for t in joined if t)
+        out.append({"role": role, "content": content})
     return out
 
 
 def _to_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    out = []
+    """统一工具 schema → OpenAI 函数调用格式."""
+    out: list[dict[str, Any]] = []
     for t in tools:
+        if "function" in t and "type" in t:
+            out.append(t)
+            continue
         out.append({
             "type": "function",
             "function": {
@@ -424,7 +285,37 @@ def _to_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-# ── 全局单例 ──
+def _parse_openai_response(data: dict[str, Any]) -> dict[str, Any]:
+    choice = (data.get("choices") or [{}])[0]
+    message = choice.get("message", {}) or {}
+    text = message.get("content") or ""
+    tool_calls = message.get("tool_calls") or []
+
+    blocks: list[dict[str, Any]] = []
+    if text:
+        blocks.append({"type": "text", "text": text})
+    for tc in tool_calls:
+        fn = tc.get("function", {}) or {}
+        try:
+            inp = json.loads(fn.get("arguments", "{}"))
+        except Exception:
+            inp = {"_raw": fn.get("arguments", "")}
+        blocks.append({
+            "type": "tool_use",
+            "id": tc.get("id", ""),
+            "name": fn.get("name", ""),
+            "input": inp,
+        })
+
+    usage = data.get("usage", {}) or {}
+    return {
+        "content": blocks,
+        "text": text,
+        "tool_calls": tool_calls,
+        "tokens_in": usage.get("prompt_tokens", 0),
+        "tokens_out": usage.get("completion_tokens", 0),
+        "raw": data,
+    }
 
 
 _default: LLMClient | None = None
@@ -438,6 +329,7 @@ def default_client() -> LLMClient:
 
 
 def get_client(provider: str = "") -> LLMClient:
-    if not provider:
-        return default_client()
-    return LLMClient(provider=provider)
+    """保留签名兼容历史调用；V1.5 起强制返回 MiniMax 单例."""
+    if provider and provider.lower() != "minimax":
+        logger.debug("get_client(provider=%s) ignored (V1.5 MiniMax-only)", provider)
+    return default_client()

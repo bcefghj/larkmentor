@@ -30,6 +30,8 @@ def test_session_create():
 def test_task_state_transition():
     t = Task(intent="帮我写个文档")
     assert t.state == TaskState.SUGGESTED
+    # V1.5：必须按 LEGAL_TRANSITIONS 走合法路径
+    t.transition(TaskState.ASSIGNED)
     t.transition(TaskState.PLANNING)
     assert t.state == TaskState.PLANNING
     t.lock_owner("ou_xxx")
@@ -60,41 +62,53 @@ async def test_intent_explicit_pilot():
 
 
 @pytest.mark.asyncio
-async def test_intent_not_intent():
+async def test_intent_chat_not_silent_for_smalltalk():
+    """V1.5 业务变更：闲聊不沉默，给友好回复（绝不沉默原则）."""
     router = IntentRouter()
     msg = ChatMessage(sender_open_id="u1", text="今天天气真好啊", chat_id="c1")
     r = await router.detect([msg])
-    assert r.verdict == IntentVerdict.NOT_INTENT
+    assert r.verdict == IntentVerdict.CHAT
+    assert r.chat_reply  # 一定有回复文本
 
 
 @pytest.mark.asyncio
 async def test_intent_clarify_when_no_llm():
+    """信息不足且无 LLM 判定时走 NEEDS_CLARIFY，避免空启 plan."""
     router = IntentRouter()
     msg = ChatMessage(sender_open_id="u1", text="帮我做个 PPT", chat_id="c1")
     r = await router.detect([msg])
-    # 没 LLM 判断器，规则命中 → NEEDS_CLARIFY
     assert r.verdict == IntentVerdict.NEEDS_CLARIFY
     assert len(r.clarify_questions) >= 1
 
 
 @pytest.mark.asyncio
-async def test_intent_ready_with_full_info():
-    async def fake_llm(text, history):
-        return LLMJudgement(
-            is_task=True,
-            task_type="report",
-            goal="AI Agent 发展趋势",
-            resources=["文档"],
-            next_step="生成文档",
-            confidence=0.9,
-        )
-
-    router = IntentRouter(llm_judge=fake_llm)
+async def test_intent_ready_short_circuit_when_info_rich():
+    """信息充分（form 词 + 主题 + 长度）时闸门 3 短路 READY，不必走 LLM."""
+    router = IntentRouter()  # 不注入 LLM 也应 READY
     msg = ChatMessage(
         sender_open_id="u1",
         text="帮我写一份关于 AI Agent 发展趋势的报告，给老板看",
         chat_id="c1",
     )
+    r = await router.detect([msg])
+    assert r.verdict == IntentVerdict.READY
+
+
+@pytest.mark.asyncio
+async def test_intent_llm_judge_overrides_when_short_text():
+    """短文本 + 弱信号 → 走闸门 4，LLM 给出 ready 直接 READY."""
+    async def fake_llm(text, history):
+        return LLMJudgement(
+            verdict="ready",
+            is_task=True,
+            task_type="report",
+            goal="AI Agent",
+            summary="AI Agent 报告",
+            confidence=0.9,
+        )
+
+    router = IntentRouter(llm_judge=fake_llm)
+    msg = ChatMessage(sender_open_id="u1", text="搞个东西", chat_id="c1")
     r = await router.detect([msg])
     assert r.verdict == IntentVerdict.READY
     assert r.llm_judgement is not None
@@ -134,6 +148,28 @@ def test_plan_with_llm_fn():
     assert len(p.steps) == 2
     assert p.steps[0].tool == "doc.create"
     assert p.steps[1].tool == "archive.bundle"
+
+
+def test_plan_timely_keyword_triggers_web_search():
+    """V1.5：意图含"今年/最新"等时效词，启发式自动插 web.search 第 0 步."""
+    p = plan_from_intent("今年最新 AI Agent 趋势汇报 PPT")
+    tools = [s.tool for s in p.steps]
+    assert tools[0] == "web.search"
+    # slide.generate 接收 ${s1.results} 参数
+    slide_step = next(s for s in p.steps if s.tool == "slide.generate")
+    assert slide_step.args.get("search_results") == "${s1.results}"
+
+
+def test_plan_meta_forces_web_search_even_without_timely():
+    """meta.needs_web_search=True 强制注入 web.search."""
+    p = plan_from_intent("产品方案", meta={"needs_web_search": True})
+    assert any(s.tool == "web.search" for s in p.steps)
+
+
+def test_plan_no_web_search_when_no_timely():
+    """普通意图不应自动插 web.search，避免无谓联网."""
+    p = plan_from_intent("帮我写一份产品方案")
+    assert not any(s.tool == "web.search" for s in p.steps)
 
 
 # ── Orchestrator ─────────────────────────────────────────────────────────────

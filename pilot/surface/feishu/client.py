@@ -290,10 +290,99 @@ class FeishuClient:
             })
         return out
 
+    # ── Drive 文档检索 ──
+    async def drive_search(self, *, query: str, count: int = 10) -> list[dict[str, Any]]:
+        """检索用户云文档（POST /drive/v1/files/search）.
+
+        返回 [{token, name, type, url}] 简化结构。
+        """
+        token = await self._ensure_token()
+        client = await self._client()
+        try:
+            r = await client.post(
+                f"{self.BASE_URL}/drive/v1/files/search",
+                headers=self._headers(token),
+                json={"query": query, "count": min(int(count), 50)},
+            )
+            data = r.json()
+        except Exception as e:
+            logger.warning("drive_search failed: %s", e)
+            return []
+        items = (data.get("data") or {}).get("files", []) or []
+        out = []
+        for it in items:
+            tk = it.get("token") or it.get("doc_token") or ""
+            ttype = it.get("type") or "doc"
+            url = it.get("url") or _fmt_drive_url(tk, ttype)
+            out.append({
+                "token": tk,
+                "name": it.get("name", ""),
+                "type": ttype,
+                "url": url,
+            })
+        return out
+
+    # ── Bitable（多维表格）记录检索 ──
+    async def bitable_search(
+        self,
+        *,
+        app_token: str = "",
+        table_id: str = "",
+        query: str = "",
+        page_size: int = 20,
+    ) -> list[dict[str, Any]]:
+        """检索 bitable 记录（POST /bitable/v1/apps/{app}/tables/{table}/records/search）.
+
+        参数缺失时返回空列表（不抛）；上层调用方可根据 query 自动选 default app。
+        """
+        app_token = app_token or os.getenv("FEISHU_BITABLE_APP_TOKEN", "")
+        if not app_token or not table_id:
+            return []
+        token = await self._ensure_token()
+        client = await self._client()
+        try:
+            body: dict[str, Any] = {"page_size": min(int(page_size), 100)}
+            if query:
+                body["filter"] = {
+                    "conjunction": "or",
+                    "conditions": [{"operator": "contains", "value": [query]}],
+                }
+            r = await client.post(
+                f"{self.BASE_URL}/bitable/v1/apps/{app_token}/tables/{table_id}/records/search",
+                headers=self._headers(token),
+                json=body,
+            )
+            data = r.json()
+        except Exception as e:
+            logger.warning("bitable_search failed: %s", e)
+            return []
+        items = (data.get("data") or {}).get("items", []) or []
+        return [
+            {
+                "record_id": it.get("record_id", ""),
+                "fields": it.get("fields", {}) or {},
+            }
+            for it in items
+        ]
+
     async def aclose(self) -> None:
         if self._http:
             await self._http.aclose()
             self._http = None
+
+
+def _fmt_drive_url(token: str, type_: str) -> str:
+    if not token:
+        return ""
+    if type_ in ("docx",):
+        return f"https://feishu.cn/docx/{token}"
+    if type_ == "doc":
+        return f"https://feishu.cn/doc/{token}"
+    if type_ == "sheet":
+        return f"https://feishu.cn/sheets/{token}"
+    if type_ == "bitable":
+        return f"https://feishu.cn/base/{token}"
+    return f"https://feishu.cn/file/{token}"
 
 
 _default: FeishuClient | None = None

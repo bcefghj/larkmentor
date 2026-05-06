@@ -1,0 +1,20 @@
+[Unit]
+Description=Agent-Pilot · Feishu Bot (V1.5)
+After=network-online.target redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/agent-pilot
+EnvironmentFile=/opt/agent-pilot/.env
+ExecStart=/opt/agent-pilot/.venv/bin/python -m pilot.surface.feishu.bot
+Restart=always
+RestartSec=5
+StandardOutput=append:/opt/agent-pilot/logs/bot.log
+StandardError=append:/opt/agent-pilot/logs/bot.log
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
