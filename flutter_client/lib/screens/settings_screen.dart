@@ -45,7 +45,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             TextField(
               controller: _ctrl,
               decoration: const InputDecoration(
-                hintText: 'http://118.178.242.26',
+                hintText: 'http://8.136.98.175',
                 border: OutlineInputBorder(),
               ),
             ),

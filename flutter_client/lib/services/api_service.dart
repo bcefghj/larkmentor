@@ -8,7 +8,7 @@ class ApiService {
 
   String baseUrl = const String.fromEnvironment(
     'AGENT_PILOT_BASE_URL',
-    defaultValue: 'http://118.178.242.26',
+    defaultValue: 'http://8.136.98.175',
   );
 
   Future<void> bootstrap() async {

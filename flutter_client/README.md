@@ -11,15 +11,15 @@ flutter create . --platforms=macos,android,ios,web   # 第一次需要
 
 # Web（最快验证）
 flutter run -d chrome \
-  --dart-define=AGENT_PILOT_BASE_URL=http://118.178.242.26
+  --dart-define=AGENT_PILOT_BASE_URL=http://8.136.98.175
 
 # macOS 桌面端
 flutter run -d macos \
-  --dart-define=AGENT_PILOT_BASE_URL=http://118.178.242.26
+  --dart-define=AGENT_PILOT_BASE_URL=http://8.136.98.175
 
 # Android APK
 flutter build apk \
-  --dart-define=AGENT_PILOT_BASE_URL=http://118.178.242.26
+  --dart-define=AGENT_PILOT_BASE_URL=http://8.136.98.175
 ```
 
 ## 功能
@@ -27,7 +27,7 @@ flutter build apk \
 - **主页**：服务健康 / 工具数 / 5 层架构概览
 - **任务**：从 `/api/sessions` 拉取最近 50 条
 - **多端**：连 `/sync/ws/<room_id>`，与 Web Dashboard 同房间双向广播
-- **设置**：切换服务器地址（默认 `http://118.178.242.26`）
+- **设置**：切换服务器地址（默认 `http://8.136.98.175`）
 
 ## 架构
 
