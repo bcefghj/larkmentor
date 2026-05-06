@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import random
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, AsyncIterator
@@ -285,11 +286,25 @@ def _to_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def _strip_thinking(text: str) -> tuple[str, str]:
+    """移除 MiniMax M2.7 的 <think>...</think> 推理标签，保留实际回复。
+
+    Returns:
+        (clean_text, thinking_content)
+    """
+    m = re.search(r'<think>([\s\S]*?)</think>', text)
+    thinking = m.group(1).strip() if m else ""
+    stripped = re.sub(r'<think>[\s\S]*?</think>\s*', '', text)
+    return stripped.strip(), thinking
+
+
 def _parse_openai_response(data: dict[str, Any]) -> dict[str, Any]:
     choice = (data.get("choices") or [{}])[0]
     message = choice.get("message", {}) or {}
-    text = message.get("content") or ""
+    raw_text = message.get("content") or ""
     tool_calls = message.get("tool_calls") or []
+
+    text, thinking = _strip_thinking(raw_text) if raw_text else ("", "")
 
     blocks: list[dict[str, Any]] = []
     if text:
@@ -308,13 +323,16 @@ def _parse_openai_response(data: dict[str, Any]) -> dict[str, Any]:
         })
 
     usage = data.get("usage", {}) or {}
+    raw = dict(data)
+    if thinking:
+        raw["thinking"] = thinking
     return {
         "content": blocks,
         "text": text,
         "tool_calls": tool_calls,
         "tokens_in": usage.get("prompt_tokens", 0),
         "tokens_out": usage.get("completion_tokens", 0),
-        "raw": data,
+        "raw": raw,
     }
 
 

@@ -25,6 +25,15 @@ from typing import Any
 logger = logging.getLogger("pilot.surface.feishu.bot")
 
 
+def _run_async(coro):
+    """在新线程的独立 event loop 中运行协程，避免 lark-oapi ws 线程的 loop 冲突。"""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 JUDGE_PROMPT = (
     "你是飞书办公助手 Agent-Pilot 的意图分类器。\n"
     "分类规则：\n"
@@ -155,33 +164,133 @@ def run() -> None:
         chat_id: str,
         sender_open_id: str,
         needs_web_search: bool = False,
+        task_type: str = "",
         **kwargs: Any,
     ) -> dict[str, Any]:
-        plan = plan_from_intent(
-            intent,
-            user_open_id=sender_open_id,
-            meta={"needs_web_search": needs_web_search},
-        )
+        """启动 Multi-Agent Pipeline（替代旧 Orchestrator）."""
+        import uuid
+
+        plan_id = f"plan_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+
+        # 判断任务类型
+        if not task_type:
+            lower = intent.lower()
+            if any(w in lower for w in ("三件套", "trio", "文档+ppt", "文档+演示")):
+                task_type = "trio"
+            elif any(w in lower for w in ("ppt", "演示", "幻灯", "slide")):
+                task_type = "ppt"
+            elif any(w in lower for w in ("架构图", "画布", "流程图", "canvas", "思维导图")):
+                task_type = "canvas"
+            else:
+                task_type = "doc"
+
+        # 确定 Agent 流水线步骤描述
+        if task_type == "trio":
+            steps_desc = "Planner → Researcher → Writer → Reviewer → 飞书文档 → PPT → 归档"
+        elif task_type == "ppt":
+            steps_desc = "Planner → Researcher → Writer → Reviewer → PPT 组装"
+        elif task_type == "canvas":
+            steps_desc = "Planner → Builder → 画布/架构图"
+        else:
+            steps_desc = "Planner → Researcher → Writer → Reviewer → 飞书文档"
+
         ack = (
-            f"🛫 **Agent-Pilot V1.5 已启动**\n"
-            f"Plan: `{plan.plan_id}`\n"
-            f"意图：{intent[:80]}\n\n"
-            f"📋 计划（共 {len(plan.steps)} 步）：\n"
-            + "\n".join(
-                f"  {i + 1}. [{s.tool}] {s.description}"
-                for i, s in enumerate(plan.steps[:6])
-            )
+            f"🛫 **Agent-Pilot V2.0 Multi-Agent 已启动**\n"
+            f"任务 ID: `{plan_id}`\n"
+            f"意图：{intent[:80]}\n"
+            f"类型：{task_type}\n\n"
+            f"🤖 Agent 流水线：{steps_desc}\n"
         )
-        dash = _public_dashboard_url(plan.plan_id)
+        dash = _public_dashboard_url(plan_id)
         if dash:
-            ack += f"\n\n实时进度：{dash}"
+            ack += f"\n实时进度：{dash}"
 
         def _bg() -> None:
-            asyncio.run(_run_plan_in_bg(plan, chat_id))
+            _run_async(_run_multi_agent_pipeline(
+                intent=intent,
+                task_type=task_type,
+                chat_id=chat_id,
+                sender_open_id=sender_open_id,
+                plan_id=plan_id,
+            ))
 
         threading.Thread(target=_bg, daemon=True).start()
-        return {"plan_id": plan.plan_id, "ack_text": ack}
+        return {"plan_id": plan_id, "ack_text": ack}
 
+    async def _run_multi_agent_pipeline(
+        *,
+        intent: str,
+        task_type: str,
+        chat_id: str,
+        sender_open_id: str,
+        plan_id: str,
+    ) -> None:
+        """Multi-Agent Pipeline 后台执行（替代旧 Orchestrator）."""
+        from pilot.agents.base import AgentState
+        from pilot.agents.pipeline import doc_pipeline, ppt_pipeline, trio_pipeline
+        from pilot.context.event_log import EventLog
+        from pilot.surface.feishu.cards import task_delivered_card
+
+        event_log = EventLog(session_id=plan_id)
+        await event_log.append("pipeline_start", {
+            "plan_id": plan_id,
+            "intent": intent,
+            "task_type": task_type,
+            "agents": ["PlannerAgent", "ResearchAgent", "WriterAgent", "ReviewAgent", "BuilderAgent"],
+        })
+
+        state: AgentState = {
+            "intent": intent,
+            "task_type": task_type,
+            "chat_id": chat_id,
+            "sender_open_id": sender_open_id,
+            "plan_id": plan_id,
+            "outline": [],
+            "research_results": [],
+            "draft_sections": [],
+            "review_feedback": "",
+            "review_pass": False,
+            "artifacts": [],
+            "iteration_count": 0,
+        }
+
+        try:
+            if task_type == "trio":
+                result = await trio_pipeline(state)
+            elif task_type == "ppt":
+                result = await ppt_pipeline(state)
+            else:
+                result = await doc_pipeline(state)
+
+            artifacts = result.get("artifacts", [])
+            await event_log.append("pipeline_done", {
+                "plan_id": plan_id,
+                "task_type": task_type,
+                "artifacts": artifacts,
+                "iterations": result.get("iteration_count", 0),
+                "review_pass": result.get("review_pass", False),
+            })
+
+            card = task_delivered_card(
+                task_id=plan_id,
+                title=intent[:40],
+                artifacts=artifacts,
+            )
+            await feishu.send_card(
+                receive_id=chat_id,
+                card=card,
+                receive_id_type="chat_id" if chat_id.startswith("oc_") else "open_id",
+            )
+        except Exception as e:
+            logger.exception("Multi-Agent pipeline failed: %s", e)
+            await event_log.append("pipeline_error", {"error": str(e)[:500]})
+            await feishu.send_text(
+                receive_id=chat_id,
+                text=f"❌ 任务执行失败：{e}",
+                receive_id_type="chat_id" if chat_id.startswith("oc_") else "open_id",
+            )
+
+    # 保留旧的 _run_plan_in_bg 作为 fallback（canvas 等简单任务仍用旧逻辑）
     async def _run_plan_in_bg(plan, chat_id: str) -> None:
         from pilot.context.event_log import EventLog
         from pilot.surface.feishu.cards import task_delivered_card
@@ -258,7 +367,7 @@ def run() -> None:
             if not text and getattr(message, "message_type", "") == "audio":
                 file_key = (json.loads(message.content) or {}).get("file_key", "")
                 if file_key:
-                    asyncio.run(_voice_transcribe(message_id, file_key, sender_open_id, message.chat_id, chat_type))
+                    _run_async(_voice_transcribe(message_id, file_key, sender_open_id, message.chat_id, chat_type))
                     return
 
             if not text:
@@ -271,7 +380,7 @@ def run() -> None:
             chat_id = message.chat_id if chat_type != "p2p" else sender_open_id
             is_p2p = chat_type == "p2p"
 
-            res = asyncio.run(router.handle_message(
+            res = _run_async(router.handle_message(
                 sender_open_id=sender_open_id,
                 text=text,
                 chat_id=chat_id,
@@ -280,9 +389,9 @@ def run() -> None:
             ))
 
             if res.text_reply:
-                asyncio.run(feishu.reply_text(message_id=message_id, text=res.text_reply))
+                _run_async(feishu.reply_text(message_id=message_id, text=res.text_reply))
             if res.card:
-                asyncio.run(feishu.send_card(
+                _run_async(feishu.send_card(
                     receive_id=chat_id,
                     card=res.card,
                     receive_id_type="chat_id" if chat_type != "p2p" else "open_id",
@@ -319,15 +428,15 @@ def run() -> None:
             action_value = data.event.action.value or {}
             action = action_value.get("action", "")
             open_id = data.event.operator.open_id
-            res = asyncio.run(router.handle_card_action(
+            res = _run_async(router.handle_card_action(
                 actor_open_id=open_id,
                 action=action,
                 value=action_value,
             ))
             if res.text_reply:
-                asyncio.run(feishu.send_text(receive_id=open_id, text=res.text_reply))
+                _run_async(feishu.send_text(receive_id=open_id, text=res.text_reply))
             if res.card:
-                asyncio.run(feishu.send_card(receive_id=open_id, card=res.card))
+                _run_async(feishu.send_card(receive_id=open_id, card=res.card))
 
             return type(data).response_class()({
                 "toast": {"type": "info", "content": "处理中..." if res.handled else "未识别按钮"},
