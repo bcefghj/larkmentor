@@ -1,6 +1,7 @@
 """飞书卡片构造器统一出口."""
 
 from pilot.surface.feishu.cards.builder import (  # noqa: F401
+    chat_reply_card,
     context_confirm_card,
     first_time_welcome_card,
     help_card,
@@ -15,6 +16,7 @@ from pilot.surface.feishu.cards.context_confirm import (  # noqa: F401
 )
 
 __all__ = [
+    "chat_reply_card",
     "context_confirm_card",
     "first_time_welcome_card",
     "help_card",

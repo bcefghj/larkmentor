@@ -103,10 +103,12 @@ class FeishuRouter:
             return await self._handle_command(result.command_kind)
 
         if result.verdict == IntentVerdict.CHAT:
+            from pilot.surface.feishu.cards import chat_reply_card
+            friendly = result.chat_reply or "你好！有什么可以帮你的吗？"
             return RouterResult(
                 handled=True,
                 verdict="chat",
-                text_reply=result.chat_reply or "我在哦～需要帮你做点什么？发`帮助`看示例",
+                card=chat_reply_card(reply=friendly),
             )
 
         if result.verdict == IntentVerdict.NEEDS_CLARIFY:

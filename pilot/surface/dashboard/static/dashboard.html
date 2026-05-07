@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>仪表盘 · Agent-Pilot V1.5</title>
+<title>Agent-Pilot V2.0 Dashboard</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   body { font-family: -apple-system, "PingFang SC", Inter, sans-serif; background: #0a0e27; color: #e2e8f0; }
@@ -14,12 +14,11 @@
   @keyframes slide-in { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .slide-in { animation: slide-in 0.3s ease-out; }
   pre { white-space: pre-wrap; word-break: break-all; }
-  .step-running { background: linear-gradient(90deg, rgba(96,165,250,0.18), transparent); border-left: 3px solid #60a5fa; }
-  .step-done { border-left: 3px solid #34d399; }
-  .step-failed { border-left: 3px solid #f87171; }
-  .step-pending { border-left: 3px solid #475569; opacity: 0.55; }
   .progress-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
   .progress-bar > div { height: 100%; background: linear-gradient(90deg, #60a5fa, #c084fc); transition: width 0.4s ease-out; }
+  .status-running { color: #60a5fa; }
+  .status-succeeded { color: #34d399; }
+  .status-failed { color: #f87171; }
 </style>
 </head>
 <body class="min-h-screen">
@@ -29,8 +28,8 @@
     <div class="flex items-center gap-3">
       <a href="/" class="text-2xl">🛫</a>
       <div>
-        <div class="font-bold gradient-text">Agent-Pilot V1.5 仪表盘</div>
-        <div class="text-xs text-slate-400">plan_id: <span id="plan-id-display">{{PLAN_ID}}</span></div>
+        <div class="font-bold gradient-text">Agent-Pilot V2.0 Dashboard</div>
+        <div class="text-xs text-slate-400">plan_id: <span id="plan-id-display" class="font-mono">{{PLAN_ID}}</span></div>
       </div>
     </div>
     <div class="flex items-center gap-3 text-sm">
@@ -41,120 +40,120 @@
   </div>
 </header>
 
+<!-- 参考 Dify 三段式布局: Result + Detail + Tracing -->
 <main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-4">
-  <aside class="lg:col-span-3 glass rounded-2xl p-4">
-    <h2 class="font-bold mb-3 gradient-text">最近 Sessions</h2>
-    <div id="session-list" class="space-y-2 max-h-[600px] overflow-y-auto"></div>
+
+  <!-- 左栏: Sessions + 任务总结(Result) -->
+  <aside class="lg:col-span-3 space-y-4">
+    <div class="glass rounded-2xl p-4">
+      <h2 class="font-bold mb-3 gradient-text">任务总结</h2>
+      <div id="summary-area" class="text-sm text-slate-300">
+        <div class="text-slate-500">等待任务完成...</div>
+      </div>
+    </div>
+    <div class="glass rounded-2xl p-4">
+      <h2 class="font-bold mb-3 gradient-text">最近任务</h2>
+      <div id="session-list" class="space-y-2 max-h-[400px] overflow-y-auto"></div>
+    </div>
   </aside>
 
+  <!-- 中栏: Tracing（Agent 事件流） -->
   <section class="lg:col-span-6 glass rounded-2xl p-4">
     <div class="flex items-center justify-between mb-2">
-      <h2 class="font-bold gradient-text">执行进度</h2>
-      <span class="text-xs text-slate-400"><span id="step-completed">0</span> / <span id="step-total">0</span> 步完成</span>
+      <h2 class="font-bold gradient-text">Agent 执行追踪</h2>
+      <span class="text-xs text-slate-400">
+        <span id="agent-count">0</span> 个 Agent · <span id="step-completed">0</span> 步完成
+      </span>
     </div>
     <div class="progress-bar mb-4"><div id="progress-fill" style="width: 0%"></div></div>
 
-    <h3 class="font-bold mb-2 text-sm text-slate-400">事件流</h3>
-    <div id="thinking-stream" class="space-y-2 max-h-[480px] overflow-y-auto font-mono text-xs"></div>
+    <div id="thinking-stream" class="space-y-2 max-h-[520px] overflow-y-auto font-mono text-xs"></div>
   </section>
 
+  <!-- 右栏: Detail（产出 + 工具 + 统计） -->
   <aside class="lg:col-span-3 space-y-4">
     <div class="glass rounded-2xl p-4">
-      <h2 class="font-bold mb-3 gradient-text">本次产出</h2>
-      <div id="artifact-list" class="space-y-2 text-xs max-h-[260px] overflow-y-auto">
-        <div class="text-slate-500">_等待第一个产出..._</div>
+      <h2 class="font-bold mb-3 gradient-text">产出物</h2>
+      <div id="artifact-list" class="space-y-2 text-xs max-h-[200px] overflow-y-auto">
+        <div class="text-slate-500">等待产出...</div>
       </div>
     </div>
 
     <div class="glass rounded-2xl p-4">
-      <h2 class="font-bold mb-3 gradient-text">工具调用</h2>
-      <div id="tool-list" class="space-y-1 text-xs max-h-[220px] overflow-y-auto"></div>
+      <h2 class="font-bold mb-3 gradient-text">执行统计</h2>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="text-slate-400">状态</div><div id="stat-status" class="status-running font-bold">运行中</div>
+        <div class="text-slate-400">耗时</div><div id="stat-elapsed" class="font-mono">-</div>
+        <div class="text-slate-400">迭代轮数</div><div id="stat-iterations" class="font-mono">-</div>
+        <div class="text-slate-400">Agent 数</div><div id="stat-agents" class="font-mono">-</div>
+      </div>
+    </div>
+
+    <div class="glass rounded-2xl p-4">
+      <h2 class="font-bold mb-3 gradient-text">工具能力</h2>
+      <div id="tool-list" class="space-y-1 text-xs max-h-[180px] overflow-y-auto"></div>
     </div>
   </aside>
 </main>
 
 <script>
 const planId = (new URLSearchParams(location.search).get("plan_id")) ||
-               document.getElementById("plan-id-display").textContent.replace("{{PLAN_ID}}", "").trim() ||
-               "";
-
+               document.getElementById("plan-id-display").textContent.replace("{{PLAN_ID}}", "").trim() || "";
 document.getElementById("plan-id-display").textContent = planId || "(未指定)";
 
-// ── i18n: 事件 kind 与 工具名 ──
 const KIND_LABELS = {
-  // Multi-Agent Pipeline 事件
-  "pipeline_start":          "🛫 Multi-Agent Pipeline 启动",
-  "pipeline_done":           "🎉 Pipeline 完成",
-  "pipeline_error":          "❌ Pipeline 失败",
-  "agent.start":             "🤖 Agent 开始工作",
-  "agent.done":              "✅ Agent 完成",
-  "agent.revise":            "🔄 Agent 要求修改",
-  // 旧事件（兼容）
-  "plan_start":              "🛫 任务启动",
-  "plan.start":              "🛫 任务启动",
-  "plan_done":               "🎉 任务交付",
-  "plan.done":               "🎉 任务交付",
-  "plan_error":              "❌ 任务失败",
-  "step.start":              "🚀 步骤开始",
-  "step.done":               "✅ 步骤完成",
-  "step.failed":             "❌ 步骤失败",
-  "step.skipped":            "⏭️ 步骤跳过",
-  "user_message":            "🗣️ 用户消息",
-  "assistant_text":          "💬 AI 回复",
-  "tool_result":             "🛠️ 工具返回",
-  "harness.assemble":        "🔧 组装上下文",
-  "harness.llm_call.start":  "🤖 调用 LLM",
-  "harness.llm_call.done":   "✅ LLM 完成",
-  "harness.parse":           "📝 解析响应",
-  "harness.permit":          "🔒 权限检查",
-  "harness.tools.read.start":"🔍 读工具",
-  "harness.tools.write.start":"✍️ 写工具",
-  "harness.feedback":        "🔁 反馈结果",
-  "harness.context_reset":   "🧹 上下文重置",
-  "harness.end":             "🏁 终止判定",
+  "pipeline_start": "🛫 Pipeline 启动",
+  "pipeline_done": "🎉 Pipeline 完成",
+  "pipeline_error": "❌ Pipeline 失败",
+  "pipeline_summary": "📋 任务总结",
+  "agent.start": "🤖 Agent 启动",
+  "agent.done": "✅ Agent 完成",
+  "agent.revise": "🔄 要求修改",
+  "plan_start": "🛫 任务启动",
+  "plan_done": "🎉 任务交付",
+  "plan_error": "❌ 任务失败",
+  "step.start": "🚀 步骤开始",
+  "step.done": "✅ 步骤完成",
+  "step.failed": "❌ 步骤失败",
 };
 
 const TOOL_LABELS = {
-  "doc.create":     "📄 创建飞书文档",
-  "doc.append":     "📝 AI 生成文档内容",
-  "canvas.create":  "🎨 创建画布/架构图",
-  "canvas.add_shape": "✏️ 画布添加形状",
-  "slide.generate": "📊 生成 PPT 大纲与文件",
-  "slide.rehearse": "🎤 生成演讲稿",
-  "voice.transcribe": "🎙️ 语音转文字",
-  "media.tts":      "🔊 文字转语音",
-  "web.search":     "🌐 联网搜索",
-  "archive.bundle": "📦 汇总归档",
-  "im.fetch_thread":"💬 拉取群聊",
-  "lark.im.fetch_thread": "💬 飞书群聊抓取",
-  "lark.doc.search":"🔎 飞书文档检索",
-  "lark.bitable.search": "📊 多维表格检索",
-  "mentor.clarify": "❓ 主动澄清",
-  "mentor.summarize": "📋 结构化总结",
+  "doc.create": "📄 创建飞书文档",
+  "doc.append": "📝 AI 生成文档内容",
+  "slide.generate": "📊 生成 PPT",
+  "web.search": "🌐 联网搜索",
+  "media.tts": "🔊 文字转语音",
 };
 
-function labelOf(kind, fallback="") { return KIND_LABELS[kind] || fallback || kind; }
-function toolLabelOf(name) { return TOOL_LABELS[name] || name; }
+function labelOf(kind) { return KIND_LABELS[kind] || kind; }
+function bjTime(ts) {
+  return new Date(ts * 1000).toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai', hour12: false});
+}
+function bjTimeShort(ts) {
+  return new Date(ts * 1000).toLocaleTimeString('zh-CN', {timeZone: 'Asia/Shanghai', hour12: false});
+}
 
-// ── 状态 ──
-let planStartedAt = null;       // unix sec
-let stepTotal = 0;
+let planStartedAt = null;
+let agentSet = new Set();
 let stepCompleted = 0;
-let receivedKinds = [];
 
 setInterval(() => {
   if (!planStartedAt) return;
   const sec = Math.floor(Date.now() / 1000 - planStartedAt);
   const m = Math.floor(sec / 60);
   const s = sec % 60;
-  document.getElementById("elapsed").textContent = (m > 0 ? `${m}m ` : "") + `${s}s`;
+  const str = (m > 0 ? `${m}m${s}s` : `${s}s`);
+  document.getElementById("elapsed").textContent = str;
+  document.getElementById("stat-elapsed").textContent = str;
 }, 1000);
 
 function updateProgress() {
-  document.getElementById("step-total").textContent = stepTotal;
-  document.getElementById("step-completed").textContent = stepCompleted;
-  const pct = stepTotal > 0 ? Math.min(100, Math.round(stepCompleted / stepTotal * 100)) : 0;
+  const total = Math.max(agentSet.size * 2, stepCompleted + 1);
+  const pct = Math.min(100, Math.round(stepCompleted / total * 100));
   document.getElementById("progress-fill").style.width = pct + "%";
+  document.getElementById("step-completed").textContent = stepCompleted;
+  document.getElementById("agent-count").textContent = agentSet.size;
+  document.getElementById("stat-agents").textContent = agentSet.size;
 }
 
 function pushArtifact(a) {
@@ -166,36 +165,39 @@ function pushArtifact(a) {
   const kind = a.kind || a.type || "artifact";
   const ttl = a.title || kind;
   const emoji = {doc: "📄", canvas: "🎨", slide: "📊", tts: "🔊"}[kind] || "📦";
-  it.href = url;
-  it.target = "_blank";
+  it.href = url; it.target = "_blank";
   it.innerHTML = `<div class="text-blue-200">${emoji} ${ttl}</div><div class="text-slate-500 text-[10px] truncate">${url}</div>`;
   dom.appendChild(it);
 }
 
-// ── Sessions ──
+function setSummary(text) {
+  document.getElementById("summary-area").innerHTML = `<div class="text-green-200">${text}</div>`;
+}
+
+// Sessions
 async function loadSessions() {
   try {
     const list = await fetch("/api/sessions?limit=20").then(r => r.json());
     const dom = document.getElementById("session-list");
     dom.innerHTML = "";
     if (!list.length) {
-      dom.innerHTML = '<div class="text-slate-500 text-sm">暂无 session。在飞书发条消息试试 ✨</div>';
+      dom.innerHTML = '<div class="text-slate-500 text-sm">暂无任务记录</div>';
       return;
     }
     for (const s of list) {
       const card = document.createElement("a");
       card.href = "?plan_id=" + s.session_id;
-      card.className = "block p-2 rounded-lg hover:bg-white/5 slide-in";
+      const isActive = s.session_id === planId;
+      card.className = `block p-2 rounded-lg hover:bg-white/5 slide-in ${isActive ? 'border border-blue-500/30' : ''}`;
       card.innerHTML = `
-        <div class="font-mono text-xs text-blue-300">${(s.session_id||"").slice(0, 24)}</div>
-        <div class="text-xs text-slate-400 mt-1">${s.mode||"-"} · ${s.user_open_id?.slice(-6)||""}</div>
+        <div class="font-mono text-xs ${isActive ? 'text-blue-300' : 'text-slate-400'}">${(s.session_id||"").slice(0, 28)}</div>
       `;
       dom.appendChild(card);
     }
   } catch (e) { console.warn(e); }
 }
 
-// ── Tools ──
+// Tools
 async function loadTools() {
   try {
     const tools = await fetch("/api/tools").then(r => r.json());
@@ -205,21 +207,16 @@ async function loadTools() {
       const it = document.createElement("div");
       it.className = "flex items-center gap-2 p-1 rounded hover:bg-white/5";
       const dot = t.read_only ? "bg-blue-400" : "bg-orange-400";
-      const cn = toolLabelOf(t.name);
-      it.innerHTML = `
-        <span class="w-2 h-2 rounded-full ${dot}"></span>
-        <span class="text-blue-200">${cn}</span>
-        <span class="ml-auto text-slate-500 text-[10px]">${t.read_only ? "读" : "写"}</span>
-      `;
+      const cn = TOOL_LABELS[t.name] || t.name;
+      it.innerHTML = `<span class="w-2 h-2 rounded-full ${dot}"></span><span class="text-blue-200">${cn}</span>`;
       dom.appendChild(it);
     }
   } catch (e) { console.warn(e); }
 }
 
-// ── SSE ──
+// SSE（参考 OpenHarness 标准事件类型）
 function subscribeEvents() {
   if (!planId) return;
-  const dom = document.getElementById("thinking-stream");
   document.getElementById("ws-status").textContent = "实时";
 
   try {
@@ -227,89 +224,70 @@ function subscribeEvents() {
     es.onmessage = (e) => {
       try {
         const evt = JSON.parse(e.data);
-        receivedKinds.push(evt.kind);
+        const dom = document.getElementById("thinking-stream");
 
-        if (evt.kind === "plan_start" || evt.kind === "plan.start") {
+        // Pipeline 生命周期
+        if (evt.kind === "pipeline_start") {
           planStartedAt = evt.ts || Math.floor(Date.now() / 1000);
-          stepTotal = (evt.payload?.steps || []).length || stepTotal;
-          stepCompleted = 0;
-          updateProgress();
+          document.getElementById("stat-status").textContent = "运行中";
+          document.getElementById("stat-status").className = "status-running font-bold";
         }
-        if (evt.kind === "step.done") {
-          stepCompleted += 1;
-          updateProgress();
-          // 工具产出 → artifacts
-          const tool = evt.payload?.tool || "";
-          const r = evt.payload?.result || evt.payload || {};
-          if (tool === "doc.create" || tool === "doc.append") {
-            if (r.url || r.doc_token) pushArtifact({kind: "doc", title: r.title || "飞书文档", url: r.url || ""});
-          } else if (tool === "canvas.create") {
-            if (r.tldraw_url || r.url) pushArtifact({kind: "canvas", title: r.title || "画布", url: r.tldraw_url || r.url});
-          } else if (tool === "slide.generate") {
-            const u = r.pptx_url_absolute || r.pptx_url || "";
-            if (u) pushArtifact({kind: "slide", title: r.title || "演示稿", url: u});
-          } else if (tool === "media.tts") {
-            const u = r.mp3_url_absolute || r.mp3_url || "";
-            if (u) pushArtifact({kind: "tts", title: "语音", url: u});
-          }
-        }
-        if (evt.kind === "plan_done" || evt.kind === "plan.done") {
-          for (const a of (evt.payload?.artifacts || [])) {
-            pushArtifact(a);
-          }
+        if (evt.kind === "pipeline_done") {
+          document.getElementById("stat-status").textContent = "已完成";
+          document.getElementById("stat-status").className = "status-succeeded font-bold";
           document.getElementById("ws-status").textContent = "完成";
+          document.getElementById("stat-iterations").textContent = evt.payload?.iterations || "-";
+          if (evt.payload?.summary) setSummary(evt.payload.summary);
+          for (const a of (evt.payload?.artifacts || [])) pushArtifact(a);
         }
+        if (evt.kind === "pipeline_error") {
+          document.getElementById("stat-status").textContent = "失败";
+          document.getElementById("stat-status").className = "status-failed font-bold";
+        }
+        if (evt.kind === "pipeline_summary") {
+          if (evt.payload?.summary) setSummary(evt.payload.summary);
+        }
+
+        // Agent 事件
+        if (evt.kind === "agent.start") {
+          agentSet.add(evt.payload?.agent || "");
+          updateProgress();
+        }
+        if (evt.kind === "agent.done") {
+          stepCompleted++;
+          updateProgress();
+        }
+
+        // 渲染事件行
+        const tStr = bjTimeShort(evt.ts || Math.floor(Date.now()/1000));
+        const agentName = evt.payload?.agent ? `<span class="text-purple-300">[${evt.payload.agent}]</span>` : "";
+        const detail = evt.payload?.step || evt.payload?.feedback || JSON.stringify(evt.payload || {}).slice(0, 150);
 
         const item = document.createElement("div");
-        item.className = "p-2 rounded slide-in flex gap-2";
-        const t = new Date((evt.ts || Math.floor(Date.now()/1000)) * 1000);
-        const tStr = t.toTimeString().slice(0, 8);
-        const kindColor = {
-          "user_message": "text-cyan-300",
-          "assistant_text": "text-purple-300",
-          "tool_result": "text-emerald-300",
-          "step.start": "text-yellow-300",
-          "step.done": "text-green-300",
-          "step.failed": "text-red-300",
-          "plan_start": "text-blue-300",
-          "plan_done": "text-emerald-300",
-          "plan_error": "text-red-300",
-        }[evt.kind] || "text-slate-400";
-
-        const tool = evt.payload?.tool ? `<span class="text-blue-200 ml-1">${toolLabelOf(evt.payload.tool)}</span>` : "";
-        const detail = JSON.stringify(evt.payload || {}).slice(0, 200);
-
+        item.className = "p-2 rounded slide-in flex gap-2 items-start";
         item.innerHTML = `
-          <span class="text-slate-500">${tStr}</span>
-          <span class="${kindColor}">${labelOf(evt.kind)}</span>
-          ${tool}
+          <span class="text-slate-500 shrink-0">${tStr}</span>
+          <span class="shrink-0">${labelOf(evt.kind)}</span>
+          ${agentName}
           <span class="text-slate-300 truncate">${detail}</span>
         `;
         dom.insertBefore(item, dom.firstChild);
       } catch (err) { console.warn(err); }
     };
-    es.onerror = () => {
-      document.getElementById("ws-status").textContent = "断开重连";
-    };
-    es.addEventListener("heartbeat", () => {
-      document.getElementById("ws-status").textContent = "实时（心跳）";
-    });
+    es.onerror = () => { document.getElementById("ws-status").textContent = "重连中"; };
   } catch (e) { console.warn(e); }
 }
 
-async function loadPlanInfo() {
+function init() {
   if (!planId) {
     document.getElementById("thinking-stream").innerHTML =
-      '<div class="text-slate-500 text-center py-8">请从飞书发送消息触发任务，dashboard 将实时展示 Agent 思维流。<br><br>示例：<code>OpenClaw 三件套</code></div>';
+      '<div class="text-slate-500 text-center py-8">在飞书发送任务即可实时查看 Agent 执行过程<br><br>示例：<code class="text-blue-300">帮我写一份关于 AI Agent 的技术报告</code></div>';
     return;
   }
 }
 
-loadSessions();
-loadTools();
-loadPlanInfo();
-subscribeEvents();
-setInterval(loadSessions, 10000);
+loadSessions(); loadTools(); init(); subscribeEvents();
+setInterval(loadSessions, 15000);
 </script>
 </body>
 </html>

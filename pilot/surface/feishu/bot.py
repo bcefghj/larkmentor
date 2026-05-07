@@ -176,8 +176,11 @@ def run() -> None:
     ) -> dict[str, Any]:
         """启动 Multi-Agent Pipeline（替代旧 Orchestrator）."""
         import uuid
+        from datetime import datetime, timezone, timedelta
 
-        plan_id = f"plan_{int(time.time())}_{uuid.uuid4().hex[:6]}"
+        bjt = timezone(timedelta(hours=8))
+        now = datetime.now(bjt)
+        plan_id = f"plan_{now.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:4]}"
 
         # 判断任务类型
         if not task_type:
@@ -261,6 +264,7 @@ def run() -> None:
             "iteration_count": 0,
         }
 
+        pipeline_start = time.time()
         try:
             if task_type == "trio":
                 result = await trio_pipeline(state)
@@ -269,19 +273,26 @@ def run() -> None:
             else:
                 result = await doc_pipeline(state)
 
+            elapsed_sec = int(time.time() - pipeline_start)
             artifacts = result.get("artifacts", [])
+            summary = result.get("summary", "")  # type: ignore[typeddict-item]
             await event_log.append("pipeline_done", {
                 "plan_id": plan_id,
                 "task_type": task_type,
                 "artifacts": artifacts,
                 "iterations": result.get("iteration_count", 0),
                 "review_pass": result.get("review_pass", False),
+                "summary": summary,
+                "elapsed_sec": elapsed_sec,
             })
 
             card = task_delivered_card(
                 task_id=plan_id,
                 title=intent[:40],
                 artifacts=artifacts,
+                summary=summary,
+                elapsed_sec=elapsed_sec,
+                iterations=result.get("iteration_count", 0),
             )
             await feishu.send_card(
                 receive_id=chat_id,

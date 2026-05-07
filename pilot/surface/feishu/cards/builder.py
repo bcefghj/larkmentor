@@ -128,37 +128,74 @@ def task_delivered_card(
     title: str = "",
     artifacts: list[dict[str, Any]] | None = None,
     share_url: str = "",
+    summary: str = "",
+    elapsed_sec: int = 0,
+    iterations: int = 0,
 ) -> dict[str, Any]:
-    """任务交付卡（PRD §F-13；V1.5 修复：URL 为空跳过避免 [](　) 渲染异常）."""
-    elements: list[dict[str, Any]] = [
-        {"tag": "div", "text": {"tag": "lark_md",
-                                "content": f"**🛬 任务完成**\n\n{title or '产物已生成'}"}},
-        {"tag": "hr"},
-    ]
+    """任务交付卡（参考飞书官方规范 + agent-feishu-channel 审批卡片设计）。
+
+    设计依据:
+    - 飞书规范: 彩色标题(绿色=成功)、组合式组件、备注区灰字
+    - agent-feishu-channel: 按钮组(主要+次要)、状态信息分层
+    - PRD §F-13: 产物链接 + 分享 + 归档
+    """
+    elements: list[dict[str, Any]] = []
+
+    # 任务标题和摘要
+    title_text = f"**{title or '任务已完成'}**"
+    if summary:
+        title_text += f"\n\n{summary}"
+    elements.append({"tag": "div", "text": {"tag": "lark_md", "content": title_text}})
+    elements.append({"tag": "hr"})
+
+    # 产物列表
     valid_count = 0
     for a in (artifacts or [])[:6]:
         kind = a.get("kind", "")
         url = (a.get("url") or a.get("uri") or "").strip()
         ttl = a.get("title", "") or kind
         if not url:
-            continue  # 过滤空 URL，避免飞书卡片出现 [](　) 这种空链接
+            continue
         valid_count += 1
         emoji = {"doc": "📄", "canvas": "🎨", "slide": "📊", "tts": "🔊"}.get(kind, "📦")
         kind_cn = {"doc": "文档", "canvas": "画布", "slide": "演示稿", "tts": "语音"}.get(kind, kind)
         elements.append({"tag": "div", "text": {"tag": "lark_md",
                                                 "content": f"{emoji} **{kind_cn}** {ttl}：[打开]({url})"}})
-    if valid_count == 0:
-        elements.append({"tag": "div", "text": {"tag": "lark_md",
-                                                "content": "_（产物列表暂时为空，请稍候或查看 dashboard 进度）_"}})
 
+    if valid_count == 0:
+        import os
+        dash_base = (os.getenv("DASHBOARD_PUBLIC_BASE") or "").rstrip("/")
+        if dash_base and task_id:
+            dash_url = f"{dash_base}/dashboard?plan_id={task_id}"
+            elements.append({"tag": "div", "text": {"tag": "lark_md",
+                                                    "content": f"📊 [查看 Dashboard 详情]({dash_url})"}})
+        else:
+            elements.append({"tag": "div", "text": {"tag": "lark_md",
+                                                    "content": "_（产物生成中，请稍候查看 Dashboard）_"}})
+
+    # 执行统计（备注区，参考飞书规范的12px灰字）
+    stats_parts = []
+    if elapsed_sec > 0:
+        m, s = divmod(elapsed_sec, 60)
+        stats_parts.append(f"耗时 {m}m{s}s" if m else f"耗时 {s}s")
+    if iterations > 0:
+        stats_parts.append(f"迭代 {iterations} 轮")
+    stats_parts.append(f"任务ID: {task_id}")
+    if stats_parts:
+        elements.append({"tag": "note", "elements": [
+            {"tag": "plain_text", "content": " · ".join(stats_parts)},
+        ]})
+
+    # 按钮组（参考飞书规范: 主要+次要+默认）
     actions: list[dict[str, Any]] = []
     if share_url:
         actions.append({
             "tag": "button",
-            "text": {"tag": "plain_text", "content": "🔗 打开分享链接"},
+            "text": {"tag": "plain_text", "content": "🔗 分享链接"},
             "type": "primary",
             "url": share_url,
         })
+    actions.append(_btn("🔄 重新生成", "pilot.task.regenerate", task_id))
     actions.append(_btn("📁 归档", "pilot.task.archive", task_id))
     elements.append({"tag": "action", "actions": actions})
 
@@ -247,6 +284,19 @@ def first_time_welcome_card() -> dict[str, Any]:
             {"tag": "action", "actions": [
                 {"tag": "button", "text": {"tag": "plain_text", "content": "📖 查看帮助"},
                  "value": {"action": "pilot.help"}, "type": "primary"},
+            ]},
+        ],
+    }
+
+
+def chat_reply_card(*, reply: str) -> dict[str, Any]:
+    """闲聊回复卡片（参考飞书UX准则：用卡片替代纯文本以引导用户行动）。"""
+    return {
+        "header": {"title": {"tag": "plain_text", "content": "💬 Agent-Pilot"}, "template": "blue"},
+        "elements": [
+            {"tag": "div", "text": {"tag": "lark_md", "content": reply}},
+            {"tag": "note", "elements": [
+                {"tag": "plain_text", "content": "💡 试试告诉我你想做什么：写报告、做PPT、画架构图..."},
             ]},
         ],
     }

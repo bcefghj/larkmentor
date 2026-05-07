@@ -92,12 +92,12 @@ async def doc_pipeline(state: AgentState) -> AgentState:
 
     await _emit(event_log, "agent.start", {"agent": "PlannerAgent", "role": "任务规划", "step": "生成结构化大纲"})
 
-    state = await planner.execute(state)
+    state = await planner.safe_execute(state)
     await _emit(event_log, "agent.done", {"agent": "PlannerAgent", "sections": len(state.get("outline", []))})
     logger.info("[doc_pipeline] planner done: %d sections", len(state.get("outline", [])))
 
     await _emit(event_log, "agent.start", {"agent": "ResearchAgent", "role": "联网搜索", "step": "为每章搜索支撑数据"})
-    state = await researcher.execute(state)
+    state = await researcher.safe_execute(state)
     await _emit(event_log, "agent.done", {"agent": "ResearchAgent", "sections_researched": len(state.get("research_results", []))})
     logger.info("[doc_pipeline] researcher done: %d results", len(state.get("research_results", [])))
 
@@ -105,12 +105,12 @@ async def doc_pipeline(state: AgentState) -> AgentState:
         state["iteration_count"] = iteration + 1
 
         await _emit(event_log, "agent.start", {"agent": "WriterAgent", "role": "内容撰写", "step": f"第 {iteration+1} 轮撰写", "iteration": iteration + 1})
-        state = await writer.execute(state)
+        state = await writer.safe_execute(state)
         await _emit(event_log, "agent.done", {"agent": "WriterAgent", "sections_written": len(state.get("draft_sections", []))})
         logger.info("[doc_pipeline] writer iteration %d: %d sections", iteration + 1, len(state.get("draft_sections", [])))
 
         await _emit(event_log, "agent.start", {"agent": "ReviewAgent", "role": "质量审核", "step": f"第 {iteration+1} 轮自评"})
-        state = await reviewer.execute(state)
+        state = await reviewer.safe_execute(state)
         await _emit(event_log, "agent.done", {"agent": "ReviewAgent", "pass": state.get("review_pass"), "feedback": state.get("review_feedback", "")[:100]})
         logger.info("[doc_pipeline] reviewer iteration %d: pass=%s", iteration + 1, state.get("review_pass"))
 
@@ -122,9 +122,12 @@ async def doc_pipeline(state: AgentState) -> AgentState:
             _inject_feedback(state)
 
     await _emit(event_log, "agent.start", {"agent": "BuilderAgent", "role": "组装交付", "step": "写入飞书文档"})
-    state = await builder.execute(state)
+    state = await builder.safe_execute(state)
     await _emit(event_log, "agent.done", {"agent": "BuilderAgent", "artifacts": len(state.get("artifacts", []))})
     logger.info("[doc_pipeline] builder done: %d artifacts", len(state.get("artifacts", [])))
+
+    # 生成任务总结（参考 GenSlide 的 content verification + CrewAI task callback）
+    state = await _generate_summary(state, event_log)
 
     return state
 
@@ -143,20 +146,21 @@ async def ppt_pipeline(state: AgentState) -> AgentState:
 
     logger.info("[ppt_pipeline] start: intent=%s", state.get("intent", "")[:60])
 
-    state = await planner.execute(state)
-    state = await researcher.execute(state)
+    state = await planner.safe_execute(state)
+    state = await researcher.safe_execute(state)
 
     for iteration in range(MAX_REVIEW_ITERATIONS):
         state["iteration_count"] = iteration + 1
-        state = await writer.execute(state)
-        state = await reviewer.execute(state)
+        state = await writer.safe_execute(state)
+        state = await reviewer.safe_execute(state)
 
         if state.get("review_pass"):
             break
         if iteration < MAX_REVIEW_ITERATIONS - 1:
             _inject_feedback(state)
 
-    state = await builder.execute(state)
+    state = await builder.safe_execute(state)
+    state = await _generate_summary(state, None)
     logger.info("[ppt_pipeline] done: %d artifacts", len(state.get("artifacts", [])))
     return state
 
@@ -178,20 +182,21 @@ async def trio_pipeline(state: AgentState) -> AgentState:
 
     logger.info("[trio_pipeline] start: intent=%s", state.get("intent", "")[:60])
 
-    state = await planner.execute(state)
-    state = await researcher.execute(state)
+    state = await planner.safe_execute(state)
+    state = await researcher.safe_execute(state)
 
     for iteration in range(MAX_REVIEW_ITERATIONS):
         state["iteration_count"] = iteration + 1
-        state = await writer.execute(state)
-        state = await reviewer.execute(state)
+        state = await writer.safe_execute(state)
+        state = await reviewer.safe_execute(state)
 
         if state.get("review_pass"):
             break
         if iteration < MAX_REVIEW_ITERATIONS - 1:
             _inject_feedback(state)
 
-    state = await builder.execute(state)
+    state = await builder.safe_execute(state)
+    state = await _generate_summary(state, None)
 
     logger.info("[trio_pipeline] done: %d artifacts", len(state.get("artifacts", [])))
     return state
@@ -220,6 +225,50 @@ async def run_pipeline(state: AgentState) -> AgentState:
         return await trio_pipeline(state)
     else:
         return await doc_pipeline(state)
+
+
+async def _generate_summary(state: AgentState, event_log) -> AgentState:
+    """生成任务总结（参考 GenSlide content verification + CrewAI task callback）。
+
+    用一次 LLM 调用生成 50-100 字的任务执行摘要，写入 state["summary"]。
+    """
+    try:
+        from pilot.llm.client import default_client
+
+        intent = state.get("intent", "")[:100]
+        sections = len(state.get("draft_sections", []))
+        artifacts = len(state.get("artifacts", []))
+        iterations = state.get("iteration_count", 0)
+        task_type = state.get("task_type", "doc")
+
+        prompt = (
+            f"请用一句话（50-100字）总结以下任务的完成情况：\n"
+            f"用户需求：{intent}\n"
+            f"产出类型：{task_type}\n"
+            f"生成章节数：{sections}\n"
+            f"迭代轮数：{iterations}\n"
+            f"产物数量：{artifacts}\n\n"
+            f"直接输出总结，不要多余内容。"
+        )
+
+        client = default_client()
+        result = await client.chat(
+            system="你是任务总结助手，用简洁的一句话概括任务完成情况。",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            max_tokens=200,
+        )
+        summary = result.get("text", "").strip()
+        if summary:
+            state["summary"] = summary  # type: ignore[typeddict-item]
+            if event_log:
+                await _emit(event_log, "pipeline_summary", {"summary": summary})
+            logger.info("[pipeline] summary: %s", summary[:80])
+    except Exception as e:
+        logger.warning("Summary generation failed: %s", e)
+        state["summary"] = f"已完成{state.get('task_type', '')}生成，共{len(state.get('artifacts', []))}个产物"  # type: ignore[typeddict-item]
+
+    return state
 
 
 def _inject_feedback(state: AgentState) -> None:

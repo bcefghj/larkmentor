@@ -31,6 +31,61 @@ DEFAULT_MODEL = "MiniMax-M2.7-highspeed"
 RETRY_BUDGET_SEC = 30.0
 RETRY_MAX_ATTEMPTS = 3
 
+# Circuit Breaker 参数（参考行业标准: 3-5 次失败阈值, 5 分钟窗口）
+CB_FAILURE_THRESHOLD = 5
+CB_RECOVERY_TIMEOUT = 300.0  # 5 minutes
+CB_HALF_OPEN_MAX = 2
+
+
+class CircuitBreaker:
+    """LLM API Circuit Breaker（参考 Harness Engineering + 行业标准）。
+
+    状态机: CLOSED → OPEN → HALF_OPEN → CLOSED
+    - CLOSED: 正常运行，记录失败次数
+    - OPEN: 拒绝请求，等待恢复超时
+    - HALF_OPEN: 允许少量请求试探恢复
+    """
+
+    def __init__(self) -> None:
+        self._failures = 0
+        self._state = "closed"  # closed / open / half_open
+        self._last_failure_time = 0.0
+        self._half_open_attempts = 0
+
+    @property
+    def is_open(self) -> bool:
+        if self._state == "open":
+            if time.time() - self._last_failure_time > CB_RECOVERY_TIMEOUT:
+                self._state = "half_open"
+                self._half_open_attempts = 0
+                logger.info("CircuitBreaker: OPEN → HALF_OPEN (recovery timeout reached)")
+                return False
+            return True
+        return False
+
+    def record_success(self) -> None:
+        if self._state == "half_open":
+            self._state = "closed"
+            self._failures = 0
+            logger.info("CircuitBreaker: HALF_OPEN → CLOSED (success)")
+        elif self._state == "closed":
+            self._failures = max(0, self._failures - 1)
+
+    def record_failure(self) -> None:
+        self._failures += 1
+        self._last_failure_time = time.time()
+        if self._state == "half_open":
+            self._half_open_attempts += 1
+            if self._half_open_attempts >= CB_HALF_OPEN_MAX:
+                self._state = "open"
+                logger.warning("CircuitBreaker: HALF_OPEN → OPEN (too many failures)")
+        elif self._state == "closed" and self._failures >= CB_FAILURE_THRESHOLD:
+            self._state = "open"
+            logger.warning("CircuitBreaker: CLOSED → OPEN (%d failures)", self._failures)
+
+
+_circuit_breaker = CircuitBreaker()
+
 
 @dataclass
 class LLMResponse:
@@ -84,14 +139,25 @@ class LLMClient:
         temperature: float = 0.5,
         max_tokens: int = 4096,
         response_format: dict[str, Any] | None = None,
-        provider_override: str = "",  # 保留参数签名但忽略，V1.5 仅 MiniMax
+        provider_override: str = "",
     ) -> dict[str, Any]:
-        """统一 chat 接口，返回 dict（含 content list / text / tool_calls）."""
+        """统一 chat 接口（含 Circuit Breaker 保护）。"""
         if provider_override and provider_override.lower() != "minimax":
             logger.debug("provider_override=%s ignored (V1.5 MiniMax-only)", provider_override)
 
         if self.is_mock:
             return await self._mock_chat(system=system, messages=messages or [], tools=tools or [])
+
+        if _circuit_breaker.is_open:
+            logger.warning("CircuitBreaker OPEN: returning graceful degradation response")
+            return {
+                "content": [{"type": "text", "text": "(服务暂时不可用，请稍后重试)"}],
+                "text": "(服务暂时不可用，请稍后重试)",
+                "tool_calls": [],
+                "tokens_in": 0,
+                "tokens_out": 0,
+                "raw": {"_circuit_breaker": "open"},
+            }
 
         deadline = time.monotonic() + RETRY_BUDGET_SEC
         last_exc: Exception | None = None
@@ -99,7 +165,7 @@ class LLMClient:
             if time.monotonic() > deadline:
                 break
             try:
-                return await self._chat_minimax(
+                result = await self._chat_minimax(
                     system=system,
                     messages=messages or [],
                     tools=tools,
@@ -107,9 +173,12 @@ class LLMClient:
                     max_tokens=max_tokens,
                     response_format=response_format,
                 )
+                _circuit_breaker.record_success()
+                return result
             except httpx.HTTPStatusError as e:
                 code = e.response.status_code if e.response is not None else 0
                 last_exc = e
+                _circuit_breaker.record_failure()
                 if code == 429 or 500 <= code < 600:
                     sleep = min(2 ** attempt + random.random(), max(0.0, deadline - time.monotonic()))
                     logger.warning("MiniMax %d retry %d/%d in %.1fs", code, attempt + 1, RETRY_MAX_ATTEMPTS, sleep)
@@ -122,6 +191,7 @@ class LLMClient:
                 raise
             except (httpx.TimeoutException, httpx.TransportError) as e:
                 last_exc = e
+                _circuit_breaker.record_failure()
                 sleep = min(2 ** attempt + random.random(), max(0.0, deadline - time.monotonic()))
                 logger.warning("MiniMax network attempt %d failed: %s; retry in %.1fs", attempt + 1, e, sleep)
                 if sleep <= 0:
@@ -287,7 +357,11 @@ def _to_openai_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _strip_thinking(text: str) -> tuple[str, str]:
-    """移除 MiniMax M2.7 的 <think>...</think> 推理标签，保留实际回复。
+    """移除 MiniMax M2.7 的内部标记，保留纯净回复文本。
+
+    处理两类标记：
+    1. <think>...</think> — 推理过程标签
+    2. [TOOL_CALL]...[/TOOL_CALL] — MiniMax 联网搜索内部工具调用标记
 
     Returns:
         (clean_text, thinking_content)
@@ -295,6 +369,8 @@ def _strip_thinking(text: str) -> tuple[str, str]:
     m = re.search(r'<think>([\s\S]*?)</think>', text)
     thinking = m.group(1).strip() if m else ""
     stripped = re.sub(r'<think>[\s\S]*?</think>\s*', '', text)
+    stripped = re.sub(r'\[TOOL_CALL\][\s\S]*?\[/TOOL_CALL\]\s*', '', stripped)
+    stripped = re.sub(r'\[/?TOOL_CALL\]', '', stripped)
     return stripped.strip(), thinking
 
 
