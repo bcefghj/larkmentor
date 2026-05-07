@@ -21,7 +21,8 @@
       <a href="#problem">痛点</a>
       <a href="#pipeline">Pipeline</a>
       <a href="#features">功能</a>
-      <a href="#demo">Demo</a>
+      <a href="#prd">完成情况</a>
+      <a href="/demo.html">Demo</a>
       <a href="#tech">技术</a>
       <a href="#team">团队</a>
       <button class="theme-btn" id="themeToggle" aria-label="Toggle theme">&#9790;</button>
@@ -41,7 +42,7 @@
         文档、PPT、画布 &mdash; 全链路自动化，90 秒内交付。
       </p>
       <div class="cta-row">
-        <a href="#demo" class="btn btn-primary">体验 Live Demo &rarr;</a>
+        <a href="/demo.html" class="btn btn-primary">体验 Live Demo &rarr;</a>
         <a href="/dashboard" class="btn btn-ghost">查看 Dashboard</a>
         <a href="https://github.com/bcefghj/Agent-Pilot" target="_blank" rel="noopener" class="btn btn-ghost">GitHub &nearr;</a>
         <a href="/agent_pilot_report.pdf" class="btn btn-ghost">技术白皮书 PDF</a>
@@ -255,6 +256,103 @@
       <h4>&#128214; 技术白皮书</h4>
       <p>50 页 PDF 完整技术文档</p>
     </a>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- PRD Coverage -->
+<section id="prd" class="container reveal">
+  <h2 class="section-title">比赛要求 &middot; <em>全部完成</em></h2>
+  <p class="section-desc">对照 PRD 必须完成项 + 可选加分项，14/14 场景测试通过（真实 MiniMax API 验证）</p>
+
+  <div class="prd-grid">
+    <div class="prd-card pass">
+      <span class="prd-badge">A</span>
+      <h4>意图/指令入口</h4>
+      <p class="prd-req">IM 群聊/单聊，支持文本触发</p>
+      <p class="prd-impl">IntentAgent 自然语言分类（ready/chat/clarify）</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card pass">
+      <span class="prd-badge">B</span>
+      <h4>任务理解与规划</h4>
+      <p class="prd-req">LLM 拆解为可执行子任务</p>
+      <p class="prd-impl">PlannerAgent few-shot 生成 7 章结构化大纲</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card pass">
+      <span class="prd-badge">C</span>
+      <h4>文档生成与编辑</h4>
+      <p class="prd-req">自动生成并迭代核心文档</p>
+      <p class="prd-impl">Writer + Review 5 维度自评迭代，5646 字</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card pass">
+      <span class="prd-badge">D</span>
+      <h4>PPT 演示稿生成</h4>
+      <p class="prd-req">结构化为演示材料</p>
+      <p class="prd-impl">python-pptx 生成 8 页 .pptx + Speaker Notes</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card pass">
+      <span class="prd-badge">E</span>
+      <h4>多端协作与一致性</h4>
+      <p class="prd-req">移动端+桌面端实时同步</p>
+      <p class="prd-impl">Dashboard SSE + Flutter + WebSocket SyncHub</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card pass">
+      <span class="prd-badge">F</span>
+      <h4>总结与交付</h4>
+      <p class="prd-req">汇报/归档成果输出</p>
+      <p class="prd-impl">task_delivered_card（摘要+耗时+产物链接）</p>
+      <span class="prd-status">&#10004; PASS</span>
+    </div>
+    <div class="prd-card bonus pass">
+      <span class="prd-badge">&#11088;</span>
+      <h4>主动澄清</h4>
+      <p class="prd-req">Agent 发起任务澄清</p>
+      <p class="prd-impl">IntentAgent 模糊意图 &rarr; clarify 卡片引导</p>
+      <span class="prd-status">&#10004; 加分</span>
+    </div>
+    <div class="prd-card bonus pass">
+      <span class="prd-badge">&#11088;</span>
+      <h4>第三方平台集成</h4>
+      <p class="prd-req">飞书开放平台 API</p>
+      <p class="prd-impl">lark-oapi 全套：Doc / Drive / CardKit / Bot</p>
+      <span class="prd-status">&#10004; 加分</span>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Before/After -->
+<section id="compare" class="container reveal">
+  <h2 class="section-title">效果对比 &middot; <em>Before vs After</em></h2>
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <h3>Before &mdash; 传统方式</h3>
+      <ul>
+        <li>&#9201; 写一份报告：<strong>2-4 小时</strong></li>
+        <li>&#9201; 做 8 页 PPT：<strong>3-5 小时</strong></li>
+        <li>&#128260; 应用切换：<strong>5+ 次</strong></li>
+        <li>&#128548; 质量保障：<strong>靠个人经验</strong></li>
+        <li>&#128241; 多端同步：<strong>手动复制粘贴</strong></li>
+      </ul>
+    </div>
+    <div class="compare-arrow">&#8594;</div>
+    <div class="compare-card after">
+      <h3>After &mdash; Agent-Pilot</h3>
+      <ul>
+        <li>&#9201; 写一份报告：<strong>90 秒</strong> <span class="up">&uarr; 96%</span></li>
+        <li>&#9201; 做 8 页 PPT：<strong>120 秒</strong> <span class="up">&uarr; 97%</span></li>
+        <li>&#128260; 应用切换：<strong>0 次</strong> <span class="up">&uarr; 100%</span></li>
+        <li>&#128161; 质量保障：<strong>5 维度 AI 自评</strong></li>
+        <li>&#128241; 多端同步：<strong>SSE 实时自动</strong></li>
+      </ul>
+    </div>
   </div>
 </section>
 

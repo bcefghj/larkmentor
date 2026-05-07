@@ -34,22 +34,40 @@
     $$('.reveal').forEach(el => io.observe(el));
   }
 
-  /* ====== Hero Stats ====== */
+  /* ====== Hero Stats (animated counter) ====== */
   function initStats() {
     const container = $('#heroStats');
     if (!container) return;
     const data = [
-      { v: '90s', k: '全链路交付' },
-      { v: '6', k: '专业 Agent' },
-      { v: '14/14', k: 'PRD 测试通过' },
-      { v: '185', k: '源文件' },
+      { target: 90, suffix: 's', k: '全链路交付' },
+      { target: 6, suffix: '', k: '专业 Agent' },
+      { target: 14, suffix: '/14', k: 'PRD 测试通过' },
+      { target: 185, suffix: '', k: '源文件' },
     ];
     data.forEach(d => {
       const el = document.createElement('div');
       el.className = 'stat';
-      el.innerHTML = `<div class="v">${d.v}</div><div class="k">${d.k}</div>`;
+      const vEl = document.createElement('div');
+      vEl.className = 'v';
+      vEl.textContent = '0' + d.suffix;
+      el.appendChild(vEl);
+      const kEl = document.createElement('div');
+      kEl.className = 'k';
+      kEl.textContent = d.k;
+      el.appendChild(kEl);
       container.appendChild(el);
+      animateCounter(vEl, d.target, d.suffix);
     });
+  }
+
+  function animateCounter(el, target, suffix) {
+    let current = 0;
+    const step = Math.max(1, Math.floor(target / 30));
+    const interval = setInterval(() => {
+      current += step;
+      if (current >= target) { current = target; clearInterval(interval); }
+      el.textContent = current + suffix;
+    }, 40);
   }
 
   /* ====== IM Simulator ====== */

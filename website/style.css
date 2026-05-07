@@ -309,6 +309,44 @@ button { font: inherit; color: inherit; cursor: pointer; background: none; borde
 .reveal { opacity: 0; transform: translateY(20px); transition: opacity .6s ease, transform .6s ease; }
 .reveal.visible { opacity: 1; transform: translateY(0); }
 
+/* PRD Coverage grid */
+.prd-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.prd-card {
+  background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px; box-shadow: var(--shadow); position: relative; transition: all .2s;
+}
+.prd-card.pass { border-left: 4px solid var(--ok); }
+.prd-card.bonus { border-left: 4px solid var(--warn); }
+.prd-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.prd-badge {
+  display: inline-block; font-family: var(--mono); font-size: .68rem; font-weight: 700;
+  padding: 3px 8px; background: var(--accent-soft); color: var(--accent); border-radius: 4px; margin-bottom: 6px;
+}
+.prd-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+.prd-req { font-size: .78rem; color: var(--fg3); margin-bottom: 4px; }
+.prd-impl { font-size: .82rem; color: var(--fg2); }
+.prd-status { position: absolute; top: 12px; right: 12px; font-size: .72rem; font-weight: 600; color: var(--ok); }
+.prd-card.bonus .prd-status { color: var(--warn); }
+
+/* Before/After comparison */
+.compare-grid { display: flex; align-items: stretch; gap: 20px; }
+@media (max-width: 768px) { .compare-grid { flex-direction: column; } }
+.compare-card { flex: 1; background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+.compare-card.before { border-top: 3px solid var(--bad); }
+.compare-card.after { border-top: 3px solid var(--ok); }
+.compare-card h3 { font-size: 1rem; margin-bottom: 12px; }
+.compare-card.before h3 { color: var(--bad); }
+.compare-card.after h3 { color: var(--ok); }
+.compare-card ul { list-style: none; }
+.compare-card li { padding: 6px 0; font-size: .88rem; border-bottom: 1px solid var(--line); }
+.compare-card li:last-child { border-bottom: none; }
+.compare-card .up { font-size: .72rem; color: var(--ok); font-weight: 600; margin-left: 6px; }
+.compare-arrow { display: flex; align-items: center; font-size: 2rem; color: var(--accent); font-weight: 700; }
+@media (max-width: 768px) { .compare-arrow { justify-content: center; transform: rotate(90deg); } }
+
+/* Animated counter */
+.stats .stat .v { font-size: 1.4rem; font-weight: 700; color: var(--accent); font-family: var(--mono); }
+
 /* Responsive */
 @media (max-width: 768px) {
   .topbar .links { gap: 12px; font-size: .8rem; }

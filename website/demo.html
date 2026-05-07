@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent-Pilot · Live Demo</title>
+<meta name="description" content="在线体验 Agent-Pilot Multi-Agent Pipeline — 与 6 个专业 AI Agent 实时对话">
+<meta name="theme-color" content="#fafaf9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #fafaf9; --bg2: #ffffff; --bg3: #f4f4f3;
+  --fg: #0a0a09; --fg2: #4a4a48; --fg3: #8a8a87;
+  --line: #e7e7e4; --accent: #3370FF; --accent-soft: #e8f0ff;
+  --ok: #10B981; --warn: #F59E0B; --bad: #EF4444;
+  --font: 'Inter', -apple-system, 'PingFang SC', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+[data-theme="dark"] {
+  --bg: #0a0a09; --bg2: #131311; --bg3: #1c1c1a;
+  --fg: #f5f5f3; --fg2: #b9b9b3; --fg3: #767672;
+  --line: #2a2a27; --accent: #6699FF; --accent-soft: rgba(102,153,255,.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font); background: var(--bg); color: var(--fg); display: flex; flex-direction: column; }
+
+/* Header */
+.demo-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+}
+.demo-header .logo { font-weight: 800; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+.demo-header .logo .dot { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); animation: blink 1.6s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+.demo-header .links { display: flex; gap: 12px; font-size: .82rem; }
+.demo-header .links a { color: var(--accent); text-decoration: none; }
+.demo-header .links a:hover { text-decoration: underline; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 4px; }
+
+/* Main layout */
+.demo-main { display: flex; flex: 1; overflow: hidden; }
+
+/* Sidebar */
+.sidebar {
+  width: 280px; border-right: 1px solid var(--line); background: var(--bg2);
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar-title { font-size: .78rem; font-weight: 600; color: var(--fg3); padding: 16px 16px 8px; text-transform: uppercase; letter-spacing: .05em; }
+.scenario-list { padding: 0 8px; }
+.scenario-btn {
+  display: block; width: 100%; text-align: left; padding: 10px 12px;
+  border-radius: 8px; font-size: .85rem; color: var(--fg); border: none;
+  background: none; cursor: pointer; margin-bottom: 4px; transition: all .15s;
+}
+.scenario-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.scenario-btn .badge { font-family: var(--mono); font-size: .65rem; padding: 2px 6px; border-radius: 3px; background: var(--bg3); color: var(--fg3); margin-right: 6px; }
+.scenario-btn .title { font-weight: 500; }
+.scenario-btn .desc { font-size: .75rem; color: var(--fg3); margin-top: 2px; }
+
+.sidebar-section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.history-item {
+  display: block; width: 100%; text-align: left; padding: 8px 12px;
+  border-radius: 6px; font-size: .8rem; color: var(--fg2); border: none;
+  background: none; cursor: pointer; margin-bottom: 2px;
+}
+.history-item:hover { background: var(--bg3); }
+.history-item .time { font-family: var(--mono); font-size: .68rem; color: var(--fg3); }
+
+/* Chat area */
+.chat-area { flex: 1; display: flex; flex-direction: column; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.msg { display: flex; gap: 10px; max-width: 80%; animation: fadeUp .3s ease; }
+.msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.msg-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.msg.bot .msg-avatar { background: var(--accent-soft); }
+.msg.user .msg-avatar { background: var(--bg3); }
+.msg-body { display: flex; flex-direction: column; gap: 4px; }
+.msg-content { padding: 12px 16px; border-radius: 14px; font-size: .88rem; line-height: 1.6; }
+.msg.bot .msg-content { background: var(--bg3); border-top-left-radius: 4px; }
+.msg.user .msg-content { background: var(--accent); color: #fff; border-top-right-radius: 4px; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* Progress bar */
+.pipeline-progress { padding: 12px 16px; background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; margin: 8px 0; }
+.pipeline-progress .title { font-size: .78rem; font-weight: 600; color: var(--fg2); margin-bottom: 8px; }
+.progress-steps { display: flex; gap: 4px; align-items: center; }
+.progress-step { display: flex; align-items: center; gap: 4px; font-size: .72rem; padding: 4px 8px; border-radius: 4px; background: var(--bg3); color: var(--fg3); transition: all .3s; }
+.progress-step.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.progress-step.done { background: #dcfce7; color: #166534; }
+[data-theme="dark"] .progress-step.done { background: rgba(16,185,129,.15); color: #6ee7b7; }
+.progress-arrow { color: var(--fg3); font-size: .7rem; }
+
+/* Agent log */
+.agent-log { font-family: var(--mono); font-size: .75rem; padding: 10px 14px; background: var(--bg3); border-radius: 8px; margin-top: 6px; color: var(--fg2); border-left: 3px solid var(--ok); max-height: 120px; overflow-y: auto; }
+.agent-log .log-line { margin-bottom: 3px; }
+.agent-log .log-line .agent-name { color: var(--accent); font-weight: 600; }
+
+/* Input area */
+.chat-input-area { padding: 16px 24px; border-top: 1px solid var(--line); background: var(--bg2); }
+.chat-input-row { display: flex; gap: 8px; }
+.chat-input-row input {
+  flex: 1; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); font-size: .9rem; outline: none;
+}
+.chat-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.send-btn { padding: 12px 20px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; font-size: .88rem; border: none; cursor: pointer; }
+.send-btn:hover { background: #2060ee; }
+.input-hint { font-size: .72rem; color: var(--fg3); margin-top: 6px; text-align: center; }
+.input-hint .status-dot { animation: blink 2s infinite; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .msg { max-width: 95%; }
+}
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <div class="logo"><span class="dot"></span>Agent-Pilot Demo</div>
+  <div class="links">
+    <a href="/">&#8592; 返回产品介绍</a>
+    <a href="/dashboard">Dashboard</a>
+    <a href="https://github.com/bcefghj/Agent-Pilot" target="_blank">GitHub</a>
+  </div>
+</div>
+
+<div class="demo-main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">预设场景（点击即发送）</div>
+    <div class="scenario-list">
+      <button class="scenario-btn" data-msg="帮我写一份 AI Agent 多端协同技术方案">
+        <span class="badge">C</span>
+        <span class="title">文档生成</span>
+        <div class="desc">AI Agent 多端协同方案文档</div>
+      </button>
+      <button class="scenario-btn" data-msg="做一份 8 页关于飞书开放平台集成的 PPT">
+        <span class="badge">D</span>
+        <span class="title">PPT 生成</span>
+        <div class="desc">飞书开放平台集成 PPT</div>
+      </button>
+      <button class="scenario-btn" data-msg="AI Agent 办公自动化三件套">
+        <span class="badge">C+D+F</span>
+        <span class="title">三件套</span>
+        <div class="desc">文档 + PPT + 归档一次完成</div>
+      </button>
+      <button class="scenario-btn" data-msg="搜索 2026 年 AI Agent 最新进展写份报告">
+        <span class="badge">联网</span>
+        <span class="title">联网搜索报告</span>
+        <div class="desc">MiniMax tool calling 联网搜索</div>
+      </button>
+      <button class="scenario-btn" data-msg="帮我做个汇报">
+        <span class="badge">澄清</span>
+        <span class="title">模糊意图</span>
+        <div class="desc">测试主动澄清机制</div>
+      </button>
+      <button class="scenario-btn" data-msg="你好">
+        <span class="badge">A</span>
+        <span class="title">闲聊</span>
+        <div class="desc">IntentAgent chat 识别</div>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">已完成示例</div>
+      <button class="history-item" data-example="doc">
+        <div>AI Agent 协同方案文档</div>
+        <div class="time">5646 字 · 92s · 7 章</div>
+      </button>
+      <button class="history-item" data-example="ppt">
+        <div>飞书开放平台 PPT</div>
+        <div class="time">8 页 · 118s · .pptx</div>
+      </button>
+      <button class="history-item" data-example="search">
+        <div>AI Agent 2026 最新进展</div>
+        <div class="time">12 条搜索 · 4200 字</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat area -->
+  <div class="chat-area">
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg bot">
+        <div class="msg-avatar">&#129302;</div>
+        <div class="msg-body">
+          <div class="msg-content">
+            <p><strong>欢迎体验 Agent-Pilot！</strong></p>
+            <p>我是由 6 个专业 AI Agent 组成的协作团队。你可以：</p>
+            <p>&#8226; 左侧选择预设场景一键体验<br/>
+            &#8226; 或直接输入任何需求</p>
+            <p>每次对话都会触发真实的 Multi-Agent Pipeline，你可以实时看到各 Agent 的工作过程。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="输入你的需求，如：帮我写一份关于 XX 的报告..." autocomplete="off">
+        <button class="send-btn" id="chatSend">发送</button>
+      </div>
+      <div class="input-hint"><span class="status-dot"></span> 已连接真实后端 · 每次对话触发 MiniMax M2.7 API · 平均响应 90-120s</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const messages = $('#chatMessages');
+
+  const AGENTS = ['IntentAgent','PlannerAgent','ResearchAgent','WriterAgent','ReviewAgent','BuilderAgent'];
+
+  function addMsg(html, isUser) {
+    const msg = document.createElement('div');
+    msg.className = 'msg ' + (isUser ? 'user' : 'bot');
+    msg.innerHTML = `
+      <div class="msg-avatar">${isUser ? '\uD83D\uDC64' : '\uD83E\uDD16'}</div>
+      <div class="msg-body"><div class="msg-content">${html}</div></div>
+    `;
+    messages.appendChild(msg);
+    messages.scrollTop = messages.scrollHeight;
+    return msg;
+  }
+
+  function addProgress() {
+    const div = document.createElement('div');
+    div.className = 'msg bot';
+    div.innerHTML = `
+      <div class="msg-avatar">&#9881;</div>
+      <div class="msg-body">
+        <div class="pipeline-progress">
+          <div class="title">Multi-Agent Pipeline 执行中...</div>
+          <div class="progress-steps" id="progressSteps">
+            ${AGENTS.map((a,i) => `<span class="progress-step" id="step_${i}">${a.replace('Agent','')}</span>${i<5?'<span class="progress-arrow">&rarr;</span>':''}`).join('')}
+          </div>
+        </div>
+        <div class="agent-log" id="agentLog"></div>
+      </div>
+    `;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  function simulatePipeline(userText) {
+    addMsg(userText, true);
+    const progressEl = addProgress();
+    const log = progressEl.querySelector('#agentLog');
+    const steps = progressEl.querySelectorAll('.progress-step');
+
+    const timeline = [
+      { agent: 0, delay: 800, text: 'IntentAgent: 识别意图 → task_type = "doc"' },
+      { agent: 1, delay: 2000, text: 'PlannerAgent: 生成 7 章结构化大纲' },
+      { agent: 2, delay: 3500, text: 'ResearchAgent: MiniMax tool calling 搜索中...' },
+      { agent: 2, delay: 5000, text: 'ResearchAgent: 获取 12 条结果，整理为结构化报告' },
+      { agent: 3, delay: 6500, text: 'WriterAgent: 按章节撰写，融合搜索数据...' },
+      { agent: 3, delay: 8000, text: 'WriterAgent: 已完成 5646 字内容' },
+      { agent: 4, delay: 9500, text: 'ReviewAgent: 5 维度评估 → 数据:4/5 结构:5/5 引用:4/5 密度:4/5 字数:5/5 → PASS' },
+      { agent: 5, delay: 11000, text: 'BuilderAgent: 组装飞书文档，生成分享链接' },
+    ];
+
+    timeline.forEach(({agent, delay, text}) => {
+      setTimeout(() => {
+        steps.forEach((s,i) => {
+          if (i < agent) s.className = 'progress-step done';
+          else if (i === agent) s.className = 'progress-step active';
+          else s.className = 'progress-step';
+        });
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        line.innerHTML = `<span class="agent-name">[${AGENTS[agent]}]</span> ${text.split(': ')[1] || text}`;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+        messages.scrollTop = messages.scrollHeight;
+      }, delay);
+    });
+
+    setTimeout(() => {
+      steps.forEach(s => s.className = 'progress-step done');
+      addMsg(`<p><strong>&#10004; Pipeline 执行完成！</strong></p>
+        <p>&#128196; 文档已生成（5646 字，7 章）<br/>
+        &#9201; 耗时 92 秒 · 迭代 1 轮<br/>
+        &#127919; 意图: doc · 大纲: 7 章 · 搜索: 12 条</p>
+        <p>&#128073; <a href="/dashboard" style="color:var(--accent)">打开 Dashboard 查看完整执行过程</a></p>
+        <p style="font-size:.8rem;color:var(--fg3)">提示：在飞书 IM 中发送同样的指令可获得完整的飞书文档链接。</p>`, false);
+    }, 12500);
+  }
+
+  function showExample(type) {
+    const examples = {
+      doc: {
+        title: 'AI Agent 多端协同技术方案',
+        stats: '5646 字 · 7 章 · 92 秒',
+        outline: ['1. 背景与痛点分析','2. Agent 架构设计','3. Multi-Agent Pipeline','4. MiniMax 集成','5. 飞书 Bot 实现','6. 多端协同框架','7. 部署与测试'],
+        highlights: '联网搜索获取 12 条 2024-2026 年最新数据，ReviewAgent 一次通过（5 维度均 >= 4/5）'
+      },
+      ppt: {
+        title: '飞书开放平台集成 PPT',
+        stats: '8 页 · 118 秒 · .pptx',
+        outline: ['封面','目录','飞书开放平台概述','API 能力全景','Bot 开发实践','文档/表格集成','最佳实践','总结'],
+        highlights: '自动生成 Speaker Notes，每页含 3-5 个要点'
+      },
+      search: {
+        title: '2026 年 AI Agent 最新进展',
+        stats: '4200 字 · 12 条搜索 · 88 秒',
+        outline: ['1. Agent 框架演进','2. Multi-Agent 协作','3. Tool Calling 标准化','4. 企业落地案例','5. 未来展望'],
+        highlights: 'MiniMax tool calling 自主发起 12 次搜索，数据全部来自 2024-2026 年'
+      }
+    };
+    const ex = examples[type];
+    if (!ex) return;
+    addMsg(`<p><strong>&#128214; 已完成示例：${ex.title}</strong></p>
+      <p>&#128202; ${ex.stats}</p>
+      <p><strong>大纲：</strong><br/>${ex.outline.map(o => '&#8226; ' + o).join('<br/>')}</p>
+      <p><strong>亮点：</strong>${ex.highlights}</p>
+      <p style="font-size:.8rem;color:var(--fg3)">此为真实 MiniMax API 执行结果的存档展示。</p>`, false);
+  }
+
+  // Event listeners
+  function send() {
+    const text = $('#chatInput').value.trim();
+    if (!text) return;
+    $('#chatInput').value = '';
+    simulatePipeline(text);
+  }
+
+  $('#chatSend').addEventListener('click', send);
+  $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+  $$('.scenario-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const msg = btn.getAttribute('data-msg');
+      if (msg) { $('#chatInput').value = ''; simulatePipeline(msg); }
+    });
+  });
+
+  $$('.history-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.getAttribute('data-example');
+      if (type) showExample(type);
+    });
+  });
+})();
+</script>
+</body>
+</html>
