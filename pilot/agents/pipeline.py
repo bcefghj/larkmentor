@@ -69,22 +69,24 @@ async def doc_pipeline(state: AgentState) -> AgentState:
 
     logger.info("[doc_pipeline] start: intent=%s", state.get("intent", "")[:60])
 
-    # 聚合上下文记忆
+    # 上下文记忆（仅供 Planner 参考，不污染 intent）
     try:
-        from pilot.context.context_pack import ContextPackBuilder  # noqa: F401
         from pilot.context.event_log import EventLog
 
-        recent_sessions = EventLog.list_sessions(limit=5)
+        recent_sessions = EventLog.list_sessions(limit=3)
         history_context = []
         for sid in recent_sessions[:3]:
+            if sid == state.get("plan_id", ""):
+                continue
             log = EventLog(session_id=sid)
-            events = await log.read_recent(limit=5)
+            events = await log.read_recent(limit=3)
             if events:
-                summary = f"历史任务 {sid[:16]}: " + str(events[0].get("payload", {}).get("intent", ""))[:60]
-                history_context.append(summary)
+                summary = str(events[0].get("payload", {}).get("intent", ""))[:60]
+                if summary:
+                    history_context.append(summary)
 
         if history_context:
-            state["intent"] = state.get("intent", "") + "\n\n[上下文参考]\n" + "\n".join(history_context)
+            state["_history_context"] = history_context  # type: ignore[typeddict-item]
     except Exception as e:
         logger.debug("ContextPack aggregation skipped: %s", e)
 
@@ -96,7 +98,7 @@ async def doc_pipeline(state: AgentState) -> AgentState:
 
     await _emit(event_log, "agent.start", {"agent": "ResearchAgent", "role": "联网搜索", "step": "为每章搜索支撑数据"})
     state = await researcher.execute(state)
-    await _emit(event_log, "agent.done", {"agent": "ResearchAgent", "findings": sum(len(r.get("findings", [])) for r in state.get("research_results", []))})
+    await _emit(event_log, "agent.done", {"agent": "ResearchAgent", "sections_researched": len(state.get("research_results", []))})
     logger.info("[doc_pipeline] researcher done: %d results", len(state.get("research_results", [])))
 
     for iteration in range(MAX_REVIEW_ITERATIONS):

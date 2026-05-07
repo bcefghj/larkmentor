@@ -16,15 +16,20 @@ from pilot.agents.base import AgentState, BaseAgent
 logger = logging.getLogger("pilot.agents.planner")
 
 _PLANNER_SYSTEM_PROMPT = """\
-你是 Agent-Pilot 的规划师，擅长将用户模糊的办公需求拆解为结构化大纲。
+你是 Agent-Pilot 的规划师，擅长将用户需求拆解为结构化文档大纲。
 你可以联网搜索最新信息来辅助规划。
 
+核心原则：
+- 大纲必须紧密围绕用户提到的具体主题
+- 联网搜索该主题的最新信息来确定章节结构
+- 章节标题要具体、有信息量，不能泛泛而谈
+
 输出要求：
-1. 严格输出 JSON（不要多余文字）
+1. 严格输出 JSON（不要多余文字、不要 markdown code fence）
 2. 格式：{"title": "文档标题", "sections": [{"heading": "章节标题", "key_points": ["要点1", "要点2"]}]}
-3. sections 至少 5 个章节
+3. sections 5-8 个章节
 4. 每个章节 2-4 个 key_points
-5. 章节应包含：背景/现状、目标/受众、核心方案、数据/案例、风险/对策、结论/下一步
+5. 标题和要点必须与用户的主题直接相关，不要用"背景与现状"这种万能模板
 """
 
 _FALLBACK_OUTLINE: dict[str, Any] = {
@@ -51,12 +56,25 @@ class PlannerAgent(BaseAgent):
         intent = state.get("intent", "")
         task_type = state.get("task_type", "doc")
 
-        prompt = f"""请为以下任务生成结构化大纲：
+        type_hint = {
+            "doc": "技术报告/研究文档",
+            "ppt": "演示文稿（每章对应一页 slide）",
+            "canvas": "架构图/流程图",
+            "trio": "完整方案（文档+架构图+PPT）",
+        }.get(task_type, "文档")
 
-用户意图：{intent}
-产出类型：{task_type}
+        prompt = f"""请联网搜索「{intent}」的相关信息，然后为它生成一份{type_hint}的结构化大纲。
 
-输出严格 JSON 格式：
+用户需求：{intent}
+产出形式：{type_hint}
+
+要求：
+1. 先联网了解「{intent}」是什么，确保大纲内容准确
+2. 章节标题必须与「{intent}」直接相关，体现专业性
+3. 5-8 个章节，每章 2-4 个要点
+4. 不要用"背景与现状""风险与对策"这种万能模板标题
+
+输出严格 JSON（不要 ```json 包裹）：
 {{"title": "...", "sections": [{{"heading": "...", "key_points": ["..."]}}]}}
 """
         raw = await self._call_llm(prompt, temperature=0.4, max_tokens=2048)

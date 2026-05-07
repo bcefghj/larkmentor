@@ -170,19 +170,23 @@ def task_delivered_card(
 
 def help_card() -> dict[str, Any]:
     return {
-        "header": {"title": {"tag": "plain_text", "content": "🛫 Agent-Pilot V1 · 使用帮助"}, "template": "blue"},
+        "header": {"title": {"tag": "plain_text", "content": "🛫 Agent-Pilot V2.0 · 智能办公助手"}, "template": "blue"},
         "elements": [
             {"tag": "div", "text": {"tag": "lark_md", "content": (
-                "**自然语言触发（最常用）**\n"
-                "- `帮我写一份关于 X 的报告` → 文档\n"
-                "- `做一份 8 页客户汇报 PPT` → PPT\n"
-                "- `画一张产品架构图` → 画布\n"
-                "- `产品方案 + 架构图 + 评审 PPT` → ⭐ 三件套\n\n"
-                "**显式命令**\n"
-                "- `/pilot <意图>` 强制触发\n"
-                "- `状态` 查看进度\n"
-                "- `帮助` 显示本卡片\n\n"
-                "**模糊意图会主动澄清**：发`帮我做个汇报`试试 ✨"
+                "**我能做什么**\n"
+                "我是 AI 驱动的多 Agent 协作助手，能自动联网搜索 + 生成高质量文档和 PPT。\n\n"
+                "**直接说需求即可（示例）**\n"
+                "- `帮我写一份关于 AI Agent 的技术报告` → 自动生成文档\n"
+                "- `做一份 8 页产品介绍 PPT` → 生成演示稿\n"
+                "- `画一张系统架构图` → 画布/架构图\n"
+                "- `写一份产品方案 + 架构图 + 汇报 PPT` → 三件套\n\n"
+                "**工作流程**\n"
+                "Planner（规划大纲）→ Researcher（联网搜索数据）→ Writer（撰写内容）→ Reviewer（质量检查）→ 交付\n\n"
+                "**命令**\n"
+                "- `帮助` 显示本卡片\n"
+                "- `状态` 查看当前任务进度\n"
+                "- `/pilot <需求>` 强制触发任务\n\n"
+                "💡 说的越具体（主题 + 受众 + 页数），生成质量越高"
             )}},
         ],
     }

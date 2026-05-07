@@ -45,10 +45,13 @@ class WriterAgent(BaseAgent):
             state["draft_sections"] = []
             return state
 
-        research_map: dict[str, list[dict[str, str]]] = {}
+        research_map: dict[str, dict[str, str]] = {}
         for r in research:
             if isinstance(r, dict):
-                research_map[r.get("heading", "")] = r.get("findings", [])
+                research_map[r.get("heading", "")] = {
+                    "data": r.get("data", ""),
+                    "source": r.get("source", ""),
+                }
 
         sem = asyncio.Semaphore(self.max_concurrent)
         tasks = [
@@ -79,38 +82,36 @@ class WriterAgent(BaseAgent):
     async def _write_section(
         self,
         section: dict[str, Any],
-        research_map: dict[str, list[dict[str, str]]],
+        research_map: dict[str, dict[str, str]],
         intent: str,
         sem: asyncio.Semaphore,
     ) -> dict[str, str]:
         heading = section.get("heading", "")
         key_points = section.get("key_points", [])
-        findings = research_map.get(heading, [])
+        research_info = research_map.get(heading, {})
 
-        cite_block = ""
-        if findings:
-            lines = ["\n参考资料（请在正文中以 [1] [2] 形式引用）："]
-            for i, f in enumerate(findings[:5], 1):
-                lines.append(
-                    f"[{i}] {f.get('title', '')}\n"
-                    f"    URL: {f.get('url', '')}\n"
-                    f"    摘要: {f.get('snippet', '')}"
-                )
-            cite_block = "\n".join(lines)
+        research_block = ""
+        if research_info.get("data"):
+            research_block = (
+                f"\n\n联网搜索到的真实数据（必须在正文中引用）：\n"
+                f"数据：{research_info['data']}\n"
+                f"来源：{research_info.get('source', '联网搜索')}\n"
+            )
 
         prompt = f"""请为以下章节生成内容（300-500 字）：
 
 文档主题：{intent}
 章节标题：{heading}
 要点：{', '.join(str(p) for p in key_points)}
-{cite_block}
+{research_block}
 
 要求：
 1. 以 "## {heading}" 开头
 2. 300-500 字，信息密度高
-3. 引用上述参考资料中的数据（[1] [2] 格式）
-4. 包含具体数据、案例或洞察
-5. 直接输出 Markdown 正文
+3. 必须引用上面搜索到的真实数据，在文中标注来源
+4. 围绕文档主题「{intent}」展开，不要跑题
+5. 包含具体数据、案例或洞察
+6. 直接输出 Markdown 正文，不要元语言
 """
         async with sem:
             content = await self._call_llm(
